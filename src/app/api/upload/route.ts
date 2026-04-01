@@ -1,11 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { auth } from '@/lib/auth';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import path from 'path';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check authentication
+    const session = await auth();
+
+    if (!session?.user) {
+      console.error('Upload attempted without authentication');
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     console.log('=== UPLOAD START ===');
+    console.log('Authenticated user:', session.user.email);
+
     const formData = await request.formData();
     console.log('FormData received');
 
@@ -44,8 +58,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
+    // For Vercel serverless, use /tmp directory
+    const uploadDir = '/tmp/uploads';
     console.log('Upload directory:', uploadDir);
 
     if (!existsSync(uploadDir)) {
@@ -68,12 +82,19 @@ export async function POST(request: NextRequest) {
 
     console.log('File saved successfully:', filename);
 
-    // Return the URL path
-    const url = `/uploads/${filename}`;
-    console.log('Upload complete:', { url, filename });
-    console.log('=== UPLOAD END ===');
+    // For Vercel, return a base64 data URL instead of a file path
+    const base64 = buffer.toString('base64');
+    const mimeType = file.type;
+    const dataUrl = `data:${mimeType};base64,${base64}`;
 
-    return NextResponse.json({ url, filename });
+    console.log('Upload complete (data URL)');
+
+    return NextResponse.json({
+      url: dataUrl,
+      filename,
+      mimeType,
+      size: file.size
+    });
   } catch (error) {
     console.error('=== UPLOAD ERROR ===');
     console.error('Error details:', error);
