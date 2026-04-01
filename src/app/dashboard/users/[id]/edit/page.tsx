@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,8 +19,8 @@ interface UserData {
   active: boolean;
 }
 
-export default function EditUserPage({ params }: { params: Promise<{ id: string }> }) {
-  const resolvedParams = use(params);
+export default function EditUserPage() {
+  const params = useParams();
   const router = useRouter();
   const { user: currentUser, isAdmin, loading: permissionsLoading } = usePermissions();
   
@@ -46,18 +46,18 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
       }
       
       // Allow admins or the user themselves
-      if (!isAdmin && currentUser.id !== resolvedParams.id) {
+      if (!isAdmin && currentUser.id !== params.id as string) {
         router.push('/dashboard');
         return;
       }
       
       fetchUser();
     }
-  }, [currentUser, isAdmin, permissionsLoading, resolvedParams.id]);
+  }, [currentUser, isAdmin, permissionsLoading, params.id as string]);
 
   async function fetchUser() {
     try {
-      const response = await fetch(`/api/users/${resolvedParams.id}`);
+      const response = await fetch(`/api/users/${params.id as string}`);
       if (response.ok) {
         const data = await response.json();
         setUser(data);
@@ -112,7 +112,7 @@ export default function EditUserPage({ params }: { params: Promise<{ id: string 
         body.active = form.active;
       }
 
-      const response = await fetch(`/api/users/${resolvedParams.id}`, {
+      const response = await fetch(`/api/users/${params.id as string}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
