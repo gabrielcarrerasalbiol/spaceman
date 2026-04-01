@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { User, Palette, Settings as SettingsIcon, Users, ArrowRight } from 'lucide-react';
+import { User, Palette, Settings as SettingsIcon, Users, ArrowRight, Upload, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,7 @@ export default function SettingsPage() {
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   // Stats for admin
   const [stats, setStats] = useState({ total: 0, admins: 0, active: 0 });
@@ -160,6 +161,38 @@ export default function SettingsPage() {
       setPasswordMessage({ type: 'error', text: 'Failed to change password. Please try again.' });
     } finally {
       setPasswordLoading(false);
+    }
+  }
+
+  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingLogo(true);
+    setSiteMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'logo');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSiteForm({ ...siteForm, siteLogo: data.url });
+        setSiteMessage({ type: 'success', text: 'Logo uploaded successfully!' });
+      } else {
+        const error = await response.json();
+        setSiteMessage({ type: 'error', text: error.error || 'Failed to upload logo' });
+      }
+    } catch (error) {
+      setSiteMessage({ type: 'error', text: 'Failed to upload logo. Please try again.' });
+    } finally {
+      setUploadingLogo(false);
     }
   }
 
@@ -408,20 +441,65 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="siteLogo" className="text-sm font-medium">
-                      Logo URL
-                    </label>
-                    <Input
-                      id="siteLogo"
-                      type="url"
-                      value={siteForm.siteLogo}
-                      onChange={(e) => setSiteForm({ ...siteForm, siteLogo: e.target.value })}
-                      placeholder="https://example.com/logo.png"
-                    />
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">
+                        Upload Logo
+                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-xl border transition hover:opacity-80" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                          <Upload className="h-4 w-4" />
+                          <span className="text-sm">{uploadingLogo ? 'Uploading...' : 'Choose File'}</span>
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                            onChange={handleLogoUpload}
+                            disabled={uploadingLogo}
+                            className="hidden"
+                          />
+                        </label>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                          PNG, JPEG, GIF, WebP, SVG (max 5MB)
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                      <span className="text-xs px-2" style={{ color: 'var(--text-muted)' }}>OR</span>
+                      <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
+                    </div>
+
+                    <div>
+                      <label htmlFor="siteLogo" className="text-sm font-medium">
+                        Logo URL
+                      </label>
+                      <Input
+                        id="siteLogo"
+                        type="url"
+                        value={siteForm.siteLogo}
+                        onChange={(e) => setSiteForm({ ...siteForm, siteLogo: e.target.value })}
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+
                     {siteForm.siteLogo && (
-                      <div className="mt-2 p-4 rounded-xl flex items-center justify-center" style={{ backgroundColor: 'var(--surface-2)' }}>
-                        <img src={siteForm.siteLogo} alt="Logo preview" className="h-16 w-16 rounded-xl object-cover" />
+                      <div className="mt-2 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface-2)' }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-sm font-medium">Preview</span>
+                          <button
+                            type="button"
+                            onClick={() => setSiteForm({ ...siteForm, siteLogo: '' })}
+                            className="flex items-center gap-1 text-xs transition hover:opacity-80"
+                            style={{ color: 'var(--danger)' }}
+                          >
+                            <X className="h-3 w-3" />
+                            Remove
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-center p-4 rounded-xl" style={{ backgroundColor: 'var(--surface-0)' }}>
+                          <img src={siteForm.siteLogo} alt="Logo preview" className="h-20 w-20 rounded-xl object-contain" />
+                        </div>
                       </div>
                     )}
                   </div>
