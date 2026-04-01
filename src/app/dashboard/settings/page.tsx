@@ -82,8 +82,8 @@ export default function SettingsPage() {
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-
-  // Enhanced stats for admin
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [roles, setRoles] = useState<any[]>([]);
   const [stats, setStats] = useState({
     total: 0,
     admins: 0,
@@ -124,8 +124,69 @@ export default function SettingsPage() {
   useEffect(() => {
     if (isAdmin) {
       fetchStats();
+      fetchUsersAndRoles();
     }
   }, [isAdmin]);
+
+  async function fetchUsersAndRoles() {
+    try {
+      const [usersRes, rolesRes] = await Promise.all([
+        fetch('/api/users/list'),
+        fetch('/api/roles')
+      ]);
+
+      if (usersRes.ok) {
+        const users = await usersRes.json();
+        setAllUsers(users);
+      }
+
+      if (rolesRes.ok) {
+        const roles = await rolesRes.json();
+        setRoles(roles);
+      }
+    } catch (error) {
+      console.error('Failed to fetch users and roles:', error);
+    }
+  }
+
+  async function assignRole(userId: string, roleId: string | null) {
+    try {
+      const response = await fetch('/api/users/list', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, roleId }),
+      });
+
+      if (response.ok) {
+        await fetchUsersAndRoles();
+        alert('Role updated successfully!');
+      } else {
+        alert('Failed to update role');
+      }
+    } catch (error) {
+      console.error('Role assignment error:', error);
+      alert('Failed to update role');
+    }
+  }
+
+  async function fixMyRole() {
+    try {
+      const response = await fetch('/api/fix-role', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        alert(`Role fixed! You are now: ${data.user.role}`);
+        window.location.reload();
+      } else {
+        alert('Failed to fix role');
+      }
+    } catch (error) {
+      console.error('Role fix error:', error);
+      alert('Failed to fix role');
+    }
+  }
 
   async function fetchStats() {
     try {
@@ -1000,6 +1061,27 @@ export default function SettingsPage() {
 
         {/* Users Tab - Always visible for debugging */}
         <TabsContent value="users">
+            {/* Role Management */}
+            <Card className="mb-6">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                         style={{ backgroundColor: `color-mix(in srgb, var(--warning) 16%, var(--surface-0))` }}>
+                      <Crown className="h-4 w-4" style={{ color: 'var(--warning)' }} />
+                    </div>
+                    <div>
+                      <CardTitle>Fix Your Role</CardTitle>
+                      <CardDescription>If you're seeing "Unknown" role, click here to fix it</CardDescription>
+                    </div>
+                  </div>
+                  <Button onClick={fixMyRole} className="rounded-xl">
+                    Fix My Role
+                  </Button>
+                </div>
+              </CardHeader>
+            </Card>
+
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
