@@ -88,9 +88,6 @@ body.sidebar-collapsed .sidebar-nav-link {
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
   body {
     background: radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent-soft) 35%, transparent), transparent 34%), var(--app-bg);
     color: var(--text-strong);
