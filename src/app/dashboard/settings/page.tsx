@@ -286,28 +286,40 @@ export default function SettingsPage() {
     setUploadingLogo(true);
     setSiteMessage(null);
 
+    console.log('=== CLIENT UPLOAD START ===');
+    console.log('File:', file.name, file.type, file.size);
+
     try {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('type', 'logo');
+
+      console.log('Sending request to /api/upload');
 
       const response = await fetch('/api/upload', {
         method: 'POST',
         body: formData,
       });
 
+      console.log('Response status:', response.status);
+
+      const data = await response.json();
+      console.log('Response data:', data);
+
       if (response.ok) {
-        const data = await response.json();
         setSiteForm({ ...siteForm, siteLogo: data.url });
         setSiteMessage({ type: 'success', text: 'Logo uploaded successfully!' });
+        console.log('Upload successful:', data.url);
       } else {
-        const error = await response.json();
-        setSiteMessage({ type: 'error', text: error.error || 'Failed to upload logo' });
+        console.error('Upload failed:', data);
+        setSiteMessage({ type: 'error', text: data.error || data.details || 'Failed to upload logo' });
       }
     } catch (error) {
-      setSiteMessage({ type: 'error', text: 'Failed to upload logo. Please try again.' });
+      console.error('Upload error:', error);
+      setSiteMessage({ type: 'error', text: `Failed to upload logo: ${error instanceof Error ? error.message : 'Unknown error'}` });
     } finally {
       setUploadingLogo(false);
+      console.log('=== CLIENT UPLOAD END ===');
     }
   }
 
