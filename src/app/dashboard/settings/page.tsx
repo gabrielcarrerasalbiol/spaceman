@@ -38,6 +38,13 @@ export default function SettingsPage() {
   const router = useRouter();
   const { update } = useSession();
   const { isAdmin, user: currentUser } = usePermissions();
+
+  // Debug logging
+  useEffect(() => {
+    console.log('Settings page - isAdmin:', isAdmin);
+    console.log('Settings page - user:', currentUser);
+    console.log('Settings page - user role:', currentUser?.role);
+  }, [isAdmin, currentUser]);
   const { theme, setTheme } = useTheme();
   const { settings, updateSettings, loading: settingsLoading } = useSettings();
 
@@ -391,27 +398,27 @@ export default function SettingsPage() {
       )}
 
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="w-full justify-start rounded-xl p-1">
+        <TabsList className="w-full justify-start rounded-xl p-1 flex-wrap">
           <TabsTrigger value="profile" className="flex items-center gap-2 rounded-lg">
             <User className="h-4 w-4" />
-            <span className="hidden sm:inline">Profile</span>
+            <span>Profile</span>
           </TabsTrigger>
           <TabsTrigger value="security" className="flex items-center gap-2 rounded-lg">
             <Lock className="h-4 w-4" />
-            <span className="hidden sm:inline">Security</span>
+            <span>Security</span>
           </TabsTrigger>
-          {isAdmin && (
+          {isAdmin ? (
             <>
               <TabsTrigger value="branding" className="flex items-center gap-2 rounded-lg">
                 <ImageIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Branding</span>
+                <span>Branding</span>
               </TabsTrigger>
               <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg">
                 <Users className="h-4 w-4" />
-                <span className="hidden sm:inline">Users</span>
+                <span>Users</span>
               </TabsTrigger>
             </>
-          )}
+          ) : null}
         </TabsList>
 
         {/* Profile Tab */}
