@@ -37,14 +37,22 @@ import { usePermissions } from '@/hooks/usePermissions';
 export default function SettingsPage() {
   const router = useRouter();
   const { update } = useSession();
+  const { data: session } = useSession();
   const { isAdmin, user: currentUser } = usePermissions();
 
-  // Debug logging
+  // Enhanced debugging
   useEffect(() => {
-    console.log('Settings page - isAdmin:', isAdmin);
-    console.log('Settings page - user:', currentUser);
-    console.log('Settings page - user role:', currentUser?.role);
-  }, [isAdmin, currentUser]);
+    console.log('=== SETTINGS PAGE DEBUG ===');
+    console.log('Full session:', session);
+    console.log('Session user:', session?.user);
+    console.log('Session user role:', (session?.user as any)?.role);
+    console.log('Type of role:', typeof (session?.user as any)?.role);
+    console.log('isAdmin from hook:', isAdmin);
+    console.log('currentUser:', currentUser);
+    console.log('currentUser role:', currentUser?.role);
+    console.log('==========================');
+  }, [session, isAdmin, currentUser]);
+
   const { theme, setTheme } = useTheme();
   const { settings, updateSettings, loading: settingsLoading } = useSettings();
 
@@ -349,18 +357,21 @@ export default function SettingsPage() {
             Manage your account and application settings
           </p>
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-xl border"
-               style={{
-                 borderColor: 'var(--accent)',
-                 backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))`
-               }}>
-            <Shield className="h-5 w-5" style={{ color: 'var(--accent)' }} />
-            <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
-              Admin Access
-            </span>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl border"
+             style={{
+               borderColor: 'var(--accent)',
+               backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))`
+             }}>
+          <Shield className="h-5 w-5" style={{ color: 'var(--accent)' }} />
+          <div className="text-left">
+            <p className="text-xs font-semibold" style={{ color: 'var(--accent)' }}>
+              {isAdmin ? 'Admin Access' : 'User Access'}
+            </p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Role: {(session?.user as any)?.role || 'Unknown'}
+            </p>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Admin Stats Overview */}
@@ -407,18 +418,16 @@ export default function SettingsPage() {
             <Lock className="h-4 w-4" />
             <span>Security</span>
           </TabsTrigger>
-          {isAdmin ? (
-            <>
-              <TabsTrigger value="branding" className="flex items-center gap-2 rounded-lg">
-                <ImageIcon className="h-4 w-4" />
-                <span>Branding</span>
-              </TabsTrigger>
-              <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg">
-                <Users className="h-4 w-4" />
-                <span>Users</span>
-              </TabsTrigger>
-            </>
-          ) : null}
+
+          {/* Always show these tabs for debugging - we'll hide content based on permissions */}
+          <TabsTrigger value="branding" className="flex items-center gap-2 rounded-lg">
+            <ImageIcon className="h-4 w-4" />
+            <span>Branding</span>
+          </TabsTrigger>
+          <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg">
+            <Users className="h-4 w-4" />
+            <span>Users</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Profile Tab */}
