@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Settings {
+  id              String   @id @default(cuid())
+  siteName        String   @default("Skeleton")
+  siteLogo        String?
+  siteDescription String?
+  primaryColor    String   @default("#3b82f6")
+  updatedAt       DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model users {
+  id                 BigInt      @id @default(autoincrement())
+  username           String?     @unique @db.VarChar(12)
+  email              String      @unique @db.VarChar(255)
+  password           String      @db.VarChar(255)
+  authLevel          Int         @default(1)
+  roleId             Int?
+  banned             Boolean     @default(false)
+  active             Boolean     @default(true)
+  passwdRecoveryCode String?     @db.VarChar(60)
+  passwdRecoveryDate DateTime?
+  passwdModifiedAt   DateTime?
+  lastLogin          DateTime?
+  createdAt          DateTime    @default(now())
+  modifiedAt         DateTime    @updatedAt
+  role               Role?       @relation(fields: [roleId], references: [id])
+  activities         activities[]
+
+  @@map("users")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique @db.VarChar(50)
+  label       String   @db.VarChar(255)
+  description String?
+  isSystem    Boolean  @default(false)
+  permissions Json     @default("{}")
+  priority    Int      @default(0)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  modifiedAt  DateTime @updatedAt
+  users       users[]
+
+  @@index([name])
+  @@index([priority])
+  @@map("roles")
+}
+
+model activities {
+  id          Int      @id @default(autoincrement())
+  userId      BigInt
+  type        String   @db.VarChar(50)
+  title       String   @db.VarChar(255)
+  description String?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  user        users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@map("activities")
+}
+
+enum ActivityType {
+  LOGIN
+  LOGOUT
+  PASSWORD_CHANGE
+  PROFILE_UPDATE
+}

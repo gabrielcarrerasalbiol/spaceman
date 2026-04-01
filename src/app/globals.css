@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --sidebar-width: 20rem;
+    --app-bg: #f3f6fd;
+    --surface-0: #ffffff;
+    --surface-1: #f8faff;
+    --surface-2: #edf2fb;
+    --text-strong: #14233a;
+    --text-muted: #556781;
+    --border: #d6dfeb;
+    --accent: #3b82f6;
+    --accent-strong: #2563eb;
+    --accent-soft: #dbeafe;
+    --success: #17876a;
+    --warning: #a3721f;
+    --danger: #b1454f;
+    --radius: 0.5rem;
+  }
+
+  html[data-theme='dark'] {
+    --app-bg: #050c18;
+    --surface-0: #0a1628;
+    --surface-1: #0d1b31;
+    --surface-2: #132540;
+    --text-strong: #e8f0ff;
+    --text-muted: #9daece;
+    --border: #1f3557;
+    --accent: #3b82f6;
+    --accent-strong: #60a5fa;
+    --accent-soft: #1e3a5f;
+    --success: #46c2a2;
+    --warning: #e1b86d;
+    --danger: #ef8f99;
+  }
+}
+
+body.sidebar-collapsed {
+  --sidebar-width: 4.5rem;
+}
+
+body.sidebar-expanded {
+  --sidebar-width: 20rem;
+}
+
+.sidebar-toggle-fab {
+  position: fixed;
+  top: 5rem;
+  left: calc(var(--sidebar-width) - 1.05rem);
+  z-index: 45;
+  height: 2rem;
+  width: 2rem;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--surface-0);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  align-items: center;
+  justify-content: center;
+  transition: all 150ms ease;
+  cursor: pointer;
+  display: inline-flex;
+}
+
+.sidebar-toggle-fab:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+body.sidebar-collapsed .sidebar-brand-title,
+body.sidebar-collapsed .sidebar-nav-label,
+body.sidebar-collapsed .sidebar-session-panel {
+  display: none;
+}
+
+body.sidebar-collapsed .sidebar-brand-shell,
+body.sidebar-collapsed .sidebar-nav-link {
+  justify-content: center;
+}
+
+.sidebar-nav-link:hover {
+  background: var(--surface-2);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    background: radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent-soft) 35%, transparent), transparent 34%), var(--app-bg);
+    color: var(--text-strong);
+    min-height: 100vh;
+  }
+}
