@@ -108,12 +108,10 @@ function UsersContent() {
             Manage users and their permissions
           </p>
         </div>
-        <Link href="/dashboard/users/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
-        </Link>
+        <Button onClick={() => window.location.href = '/dashboard/users/new'}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add User
+        </Button>
       </div>
 
       <Card>
@@ -189,11 +187,13 @@ function UsersContent() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/dashboard/users/${user.id}/edit`}>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </Link>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => window.location.href = `/dashboard/users/${user.id}/edit`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
