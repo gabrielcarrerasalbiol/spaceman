@@ -646,9 +646,8 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Branding Tab (Admin Only) */}
-        {isAdmin && (
-          <TabsContent value="branding">
+        {/* Branding Tab - Always visible for debugging */}
+        <TabsContent value="branding">
             <div className="space-y-6">
               {/* Logo Upload Card - PROMINENT */}
               <Card>
@@ -998,11 +997,9 @@ export default function SettingsPage() {
               </Card>
             </div>
           </TabsContent>
-        )}
 
-        {/* Users Tab (Admin Only) */}
-        {isAdmin && (
-          <TabsContent value="users">
+        {/* Users Tab - Always visible for debugging */}
+        <TabsContent value="users">
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
@@ -1048,7 +1045,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
-        )}
       </Tabs>
     </div>
   );
