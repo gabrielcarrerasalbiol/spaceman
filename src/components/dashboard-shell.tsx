@@ -97,6 +97,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               href="/dashboard"
               className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
               prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard';
+              }}
             >
               <Home className="h-5 w-5" />
               <span className="sidebar-nav-label">Dashboard</span>
@@ -106,6 +110,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 href="/dashboard/users"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
                 prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/users';
+                }}
               >
                 <Users className="h-5 w-5" />
                 <span className="sidebar-nav-label">Users</span>
@@ -115,6 +123,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               href="/dashboard/settings"
               className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
               prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/settings';
+              }}
             >
               <Settings className="h-5 w-5" />
               <span className="sidebar-nav-label">Settings</span>
@@ -188,6 +200,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             href="/dashboard"
             className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
             prefetch={true}
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = '/dashboard';
+            }}
           >
             <Home className="h-5 w-5" />
             <span>Dashboard</span>
@@ -197,6 +213,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               href="/dashboard/users"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
               prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/users';
+              }}
             >
               <Users className="h-5 w-5" />
               <span>Users</span>
@@ -206,6 +226,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             href="/dashboard/settings"
             className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
             prefetch={true}
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = '/dashboard/settings';
+            }}
           >
             <Settings className="h-5 w-5" />
             <span>Settings</span>
