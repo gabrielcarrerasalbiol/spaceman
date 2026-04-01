@@ -4,7 +4,26 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { User, Palette, Settings as SettingsIcon, Users, ArrowRight, Upload, X } from 'lucide-react';
+import {
+  User,
+  Palette,
+  Settings as SettingsIcon,
+  Users,
+  ArrowRight,
+  Upload,
+  X,
+  Shield,
+  Lock,
+  TrendingUp,
+  Activity,
+  Crown,
+  Mail,
+  Key,
+  Image as ImageIcon,
+  CheckCircle2,
+  XCircle,
+  Zap
+} from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -21,7 +40,7 @@ export default function SettingsPage() {
   const { isAdmin, user: currentUser } = usePermissions();
   const { theme, setTheme } = useTheme();
   const { settings, updateSettings, loading: settingsLoading } = useSettings();
-  
+
   const [profileForm, setProfileForm] = useState({
     username: '',
     email: '',
@@ -47,22 +66,36 @@ export default function SettingsPage() {
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
 
-  // Stats for admin
-  const [stats, setStats] = useState({ total: 0, admins: 0, active: 0 });
+  // Enhanced stats for admin
+  const [stats, setStats] = useState({
+    total: 0,
+    admins: 0,
+    active: 0,
+    recentLogins: 0,
+    profileCompletion: 0
+  });
 
   useEffect(() => {
-    // Load current user data
     if (currentUser) {
       setProfileForm({
         username: currentUser.name || '',
         email: currentUser.email || '',
       });
+
+      // Calculate profile completion
+      const completion = [
+        currentUser.name ? 25 : 0,
+        currentUser.email ? 25 : 0,
+        25, // Has account
+        25, // Is active
+      ].reduce((acc: number, val: number) => acc + val, 0);
+      setStats(prev => ({ ...prev, profileCompletion: completion }));
     }
   }, [currentUser]);
 
   useEffect(() => {
-    // Load site settings
     if (!settingsLoading) {
       setSiteForm({
         siteName: settings.siteName,
@@ -74,7 +107,6 @@ export default function SettingsPage() {
   }, [settings, settingsLoading]);
 
   useEffect(() => {
-    // Load stats for admin
     if (isAdmin) {
       fetchStats();
     }
@@ -85,10 +117,20 @@ export default function SettingsPage() {
       const response = await fetch('/api/users');
       if (response.ok) {
         const users = await response.json();
+        const recentLogins = users.filter((u: any) => {
+          if (!u.lastLogin) return false;
+          const loginDate = new Date(u.lastLogin);
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return loginDate > weekAgo;
+        }).length;
+
         setStats({
           total: users.length,
           admins: users.filter((u: any) => u.role === 'ADMIN').length,
           active: users.filter((u: any) => u.active).length,
+          recentLogins,
+          profileCompletion: stats.profileCompletion,
         });
       }
     } catch (error) {
@@ -127,7 +169,7 @@ export default function SettingsPage() {
 
   async function handlePasswordUpdate(e: React.FormEvent) {
     e.preventDefault();
-    
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       setPasswordMessage({ type: 'error', text: 'Passwords do not match.' });
       return;
@@ -164,10 +206,7 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  async function handleLogoUpload(file: File) {
     setUploadingLogo(true);
     setSiteMessage(null);
 
@@ -196,6 +235,31 @@ export default function SettingsPage() {
     }
   }
 
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) handleLogoUpload(file);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setDragOver(false);
+
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      handleLogoUpload(file);
+    }
+  }
+
   async function handleSiteUpdate(e: React.FormEvent) {
     e.preventDefault();
     setSiteLoading(true);
@@ -216,32 +280,133 @@ export default function SettingsPage() {
     }
   }
 
+  const StatCard = ({
+    title,
+    value,
+    icon: Icon,
+    color,
+    trend,
+    description
+  }: {
+    title: string;
+    value: string | number;
+    icon: any;
+    color: string;
+    trend?: string;
+    description?: string;
+  }) => (
+    <div className="relative overflow-hidden rounded-2xl p-6 border transition-all hover:shadow-lg"
+         style={{
+           borderColor: 'var(--border)',
+           backgroundColor: 'var(--surface-0)'
+         }}>
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-muted)' }}>
+            {title}
+          </p>
+          <p className="text-3xl font-bold" style={{ color: 'var(--text-strong)' }}>
+            {value}
+          </p>
+          {description && (
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              {description}
+            </p>
+          )}
+          {trend && (
+            <div className="flex items-center gap-1 mt-2">
+              <TrendingUp className="h-3 w-3" style={{ color }} />
+              <span className="text-xs font-medium" style={{ color }}>
+                {trend}
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl"
+             style={{ backgroundColor: `color-mix(in srgb, ${color} 16%, var(--surface-0))` }}>
+          <Icon className="h-6 w-6" style={{ color }} />
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold" style={{ color: 'var(--text-strong)' }}>Settings</h1>
-        <p className="mt-2" style={{ color: 'var(--text-muted)' }}>
-          Manage your account settings and preferences
-        </p>
+    <div className="space-y-8">
+      {/* Header Section */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-4xl font-bold" style={{ color: 'var(--text-strong)' }}>
+            Settings
+          </h1>
+          <p className="mt-2 text-lg" style={{ color: 'var(--text-muted)' }}>
+            Manage your account and application settings
+          </p>
+        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2 px-4 py-2 rounded-xl border"
+               style={{
+                 borderColor: 'var(--accent)',
+                 backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))`
+               }}>
+            <Shield className="h-5 w-5" style={{ color: 'var(--accent)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--accent)' }}>
+              Admin Access
+            </span>
+          </div>
+        )}
       </div>
 
+      {/* Admin Stats Overview */}
+      {isAdmin && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Total Users"
+            value={stats.total}
+            icon={Users}
+            color="var(--accent)"
+            description="Registered accounts"
+          />
+          <StatCard
+            title="Active Users"
+            value={stats.active}
+            icon={Activity}
+            color="var(--success)"
+            trend={`${Math.round((stats.active / stats.total) * 100)}% of total`}
+          />
+          <StatCard
+            title="Administrators"
+            value={stats.admins}
+            icon={Crown}
+            color="var(--warning)"
+            description="Full access users"
+          />
+          <StatCard
+            title="Recent Logins"
+            value={stats.recentLogins}
+            icon={Zap}
+            color="var(--danger)"
+            description="Last 7 days"
+          />
+        </div>
+      )}
+
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="w-full justify-start">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
+        <TabsList className="w-full justify-start rounded-xl p-1">
+          <TabsTrigger value="profile" className="flex items-center gap-2 rounded-lg">
             <User className="h-4 w-4" />
             <span className="hidden sm:inline">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="flex items-center gap-2">
-            <Palette className="h-4 w-4" />
-            <span className="hidden sm:inline">Appearance</span>
+          <TabsTrigger value="security" className="flex items-center gap-2 rounded-lg">
+            <Lock className="h-4 w-4" />
+            <span className="hidden sm:inline">Security</span>
           </TabsTrigger>
           {isAdmin && (
             <>
-              <TabsTrigger value="site" className="flex items-center gap-2">
-                <SettingsIcon className="h-4 w-4" />
-                <span className="hidden sm:inline">Site Settings</span>
+              <TabsTrigger value="branding" className="flex items-center gap-2 rounded-lg">
+                <ImageIcon className="h-4 w-4" />
+                <span className="hidden sm:inline">Branding</span>
               </TabsTrigger>
-              <TabsTrigger value="users" className="flex items-center gap-2">
+              <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg">
                 <Users className="h-4 w-4" />
                 <span className="hidden sm:inline">Users</span>
               </TabsTrigger>
@@ -250,34 +415,92 @@ export default function SettingsPage() {
         </TabsList>
 
         {/* Profile Tab */}
-        <TabsContent value="profile">
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>
-                  Update your profile information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleProfileUpdate} className="space-y-4">
-                  {profileMessage && (
-                    <div
-                      className="rounded-lg p-3 text-sm"
-                      style={{
-                        backgroundColor: profileMessage.type === 'success' 
-                          ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
-                          : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
-                        color: profileMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
-                        border: `1px solid ${profileMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
-                      }}
-                    >
-                      {profileMessage.text}
+        <TabsContent value="profile" className="space-y-6">
+          {/* Profile Completion Card */}
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full"
+                       style={{ backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))` }}>
+                    <User className="h-5 w-5" style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div>
+                    <p className="font-semibold" style={{ color: 'var(--text-strong)' }}>
+                      Profile Completion
+                    </p>
+                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Complete your profile to get the most out of the platform
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>
+                    {stats.profileCompletion}%
+                  </p>
+                </div>
+              </div>
+              <div className="h-2 rounded-full overflow-hidden"
+                   style={{ backgroundColor: 'var(--surface-2)' }}>
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${stats.profileCompletion}%`,
+                    backgroundColor: 'var(--accent)'
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Profile Information Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                     style={{ backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))` }}>
+                  <User className="h-4 w-4" style={{ color: 'var(--accent)' }} />
+                </div>
+                <div>
+                  <CardTitle>Profile Information</CardTitle>
+                  <CardDescription>Update your personal information</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleProfileUpdate} className="space-y-6">
+                {profileMessage && (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border"
+                       style={{
+                         backgroundColor: profileMessage.type === 'success'
+                           ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
+                           : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
+                         borderColor: profileMessage.type === 'success'
+                           ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                           : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                       }}>
+                    {profileMessage.type === 'success' ? (
+                      <CheckCircle2 className="h-5 w-5 mt-0.5" style={{ color: 'var(--success)' }} />
+                    ) : (
+                      <XCircle className="h-5 w-5 mt-0.5" style={{ color: 'var(--danger)' }} />
+                    )}
+                    <div>
+                      <p className="font-medium" style={{
+                        color: profileMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'
+                      }}>
+                        {profileMessage.type === 'success' ? 'Success' : 'Error'}
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        {profileMessage.text}
+                      </p>
                     </div>
-                  )}
-                  
+                  </div>
+                )}
+
+                <div className="grid gap-6 sm:grid-cols-2">
                   <div className="space-y-2">
-                    <label htmlFor="username" className="text-sm font-medium">
+                    <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium">
+                      <User className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
                       Username
                     </label>
                     <Input
@@ -287,12 +510,14 @@ export default function SettingsPage() {
                       onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
                       placeholder="Enter your username"
                       maxLength={12}
+                      className="rounded-xl"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-medium">
-                      Email
+                    <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium">
+                      <Mail className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                      Email Address
                     </label>
                     <Input
                       id="email"
@@ -300,42 +525,70 @@ export default function SettingsPage() {
                       value={profileForm.email}
                       onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
                       placeholder="Enter your email"
+                      className="rounded-xl"
                     />
                   </div>
+                </div>
 
-                  <Button type="submit" disabled={profileLoading}>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={profileLoading} className="rounded-xl px-6">
                     {profileLoading ? 'Updating...' : 'Update Profile'}
                   </Button>
-                </form>
-              </CardContent>
-            </Card>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>
-                  Update your password to keep your account secure
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handlePasswordUpdate} className="space-y-4">
-                  {passwordMessage && (
-                    <div
-                      className="rounded-lg p-3 text-sm"
-                      style={{
-                        backgroundColor: passwordMessage.type === 'success' 
-                          ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
-                          : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
-                        color: passwordMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
-                        border: `1px solid ${passwordMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
-                      }}
-                    >
-                      {passwordMessage.text}
+        {/* Security Tab */}
+        <TabsContent value="security">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                     style={{ backgroundColor: `color-mix(in srgb, var(--warning) 16%, var(--surface-0))` }}>
+                  <Key className="h-4 w-4" style={{ color: 'var(--warning)' }} />
+                </div>
+                <div>
+                  <CardTitle>Change Password</CardTitle>
+                  <CardDescription>Update your password to keep your account secure</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handlePasswordUpdate} className="space-y-6">
+                {passwordMessage && (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border"
+                       style={{
+                         backgroundColor: passwordMessage.type === 'success'
+                           ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
+                           : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
+                         borderColor: passwordMessage.type === 'success'
+                           ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                           : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                       }}>
+                    {passwordMessage.type === 'success' ? (
+                      <CheckCircle2 className="h-5 w-5 mt-0.5" style={{ color: 'var(--success)' }} />
+                    ) : (
+                      <XCircle className="h-5 w-5 mt-0.5" style={{ color: 'var(--danger)' }} />
+                    )}
+                    <div>
+                      <p className="font-medium" style={{
+                        color: passwordMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'
+                      }}>
+                        {passwordMessage.type === 'success' ? 'Success' : 'Error'}
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        {passwordMessage.text}
+                      </p>
                     </div>
-                  )}
+                  </div>
+                )}
 
+                <div className="space-y-4">
                   <div className="space-y-2">
-                    <label htmlFor="newPassword" className="text-sm font-medium">
+                    <label htmlFor="newPassword" className="flex items-center gap-2 text-sm font-medium">
+                      <Key className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
                       New Password
                     </label>
                     <Input
@@ -346,11 +599,13 @@ export default function SettingsPage() {
                       placeholder="Enter new password"
                       required
                       minLength={8}
+                      className="rounded-xl"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <label htmlFor="confirmPassword" className="text-sm font-medium">
+                    <label htmlFor="confirmPassword" className="flex items-center gap-2 text-sm font-medium">
+                      <CheckCircle2 className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
                       Confirm New Password
                     </label>
                     <Input
@@ -360,113 +615,255 @@ export default function SettingsPage() {
                       onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                       placeholder="Confirm new password"
                       required
+                      className="rounded-xl"
                     />
                   </div>
+                </div>
 
-                  <Button type="submit" disabled={passwordLoading}>
+                <div className="flex justify-end">
+                  <Button type="submit" disabled={passwordLoading} className="rounded-xl px-6">
                     {passwordLoading ? 'Changing Password...' : 'Change Password'}
                   </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Appearance Tab */}
-        <TabsContent value="appearance">
-          <Card>
-            <CardHeader>
-              <CardTitle>Theme</CardTitle>
-              <CardDescription>
-                Choose your preferred theme
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium" style={{ color: 'var(--text-strong)' }}>Color Theme</p>
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Select Light, Dark, or System preference</p>
                 </div>
-                <ThemeToggle />
-              </div>
-              <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface-2)' }}>
-                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Current theme: <Badge variant="secondary">{theme}</Badge>
-                </p>
-              </div>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Site Settings Tab (Admin Only) */}
+        {/* Branding Tab (Admin Only) */}
         {isAdmin && (
-          <TabsContent value="site">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center gap-2">
-                  <Badge variant="warning">Admin Only</Badge>
-                </div>
-                <CardTitle>Site Settings</CardTitle>
-                <CardDescription>
-                  Configure the site appearance and branding
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSiteUpdate} className="space-y-6">
+          <TabsContent value="branding">
+            <div className="space-y-6">
+              {/* Logo Upload Card - PROMINENT */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                         style={{ backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))` }}>
+                      <ImageIcon className="h-4 w-4" style={{ color: 'var(--accent)' }} />
+                    </div>
+                    <div>
+                      <CardTitle>Site Logo & Branding</CardTitle>
+                      <CardDescription>Upload your logo to customize the site appearance</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   {siteMessage && (
-                    <div
-                      className="rounded-lg p-3 text-sm"
-                      style={{
-                        backgroundColor: siteMessage.type === 'success' 
-                          ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
-                          : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
-                        color: siteMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
-                        border: `1px solid ${siteMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'}`,
-                      }}
-                    >
-                      {siteMessage.text}
+                    <div className="flex items-start gap-3 p-4 rounded-xl border"
+                         style={{
+                           backgroundColor: siteMessage.type === 'success'
+                             ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
+                             : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
+                           borderColor: siteMessage.type === 'success'
+                             ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                             : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                         }}>
+                      {siteMessage.type === 'success' ? (
+                        <CheckCircle2 className="h-5 w-5 mt-0.5" style={{ color: 'var(--success)' }} />
+                      ) : (
+                        <XCircle className="h-5 w-5 mt-0.5" style={{ color: 'var(--danger)' }} />
+                      )}
+                      <div>
+                        <p className="font-medium" style={{
+                          color: siteMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'
+                        }}>
+                          {siteMessage.type === 'success' ? 'Success' : 'Error'}
+                        </p>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                          {siteMessage.text}
+                        </p>
+                      </div>
                     </div>
                   )}
 
-                  <div className="space-y-2">
-                    <label htmlFor="siteName" className="text-sm font-medium">
-                      Site Name
+                  {/* Drag & Drop Upload Area */}
+                  <div className="space-y-4">
+                    <label className="text-lg font-semibold" style={{ color: 'var(--text-strong)' }}>
+                      Upload Your Logo
                     </label>
-                    <Input
-                      id="siteName"
-                      type="text"
-                      value={siteForm.siteName}
-                      onChange={(e) => setSiteForm({ ...siteForm, siteName: e.target.value })}
-                      placeholder="Skeleton"
-                    />
+
+                    {!siteForm.siteLogo ? (
+                      <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className="relative flex flex-col items-center justify-center gap-4 p-12 rounded-2xl border-2 border-dashed transition-all"
+                        style={{
+                          borderColor: dragOver
+                            ? 'var(--accent)'
+                            : 'var(--border)',
+                          backgroundColor: dragOver
+                            ? 'color-mix(in srgb, var(--accent) 8%, var(--surface-0))'
+                            : 'var(--surface-0)'
+                        }}
+                      >
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                          onChange={handleFileSelect}
+                          disabled={uploadingLogo}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        />
+
+                        <div className="flex h-16 w-16 items-center justify-center rounded-full"
+                             style={{ backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))` }}>
+                          {uploadingLogo ? (
+                            <div className="h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-r-transparent"
+                                 style={{ color: 'var(--accent)' }} />
+                          ) : (
+                            <Upload className="h-8 w-8" style={{ color: 'var(--accent)' }} />
+                          )}
+                        </div>
+
+                        <div className="text-center">
+                          <p className="text-lg font-semibold" style={{ color: 'var(--text-strong)' }}>
+                            {uploadingLogo ? 'Uploading...' : 'Drop your logo here'}
+                          </p>
+                          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                            or click to browse files
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 px-4 py-2 rounded-xl"
+                             style={{ backgroundColor: 'var(--surface-2)' }}>
+                          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                            PNG, JPEG, GIF, WebP, SVG up to 5MB
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Logo Preview with Remove Option */
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-6 rounded-2xl border"
+                             style={{
+                               borderColor: 'var(--border)',
+                               backgroundColor: 'var(--surface-0)'
+                             }}>
+                          <div className="flex items-center gap-4">
+                            <div className="flex h-20 w-20 items-center justify-center rounded-xl p-2"
+                                 style={{ backgroundColor: 'var(--surface-2)' }}>
+                              <img
+                                src={siteForm.siteLogo}
+                                alt="Logo preview"
+                                className="h-full w-full object-contain"
+                              />
+                            </div>
+                            <div>
+                              <p className="font-semibold" style={{ color: 'var(--text-strong)' }}>
+                                Current Logo
+                              </p>
+                              <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                                {siteForm.siteLogo.split('/').pop()}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <label className="flex items-center gap-2 px-4 py-2 rounded-xl border cursor-pointer transition hover:opacity-80"
+                                   style={{
+                                     borderColor: 'var(--border)',
+                                     backgroundColor: 'var(--surface-0)'
+                                   }}>
+                              <Upload className="h-4 w-4" />
+                              <span className="text-sm font-medium">Replace</span>
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                                onChange={handleFileSelect}
+                                disabled={uploadingLogo}
+                                className="hidden"
+                              />
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => setSiteForm({ ...siteForm, siteLogo: '' })}
+                              className="flex items-center gap-2 px-4 py-2 rounded-xl border transition hover:opacity-80"
+                              style={{
+                                borderColor: 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                                backgroundColor: 'color-mix(in srgb, var(--danger) 8%, var(--surface-0))',
+                                color: 'var(--danger)'
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                              <span className="text-sm font-medium">Remove</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Live Previews */}
+                        <div>
+                          <p className="text-sm font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
+                            Live Previews:
+                          </p>
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="p-4 rounded-xl border"
+                                 style={{
+                                   borderColor: 'var(--border)',
+                                   backgroundColor: 'var(--surface-0)'
+                                 }}>
+                              <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
+                                Login Page (80x80)
+                              </p>
+                              <div className="flex items-center justify-center h-20 rounded-xl"
+                                   style={{ backgroundColor: 'var(--surface-2)' }}>
+                                <img
+                                  src={siteForm.siteLogo}
+                                  alt="Login preview"
+                                  className="h-16 w-16 rounded-xl object-contain"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-xl border"
+                                 style={{
+                                   borderColor: 'var(--border)',
+                                   backgroundColor: 'var(--surface-0)'
+                                 }}>
+                              <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
+                                Sidebar (40x40)
+                              </p>
+                              <div className="flex items-center justify-center h-20 rounded-xl"
+                                   style={{ backgroundColor: 'var(--surface-2)' }}>
+                                <img
+                                  src={siteForm.siteLogo}
+                                  alt="Sidebar preview"
+                                  className="h-10 w-10 rounded-xl object-contain"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="p-4 rounded-xl border"
+                                 style={{
+                                   borderColor: 'var(--border)',
+                                   backgroundColor: 'var(--surface-0)'
+                                 }}>
+                              <p className="text-xs font-medium mb-3" style={{ color: 'var(--text-muted)' }}>
+                                Mobile Header (32x32)
+                              </p>
+                              <div className="flex items-center justify-center h-20 rounded-xl"
+                                   style={{ backgroundColor: 'var(--surface-2)' }}>
+                                <img
+                                  src={siteForm.siteLogo}
+                                  alt="Mobile preview"
+                                  className="h-8 w-8 rounded-xl object-contain"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
+                  {/* URL Input Alternative */}
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-sm font-medium mb-2 block">
-                        Upload Logo
-                      </label>
-                      <div className="flex items-center gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer px-4 py-2 rounded-xl border transition hover:opacity-80" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
-                          <Upload className="h-4 w-4" />
-                          <span className="text-sm">{uploadingLogo ? 'Uploading...' : 'Choose File'}</span>
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
-                            onChange={handleLogoUpload}
-                            disabled={uploadingLogo}
-                            className="hidden"
-                          />
-                        </label>
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          PNG, JPEG, GIF, WebP, SVG (max 5MB)
-                        </span>
-                      </div>
-                    </div>
-
                     <div className="flex items-center gap-2">
                       <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
-                      <span className="text-xs px-2" style={{ color: 'var(--text-muted)' }}>OR</span>
+                      <span className="text-xs px-2 font-medium" style={{ color: 'var(--text-muted)' }}>
+                        OR USE URL
+                      </span>
                       <div className="flex-1 h-px" style={{ backgroundColor: 'var(--border)' }} />
                     </div>
 
@@ -474,82 +871,116 @@ export default function SettingsPage() {
                       <label htmlFor="siteLogo" className="text-sm font-medium">
                         Logo URL
                       </label>
-                      <Input
-                        id="siteLogo"
-                        type="url"
-                        value={siteForm.siteLogo}
-                        onChange={(e) => setSiteForm({ ...siteForm, siteLogo: e.target.value })}
-                        placeholder="https://example.com/logo.png"
-                      />
+                      <div className="flex gap-2 mt-2">
+                        <Input
+                          id="siteLogo"
+                          type="url"
+                          value={siteForm.siteLogo}
+                          onChange={(e) => setSiteForm({ ...siteForm, siteLogo: e.target.value })}
+                          placeholder="https://example.com/logo.png"
+                          className="rounded-xl flex-1"
+                        />
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            if (siteForm.siteLogo) {
+                              setSiteForm({ ...siteForm, siteLogo: siteForm.siteLogo });
+                              setSiteMessage({ type: 'success', text: 'Logo URL set!' });
+                            }
+                          }}
+                          variant="outline"
+                          className="rounded-xl"
+                        >
+                          Apply
+                        </Button>
+                      </div>
                     </div>
+                  </div>
+                </CardContent>
+              </Card>
 
-                    {siteForm.siteLogo && (
-                      <div className="mt-2 p-4 rounded-xl" style={{ backgroundColor: 'var(--surface-2)' }}>
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm font-medium">Preview</span>
-                          <button
-                            type="button"
-                            onClick={() => setSiteForm({ ...siteForm, siteLogo: '' })}
-                            className="flex items-center gap-1 text-xs transition hover:opacity-80"
-                            style={{ color: 'var(--danger)' }}
-                          >
-                            <X className="h-3 w-3" />
-                            Remove
-                          </button>
-                        </div>
-                        <div className="flex items-center justify-center p-4 rounded-xl" style={{ backgroundColor: 'var(--surface-0)' }}>
-                          <img src={siteForm.siteLogo} alt="Logo preview" className="h-20 w-20 rounded-xl object-contain" />
+              {/* Site Settings Card */}
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                         style={{ backgroundColor: `color-mix(in srgb, var(--success) 16%, var(--surface-0))` }}>
+                      <SettingsIcon className="h-4 w-4" style={{ color: 'var(--success)' }} />
+                    </div>
+                    <div>
+                      <CardTitle>General Settings</CardTitle>
+                      <CardDescription>Configure your site name and appearance</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleSiteUpdate} className="space-y-6">
+                    <div className="grid gap-6 sm:grid-cols-2">
+                      <div className="space-y-2">
+                        <label htmlFor="siteName" className="text-sm font-medium">
+                          Site Name
+                        </label>
+                        <Input
+                          id="siteName"
+                          type="text"
+                          value={siteForm.siteName}
+                          onChange={(e) => setSiteForm({ ...siteForm, siteName: e.target.value })}
+                          placeholder="My Awesome Site"
+                          className="rounded-xl"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="primaryColor" className="text-sm font-medium">
+                          Primary Color
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <input
+                            id="primaryColor"
+                            type="color"
+                            value={siteForm.primaryColor}
+                            onChange={(e) => setSiteForm({ ...siteForm, primaryColor: e.target.value })}
+                            className="h-10 w-16 rounded-lg cursor-pointer border-0"
+                          />
+                          <Input
+                            type="text"
+                            value={siteForm.primaryColor}
+                            onChange={(e) => setSiteForm({ ...siteForm, primaryColor: e.target.value })}
+                            className="rounded-xl flex-1 font-mono text-sm"
+                            placeholder="#3b82f6"
+                          />
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="siteDescription" className="text-sm font-medium">
-                      Description
-                    </label>
-                    <textarea
-                      id="siteDescription"
-                      value={siteForm.siteDescription}
-                      onChange={(e) => setSiteForm({ ...siteForm, siteDescription: e.target.value })}
-                      placeholder="A Next.js authentication starter"
-                      className="w-full min-h-[100px] rounded-xl border px-3 py-2 text-sm resize-none"
-                      style={{ 
-                        borderColor: 'var(--border)', 
-                        backgroundColor: 'var(--surface-0)',
-                        color: 'var(--text-strong)'
-                      }}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="primaryColor" className="text-sm font-medium">
-                      Primary Color
-                    </label>
-                    <div className="flex items-center gap-4">
-                      <input
-                        id="primaryColor"
-                        type="color"
-                        value={siteForm.primaryColor}
-                        onChange={(e) => setSiteForm({ ...siteForm, primaryColor: e.target.value })}
-                        className="h-10 w-20 rounded-lg cursor-pointer"
-                      />
-                      <Input
-                        type="text"
-                        value={siteForm.primaryColor}
-                        onChange={(e) => setSiteForm({ ...siteForm, primaryColor: e.target.value })}
-                        className="w-32"
-                        placeholder="#3b82f6"
+                    <div className="space-y-2">
+                      <label htmlFor="siteDescription" className="text-sm font-medium">
+                        Site Description
+                      </label>
+                      <textarea
+                        id="siteDescription"
+                        value={siteForm.siteDescription}
+                        onChange={(e) => setSiteForm({ ...siteForm, siteDescription: e.target.value })}
+                        placeholder="A brief description of your site..."
+                        rows={3}
+                        className="w-full rounded-xl border px-3 py-2 text-sm resize-none"
+                        style={{
+                          borderColor: 'var(--border)',
+                          backgroundColor: 'var(--surface-0)',
+                          color: 'var(--text-strong)'
+                        }}
                       />
                     </div>
-                  </div>
 
-                  <Button type="submit" disabled={siteLoading}>
-                    {siteLoading ? 'Saving...' : 'Save Site Settings'}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+                    <div className="flex justify-end">
+                      <Button type="submit" disabled={siteLoading} className="rounded-xl px-6">
+                        {siteLoading ? 'Saving...' : 'Save All Settings'}
+                      </Button>
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
         )}
 
@@ -559,34 +990,42 @@ export default function SettingsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Badge variant="warning">Admin Only</Badge>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                       style={{ backgroundColor: `color-mix(in srgb, var(--warning) 16%, var(--surface-0))` }}>
+                    <Users className="h-4 w-4" style={{ color: 'var(--warning)' }} />
+                  </div>
+                  <div>
+                    <CardTitle>User Management</CardTitle>
+                    <CardDescription>Manage users and their permissions</CardDescription>
+                  </div>
                 </div>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  Manage users and their roles
-                </CardDescription>
               </CardHeader>
-              <CardContent>
-                {/* Quick Stats */}
-                <div className="grid gap-4 sm:grid-cols-3 mb-6">
-                  <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--surface-2)' }}>
-                    <p className="text-2xl font-bold" style={{ color: 'var(--text-strong)' }}>{stats.total}</p>
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Total Users</p>
-                  </div>
-                  <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--surface-2)' }}>
-                    <p className="text-2xl font-bold" style={{ color: 'var(--accent)' }}>{stats.admins}</p>
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Admins</p>
-                  </div>
-                  <div className="rounded-xl p-4" style={{ backgroundColor: 'var(--surface-2)' }}>
-                    <p className="text-2xl font-bold" style={{ color: 'var(--success)' }}>{stats.active}</p>
-                    <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Active</p>
-                  </div>
+              <CardContent className="space-y-6">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <StatCard
+                    title="Total Users"
+                    value={stats.total}
+                    icon={Users}
+                    color="var(--accent)"
+                  />
+                  <StatCard
+                    title="Administrators"
+                    value={stats.admins}
+                    icon={Crown}
+                    color="var(--warning)"
+                  />
+                  <StatCard
+                    title="Active Users"
+                    value={stats.active}
+                    icon={Activity}
+                    color="var(--success)"
+                  />
                 </div>
 
                 <Link href="/dashboard/users">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full rounded-xl">
                     <Users className="mr-2 h-4 w-4" />
-                    Manage Users
+                    Manage All Users
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
