@@ -62,12 +62,12 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       {/* Desktop Sidebar */}
       <aside className="hidden border-r lg:fixed lg:inset-y-0 lg:flex lg:h-screen lg:w-[var(--sidebar-width)] lg:flex-col" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
         <div className="flex h-20 items-center border-b px-6" style={{ borderColor: 'var(--border)' }}>
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3" prefetch={true}>
             {settings.siteLogo ? (
               <img
                 src={settings.siteLogo}
                 alt={settings.siteName}
-                className="h-10 w-10 rounded-xl object-cover"
+                className="h-12 w-auto max-h-12 max-w-[200px] object-contain rounded-xl"
                 style={{ filter: 'var(--logo-filter, none)' }}
               />
             ) : (
@@ -96,6 +96,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             <Link
               href="/dashboard"
               className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
             >
               <Home className="h-5 w-5" />
               <span className="sidebar-nav-label">Dashboard</span>
@@ -104,6 +105,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <Link
                 href="/dashboard/users"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
               >
                 <Users className="h-5 w-5" />
                 <span className="sidebar-nav-label">Users</span>
@@ -112,6 +114,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             <Link
               href="/dashboard/settings"
               className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
             >
               <Settings className="h-5 w-5" />
               <span className="sidebar-nav-label">Settings</span>
@@ -154,12 +157,12 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}
       >
         <div className="flex h-20 items-center justify-between border-b px-6" style={{ borderColor: 'var(--border)' }}>
-          <Link href="/dashboard" className="flex items-center gap-3">
+          <Link href="/dashboard" className="flex items-center gap-3" prefetch={true}>
             {settings.siteLogo ? (
               <img
                 src={settings.siteLogo}
                 alt={settings.siteName}
-                className="h-10 w-10 rounded-xl object-cover"
+                className="h-12 w-auto max-h-12 max-w-[200px] object-contain rounded-xl"
                 style={{ filter: 'var(--logo-filter, none)' }}
               />
             ) : (
@@ -184,6 +187,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           <Link
             href="/dashboard"
             className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+            prefetch={true}
           >
             <Home className="h-5 w-5" />
             <span>Dashboard</span>
@@ -192,6 +196,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             <Link
               href="/dashboard/users"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
             >
               <Users className="h-5 w-5" />
               <span>Users</span>
@@ -200,6 +205,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           <Link
             href="/dashboard/settings"
             className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+            prefetch={true}
           >
             <Settings className="h-5 w-5" />
             <span>Settings</span>
@@ -276,7 +282,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <img
                   src={settings.siteLogo}
                   alt={settings.siteName}
-                  className="h-8 w-8 rounded-lg object-cover"
+                  className="h-10 w-auto max-h-10 max-w-[150px] object-contain rounded-lg"
                   style={{ filter: 'var(--logo-filter, none)' }}
                 />
               ) : (

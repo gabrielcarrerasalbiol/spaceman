@@ -92,7 +92,7 @@ export default function LoginPage() {
               <img
                 src={settings.siteLogo}
                 alt={settings.siteName}
-                className="h-20 w-20 rounded-2xl object-cover"
+                className="h-24 w-auto max-h-24 max-w-[300px] object-contain rounded-2xl"
                 style={{ filter: 'var(--logo-filter, none)' }}
               />
             ) : (
