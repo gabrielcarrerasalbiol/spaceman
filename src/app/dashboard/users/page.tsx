@@ -103,8 +103,8 @@ function UsersContent() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold" style={{ color: 'var(--text-strong)' }}>User Management</h1>
-          <p className="mt-2" style={{ color: 'var(--text-muted)' }}>
+          <h1 className="text-3xl font-bold text-[var(--text-strong)]">User Management</h1>
+          <p className="mt-2 text-[var(--text-muted)]">
             Manage users and their permissions
           </p>
         </div>
@@ -127,7 +127,7 @@ function UsersContent() {
           {/* Search */}
           <div className="mb-6 flex items-center gap-4">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: 'var(--text-muted)' }} />
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
               <Input
                 type="search"
                 placeholder="Search users..."
@@ -140,16 +140,16 @@ function UsersContent() {
 
           {/* Table */}
           {loading ? (
-            <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-center py-8 text-[var(--text-muted)]">
               Loading users...
             </div>
           ) : users.length === 0 ? (
-            <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>
+            <div className="text-center py-8 text-[var(--text-muted)]">
               <UsersIcon className="mx-auto h-12 w-12 mb-4 opacity-50" />
               <p>No users found</p>
             </div>
           ) : (
-            <div className="rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+            <div className="rounded-xl border border-[var(--border)]">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -166,8 +166,8 @@ function UsersContent() {
                     <TableRow key={user.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{user.username || 'No username'}</div>
-                          <div className="text-sm" style={{ color: 'var(--text-muted)' }}>{user.email}</div>
+                          <div className="font-medium text-[var(--text-strong)]">{user.username || 'No username'}</div>
+                          <div className="text-sm text-[var(--text-muted)]">{user.email}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -181,10 +181,10 @@ function UsersContent() {
                           {user.active ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-[var(--text-muted)]">
                         {new Date(user.createdAt).toLocaleDateString()}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="text-[var(--text-muted)]">
                         {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never'}
                       </TableCell>
                       <TableCell className="text-right">
@@ -198,6 +198,7 @@ function UsersContent() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleToggleActive(user.id, user.active)}
+                            title={user.active ? 'Deactivate user' : 'Activate user'}
                           >
                             {user.active ? (
                               <UserX className="h-4 w-4" />
@@ -209,14 +210,14 @@ function UsersContent() {
                             variant="outline"
                             size="sm"
                             onClick={() => handleDelete(user.id)}
-                            style={deleteConfirm === user.id ? { borderColor: 'var(--danger)', color: 'var(--danger)' } : {}}
+                            className={deleteConfirm === user.id ? 'border-[var(--danger)] text-[var(--danger)]' : ''}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                         {deleteConfirm === user.id && (
-                          <p className="text-xs mt-1" style={{ color: 'var(--danger)' }}>
-                            Click again to confirm
+                          <p className="text-xs mt-1 text-[var(--danger)]">
+                            Click again to confirm deletion
                           </p>
                         )}
                       </TableCell>
@@ -236,7 +237,7 @@ export default function UsersPage() {
   return (
     <Suspense fallback={
       <div className="flex items-center justify-center min-h-[400px]">
-        <p style={{ color: 'var(--text-muted)' }}>Loading...</p>
+        <p className="text-[var(--text-muted)]">Loading...</p>
       </div>
     }>
       <UsersContent />
