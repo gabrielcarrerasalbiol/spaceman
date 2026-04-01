@@ -89,7 +89,12 @@ export default function LoginPage() {
         <div>
           <div className="flex justify-center">
             {settings.siteLogo ? (
-              <img src={settings.siteLogo} alt={settings.siteName} className="h-20 w-20 rounded-2xl object-cover" />
+              <img
+                src={settings.siteLogo}
+                alt={settings.siteName}
+                className="h-20 w-20 rounded-2xl object-cover"
+                style={{ filter: 'var(--logo-filter, none)' }}
+              />
             ) : (
               <div className="flex h-20 w-20 items-center justify-center rounded-2xl" style={{ backgroundColor: 'var(--accent-soft)' }}>
                 <Lock className="h-10 w-10" style={{ color: 'var(--accent)' }} />
@@ -97,7 +102,7 @@ export default function LoginPage() {
             )}
           </div>
           <h2 className="mt-6 text-center text-3xl font-extrabold">
-            {settings.siteName}
+            {!settings.siteLogo && settings.siteName}
           </h2>
           {settings.siteDescription && (
             <p className="mt-2 text-center text-sm" style={{ color: 'var(--text-muted)' }}>

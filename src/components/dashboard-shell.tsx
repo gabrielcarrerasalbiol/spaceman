@@ -64,13 +64,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         <div className="flex h-20 items-center border-b px-6" style={{ borderColor: 'var(--border)' }}>
           <Link href="/dashboard" className="flex items-center gap-3">
             {settings.siteLogo ? (
-              <img src={settings.siteLogo} alt={settings.siteName} className="h-10 w-10 rounded-xl object-cover" />
+              <img
+                src={settings.siteLogo}
+                alt={settings.siteName}
+                className="h-10 w-10 rounded-xl object-cover"
+                style={{ filter: 'var(--logo-filter, none)' }}
+              />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--accent-soft)' }}>
                 <span className="text-xl font-bold" style={{ color: 'var(--accent)' }}>{settings.siteName.charAt(0).toUpperCase()}</span>
               </div>
             )}
-            <span className="sidebar-brand-title text-lg font-bold">{settings.siteName}</span>
+            {!settings.siteLogo && (
+              <span className="sidebar-brand-title text-lg font-bold">{settings.siteName}</span>
+            )}
           </Link>
         </div>
 
@@ -149,13 +156,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
         <div className="flex h-20 items-center justify-between border-b px-6" style={{ borderColor: 'var(--border)' }}>
           <Link href="/dashboard" className="flex items-center gap-3">
             {settings.siteLogo ? (
-              <img src={settings.siteLogo} alt={settings.siteName} className="h-10 w-10 rounded-xl object-cover" />
+              <img
+                src={settings.siteLogo}
+                alt={settings.siteName}
+                className="h-10 w-10 rounded-xl object-cover"
+                style={{ filter: 'var(--logo-filter, none)' }}
+              />
             ) : (
               <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--accent-soft)' }}>
                 <span className="text-xl font-bold" style={{ color: 'var(--accent)' }}>{settings.siteName.charAt(0).toUpperCase()}</span>
               </div>
             )}
-            <span className="text-lg font-bold">{settings.siteName}</span>
+            {!settings.siteLogo && (
+              <span className="text-lg font-bold">{settings.siteName}</span>
+            )}
           </Link>
           <button
             type="button"
@@ -259,13 +273,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
             <Link href="/dashboard" className="flex items-center gap-2">
               {settings.siteLogo ? (
-                <img src={settings.siteLogo} alt={settings.siteName} className="h-8 w-8 rounded-lg object-cover" />
+                <img
+                  src={settings.siteLogo}
+                  alt={settings.siteName}
+                  className="h-8 w-8 rounded-lg object-cover"
+                  style={{ filter: 'var(--logo-filter, none)' }}
+                />
               ) : (
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: 'var(--accent-soft)' }}>
                   <span className="text-sm font-bold" style={{ color: 'var(--accent)' }}>{settings.siteName.charAt(0).toUpperCase()}</span>
                 </div>
               )}
-              <span className="font-semibold">{settings.siteName}</span>
+              {!settings.siteLogo && (
+                <span className="font-semibold">{settings.siteName}</span>
+              )}
             </Link>
           </div>
 

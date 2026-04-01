@@ -93,4 +93,13 @@ body.sidebar-collapsed .sidebar-nav-link {
     color: var(--text-strong);
     min-height: 100vh;
   }
+
+  /* Logo filter for dark mode - invert colors */
+  html[data-theme='dark'] {
+    --logo-filter: invert(1) hue-rotate(180deg);
+  }
+
+  html:not([data-theme='dark']) {
+    --logo-filter: none;
+  }
 }

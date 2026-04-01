@@ -20,8 +20,8 @@ export async function GET() {
 
     return NextResponse.json({
       siteName: settings.siteName,
-      siteLogo: settings.siteLogo,
-      siteDescription: settings.siteDescription,
+      siteLogo: settings.siteLogo || null,
+      siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
     });
   } catch (error) {
@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       siteName: settings.siteName,
-      siteLogo: settings.siteLogo,
-      siteDescription: settings.siteDescription,
+      siteLogo: settings.siteLogo || null,
+      siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
     });
   } catch (error) {
