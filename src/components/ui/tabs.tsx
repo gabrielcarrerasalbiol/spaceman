@@ -32,9 +32,9 @@ interface TabsListProps {
 
 export function TabsList({ children, className = '' }: TabsListProps) {
   return (
-    <div 
-      className={`flex space-x-1 rounded-xl p-1 ${className}`}
-      style={{ backgroundColor: 'var(--surface-2)' }}
+    <div
+      className={`flex items-center justify-start gap-1 border-b-2 ${className}`}
+      style={{ borderColor: 'var(--border)' }}
     >
       {children}
     </div>
@@ -56,11 +56,24 @@ export function TabsTrigger({ value, children, className = '' }: TabsTriggerProp
   return (
     <button
       onClick={() => context.setActiveTab(value)}
-      className={`flex-1 rounded-lg px-4 py-2 text-sm font-medium transition-all ${className}`}
+      className={`px-6 py-3 text-sm font-medium transition-all border-b-2 ${className}`}
       style={{
-        backgroundColor: isActive ? 'var(--surface-0)' : 'transparent',
-        color: isActive ? 'var(--text-strong)' : 'var(--text-muted)',
-        boxShadow: isActive ? '0 1px 3px rgba(0, 0, 0, 0.1)' : 'none',
+        borderColor: isActive ? 'var(--accent)' : 'transparent',
+        color: isActive ? 'var(--accent)' : 'var(--text-muted)',
+        backgroundColor: isActive ? 'color-mix(in srgb, var(--accent) 8%, transparent)' : 'transparent',
+        borderRadius: '8px 8px 0 0',
+      }}
+      onMouseEnter={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.color = 'var(--text-strong)'
+          e.currentTarget.style.backgroundColor = 'color-mix(in srgb, var(--accent) 8%, transparent)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isActive) {
+          e.currentTarget.style.color = 'var(--text-muted)'
+          e.currentTarget.style.backgroundColor = 'transparent'
+        }
       }}
     >
       {children}
