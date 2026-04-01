@@ -5,36 +5,36 @@
 @layer base {
   :root {
     --sidebar-width: 20rem;
-    --app-bg: #f3f6fd;
+    --app-bg: #f8fafc;
     --surface-0: #ffffff;
-    --surface-1: #f8faff;
-    --surface-2: #edf2fb;
-    --text-strong: #14233a;
-    --text-muted: #556781;
-    --border: #d6dfeb;
+    --surface-1: #f1f5f9;
+    --surface-2: #e2e8f0;
+    --text-strong: #0f172a;
+    --text-muted: #64748b;
+    --border: #cbd5e1;
     --accent: #3b82f6;
     --accent-strong: #2563eb;
     --accent-soft: #dbeafe;
     --success: #17876a;
     --warning: #a3721f;
-    --danger: #b1454f;
+    --danger: #dc2626;
     --radius: 0.5rem;
   }
 
   html[data-theme='dark'] {
-    --app-bg: #050c18;
-    --surface-0: #0a1628;
-    --surface-1: #0d1b31;
-    --surface-2: #132540;
-    --text-strong: #e8f0ff;
-    --text-muted: #9daece;
-    --border: #1f3557;
+    --app-bg: #0f172a;
+    --surface-0: #1e293b;
+    --surface-1: #334155;
+    --surface-2: #475569;
+    --text-strong: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #64748b;
     --accent: #3b82f6;
     --accent-strong: #60a5fa;
     --accent-soft: #1e3a5f;
     --success: #46c2a2;
     --warning: #e1b86d;
-    --danger: #ef8f99;
+    --danger: #f87171;
   }
 }
 
@@ -94,9 +94,9 @@ body.sidebar-collapsed .sidebar-nav-link {
     min-height: 100vh;
   }
 
-  /* Logo filter for dark mode - invert colors */
+  /* Logo filter for dark mode - convert red to white/light colors */
   html[data-theme='dark'] {
-    --logo-filter: invert(1) hue-rotate(180deg);
+    --logo-filter: brightness(0) invert(1) brightness(2);
   }
 
   html:not([data-theme='dark']) {
