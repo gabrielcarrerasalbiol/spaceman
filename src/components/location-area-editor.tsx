@@ -574,8 +574,8 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
           <CardContent className="p-6 text-[var(--text-muted)]">Create an area to start mapping units.</CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[300px_1fr]">
-          <Card>
+        <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+          <Card className="min-w-0">
             <CardHeader>
               <CardTitle className="text-lg">Area Settings</CardTitle>
               <CardDescription>Background and canvas properties.</CardDescription>
@@ -741,10 +741,10 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                   : 'Current occupancy view with color-coded units.'}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="min-w-0">
               <div
                 ref={canvasViewportRef}
-                className="overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-1)]"
+                className="w-full max-w-full overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-1)]"
                 style={{ maxHeight: '75vh' }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={onDropUnit}

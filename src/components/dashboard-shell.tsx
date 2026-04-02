@@ -357,7 +357,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-[var(--sidebar-width)] min-h-screen">
+      <main className="flex-1 lg:ml-[var(--sidebar-width)] min-h-screen overflow-x-hidden">
         {/* Desktop Header */}
         <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center justify-end border-b px-6" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
           <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--surface-2)' }}>
