@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Edit, MapPin, Plus, Search, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +27,87 @@ interface Location {
   };
 }
 
+type MapLocation = {
+  id: string;
+  name: string;
+  townCity: string | null;
+  postcode: string | null;
+  lat: number;
+  lng: number;
+};
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function LocationsMap({ locations }: { locations: MapLocation[] }) {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!mapContainerRef.current || locations.length === 0) {
+      return;
+    }
+
+    let cancelled = false;
+    let map: any = null;
+
+    async function init() {
+      const L = await import('leaflet');
+      if (cancelled || !mapContainerRef.current) {
+        return;
+      }
+
+      map = L.map(mapContainerRef.current, {
+        zoomControl: true,
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+
+      const bounds = L.latLngBounds([]);
+
+      for (const location of locations) {
+        const marker = L.circleMarker([location.lat, location.lng], {
+          radius: 7,
+          color: '#2563eb',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.9,
+          weight: 2,
+        }).addTo(map);
+
+        marker.bindPopup(
+          `<strong>${escapeHtml(location.name)}</strong><br/>${escapeHtml(
+            [location.townCity, location.postcode].filter(Boolean).join(' ')
+          )}`
+        );
+
+        bounds.extend([location.lat, location.lng]);
+      }
+
+      if (bounds.isValid()) {
+        map.fitBounds(bounds.pad(0.2));
+      }
+    }
+
+    init();
+
+    return () => {
+      cancelled = true;
+      if (map) {
+        map.remove();
+      }
+    };
+  }, [locations]);
+
+  return <div ref={mapContainerRef} className="h-[560px] w-full rounded-xl border border-[var(--border)]" />;
+}
+
 export default function LocationsPage() {
   const router = useRouter();
   const { isAdmin, loading: permissionsLoading } = usePermissions();
@@ -41,6 +122,28 @@ export default function LocationsPage() {
   const [longitude, setLongitude] = useState('');
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
+
+  const mappedLocations = useMemo<MapLocation[]>(() => {
+    return locations
+      .map((location) => {
+        const lat = Number(location.latitude);
+        const lng = Number(location.longitude);
+
+        if (Number.isNaN(lat) || Number.isNaN(lng)) {
+          return null;
+        }
+
+        return {
+          id: location.id,
+          name: location.name,
+          townCity: location.townCity,
+          postcode: location.postcode,
+          lat,
+          lng,
+        };
+      })
+      .filter((location): location is MapLocation => location !== null);
+  }, [locations]);
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -108,12 +211,6 @@ export default function LocationsPage() {
     } finally {
       setGeocoding(false);
     }
-  }
-
-  function mapEmbedUrl(lat: number, lng: number) {
-    const delta = 0.03;
-    const bbox = `${lng - delta}%2C${lat - delta}%2C${lng + delta}%2C${lat + delta}`;
-    return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
   }
 
   async function deleteLocation(id: string) {
@@ -240,30 +337,14 @@ export default function LocationsPage() {
               <CardDescription>Mapped view for locations with latitude and longitude.</CardDescription>
             </CardHeader>
             <CardContent>
-              {locations.filter((l) => l.latitude && l.longitude).length === 0 ? (
+              {mappedLocations.length === 0 ? (
                 <p className="text-[var(--text-muted)]">No coordinates found yet. Add lat/lng manually or use Geocode.</p>
               ) : (
-                <div className="grid gap-4 md:grid-cols-2">
-                  {locations
-                    .filter((location) => location.latitude && location.longitude)
-                    .map((location) => {
-                      const lat = Number(location.latitude);
-                      const lng = Number(location.longitude);
-                      if (Number.isNaN(lat) || Number.isNaN(lng)) return null;
-
-                      return (
-                        <div key={location.id} className="rounded-xl border border-[var(--border)] p-3">
-                          <div className="mb-2 font-medium text-[var(--text-strong)]">{location.name}</div>
-                          <div className="mb-2 text-xs text-[var(--text-muted)]">{lat.toFixed(6)}, {lng.toFixed(6)}</div>
-                          <iframe
-                            title={`map-${location.id}`}
-                            src={mapEmbedUrl(lat, lng)}
-                            className="h-56 w-full rounded-lg border border-[var(--border)]"
-                            loading="lazy"
-                          />
-                        </div>
-                      );
-                    })}
+                <div className="space-y-3">
+                  <LocationsMap locations={mappedLocations} />
+                  <p className="text-xs text-[var(--text-muted)]">
+                    Showing {mappedLocations.length} mapped location{mappedLocations.length === 1 ? '' : 's'}.
+                  </p>
                 </div>
               )}
             </CardContent>
