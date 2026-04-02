@@ -63,6 +63,8 @@ export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [locationFilter, setLocationFilter] = useState('ALL');
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize] = useState(20);
@@ -85,11 +87,11 @@ export default function UnitsPage() {
 
   useEffect(() => {
     fetchUnits();
-  }, [search, currentPage]);
+  }, [search, statusFilter, locationFilter, currentPage]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search]);
+  }, [search, statusFilter, locationFilter]);
 
   async function fetchLocations() {
     const response = await fetch('/api/locations');
@@ -133,6 +135,8 @@ export default function UnitsPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (search) params.set('search', search);
+      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      if (locationFilter !== 'ALL') params.set('locationId', locationFilter);
       params.set('page', String(currentPage));
       params.set('limit', String(pageSize));
 
@@ -185,11 +189,49 @@ export default function UnitsPage() {
           <CardDescription>Search units and review occupancy status.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 max-w-sm">
+          <div className="mb-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px_220px_auto]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
               <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search units..." className="pl-10" />
             </div>
+
+            <select
+              value={locationFilter}
+              onChange={(e) => setLocationFilter(e.target.value)}
+              className="h-10 w-full rounded-xl border px-3 text-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}
+            >
+              <option value="ALL">All locations</option>
+              {locations.map((location) => (
+                <option key={location.id} value={location.id}>{location.name}</option>
+              ))}
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-10 w-full rounded-xl border px-3 text-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}
+            >
+              <option value="ALL">All statuses</option>
+              <option value="AVAILABLE">AVAILABLE</option>
+              <option value="RESERVED">RESERVED</option>
+              <option value="OCCUPIED">OCCUPIED</option>
+              <option value="MAINTENANCE">MAINTENANCE</option>
+              <option value="INACTIVE">INACTIVE</option>
+            </select>
+
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setSearch('');
+                setStatusFilter('ALL');
+                setLocationFilter('ALL');
+              }}
+            >
+              Clear
+            </Button>
           </div>
 
           {loading ? (

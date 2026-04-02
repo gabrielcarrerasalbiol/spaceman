@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const locationId = searchParams.get('locationId') || '';
+    const status = searchParams.get('status') || '';
     const pageParam = Number(searchParams.get('page') || '');
     const limitParam = Number(searchParams.get('limit') || '');
 
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
           }
         : {}),
       ...(locationId ? { locationId } : {}),
+      ...(status ? { status } : {}),
     };
 
     if (isPaginatedRequest) {
