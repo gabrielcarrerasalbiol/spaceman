@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Layers3, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Layers3, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,6 +41,7 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [isBulkSetupOpen, setIsBulkSetupOpen] = useState(false);
   const [form, setForm] = useState({ ...EMPTY_BULK_FORM });
   const [sizeSelection, setSizeSelection] = useState<'custom' | string>('custom');
 
@@ -161,9 +162,32 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle>Bulk Unit Setup</CardTitle>
-          <CardDescription>Define the total number of units for each size at this location. Missing numbered units are created automatically.</CardDescription>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle>Bulk Unit Setup</CardTitle>
+              <CardDescription>Define the total number of units for each size at this location. Missing numbered units are created automatically.</CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsBulkSetupOpen((current) => !current)}
+            >
+              {isBulkSetupOpen ? (
+                <>
+                  Collapse
+                  <ChevronUp className="ml-2 h-4 w-4" />
+                </>
+              ) : (
+                <>
+                  Expand
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </>
+              )}
+            </Button>
+          </div>
         </CardHeader>
+        {isBulkSetupOpen && (
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{error}</div>}
@@ -228,6 +252,7 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
             </div>
           </form>
         </CardContent>
+        )}
       </Card>
 
       <Card>
