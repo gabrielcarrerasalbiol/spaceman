@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
 
 interface Client {
@@ -18,10 +19,25 @@ interface Client {
   email: string | null;
   phone: string | null;
   status: 'ACTIVE' | 'INACTIVE' | 'LEAD';
-  _count: {
-    contracts: number;
-  };
+  _count: { contracts: number };
 }
+
+const EMPTY_FORM = {
+  firstName: '',
+  lastName: '',
+  companyName: '',
+  email: '',
+  phone: '',
+  billingEmail: '',
+  addressLine1: '',
+  addressLine2: '',
+  townCity: '',
+  county: '',
+  postcode: '',
+  country: '',
+  notes: '',
+  status: 'ACTIVE',
+};
 
 export default function ClientsPage() {
   const router = useRouter();
@@ -29,10 +45,11 @@ export default function ClientsPage() {
 
   const [clients, setClients] = useState<Client[]>([]);
   const [search, setSearch] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -62,56 +79,55 @@ export default function ClientsPage() {
     }
   }
 
-  async function createClient() {
-    if (!firstName.trim() || !lastName.trim()) return;
+  function openModal() {
+    setForm({ ...EMPTY_FORM });
+    setFormError(null);
+    setModalOpen(true);
+  }
 
+  function setField(key: keyof typeof EMPTY_FORM, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setFormError(null);
     const response = await fetch('/api/clients', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ firstName, lastName, email }),
+      body: JSON.stringify(form),
     });
-
     if (response.ok) {
-      setFirstName('');
-      setLastName('');
-      setEmail('');
+      setModalOpen(false);
       fetchClients();
+    } else {
+      const data = await response.json();
+      setFormError(data.error || 'Failed to create client');
     }
+    setSaving(false);
   }
 
   async function deleteClient(id: string) {
+    if (!window.confirm('Delete this client? This cannot be undone.')) return;
     const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
     if (response.ok) fetchClients();
   }
 
-  if (permissionsLoading || !isAdmin) {
-    return null;
-  }
+  if (permissionsLoading || !isAdmin) return null;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[var(--text-strong)]">Clients</h1>
-        <p className="mt-2 text-[var(--text-muted)]">Store and manage customer records.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--text-strong)]">Clients</h1>
+          <p className="mt-2 text-[var(--text-muted)]">Store and manage customer records.</p>
+        </div>
+        <Button onClick={openModal}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Client
+        </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Client</CardTitle>
-          <CardDescription>Create a new customer profile.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
-            <Input placeholder="First name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-            <Input placeholder="Last name" value={lastName} onChange={(e) => setLastName(e.target.value)} />
-            <Input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-            <Button onClick={createClient}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Client
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -139,7 +155,7 @@ export default function ClientsPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Client</TableHead>
-                    <TableHead>Email</TableHead>
+                    <TableHead>Email / Phone</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Contracts</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -150,11 +166,12 @@ export default function ClientsPage() {
                     <TableRow key={client.id}>
                       <TableCell>
                         <div className="font-medium">{client.firstName} {client.lastName}</div>
-                        {client.companyName && (
-                          <div className="text-xs text-[var(--text-muted)]">{client.companyName}</div>
-                        )}
+                        {client.companyName && <div className="text-xs text-[var(--text-muted)]">{client.companyName}</div>}
                       </TableCell>
-                      <TableCell>{client.email || client.phone || '-'}</TableCell>
+                      <TableCell>
+                        <div>{client.email || '-'}</div>
+                        {client.phone && <div className="text-xs text-[var(--text-muted)]">{client.phone}</div>}
+                      </TableCell>
                       <TableCell>
                         <Badge variant={client.status === 'ACTIVE' ? 'success' : client.status === 'LEAD' ? 'warning' : 'secondary'}>
                           {client.status}
@@ -179,6 +196,93 @@ export default function ClientsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Client" description="Create a new customer profile." className="max-w-2xl">
+        <form onSubmit={handleCreate} className="space-y-5">
+          {formError && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{formError}</div>}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">First name <span className="text-[var(--danger)]">*</span></label>
+              <Input value={form.firstName} onChange={(e) => setField('firstName', e.target.value)} required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Last name <span className="text-[var(--danger)]">*</span></label>
+              <Input value={form.lastName} onChange={(e) => setField('lastName', e.target.value)} required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Company name</label>
+              <Input value={form.companyName} onChange={(e) => setField('companyName', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Status</label>
+              <select value={form.status} onChange={(e) => setField('status', e.target.value)}
+                className="h-10 w-full rounded-xl border px-3 text-sm"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="INACTIVE">INACTIVE</option>
+                <option value="LEAD">LEAD</option>
+              </select>
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Contact</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" value={form.email} onChange={(e) => setField('email', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Phone</label>
+              <Input type="tel" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Billing email</label>
+              <Input type="email" value={form.billingEmail} onChange={(e) => setField('billingEmail', e.target.value)} />
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Address</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Address line 1</label>
+              <Input value={form.addressLine1} onChange={(e) => setField('addressLine1', e.target.value)} />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Address line 2</label>
+              <Input value={form.addressLine2} onChange={(e) => setField('addressLine2', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Town / City</label>
+              <Input value={form.townCity} onChange={(e) => setField('townCity', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">County</label>
+              <Input value={form.county} onChange={(e) => setField('county', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Postcode</label>
+              <Input value={form.postcode} onChange={(e) => setField('postcode', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Country</label>
+              <Input value={form.country} onChange={(e) => setField('country', e.target.value)} />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Notes</label>
+            <textarea value={form.notes} onChange={(e) => setField('notes', e.target.value)} rows={3}
+              className="w-full resize-none rounded-xl border px-3 py-2 text-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }} />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create Client'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

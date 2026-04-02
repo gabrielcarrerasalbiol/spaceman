@@ -42,7 +42,10 @@ export async function POST(request: NextRequest) {
     if (!isAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { firstName, lastName, companyName, email, phone, billingEmail, notes, status } = body;
+    const {
+      firstName, lastName, companyName, email, phone, billingEmail, notes, status,
+      addressLine1, addressLine2, townCity, county, postcode, country,
+    } = body;
 
     if (!firstName || !lastName) {
       return NextResponse.json({ error: 'First and last name are required' }, { status: 400 });
@@ -58,6 +61,12 @@ export async function POST(request: NextRequest) {
         billingEmail: billingEmail || null,
         notes: notes || null,
         status: status || 'ACTIVE',
+        addressLine1: addressLine1 || null,
+        addressLine2: addressLine2 || null,
+        townCity: townCity || null,
+        county: county || null,
+        postcode: postcode || null,
+        country: country || null,
         createdById: BigInt(user.id),
         updatedById: BigInt(user.id),
       },

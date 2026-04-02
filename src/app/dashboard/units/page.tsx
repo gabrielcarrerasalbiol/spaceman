@@ -8,7 +8,15 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
+
+const EMPTY_UNIT = {
+  locationId: '', code: '', name: '', type: '',
+  sizeSqft: '', dimensions: '',
+  weeklyRate: '', monthlyRate: '',
+  status: 'AVAILABLE', is24hDriveUp: false, isIndoor: false,
+};
 
 interface LocationOption {
   id: string;
@@ -44,10 +52,11 @@ export default function UnitsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [search, setSearch] = useState('');
-  const [locationId, setLocationId] = useState('');
-  const [code, setCode] = useState('');
-  const [weeklyRate, setWeeklyRate] = useState('');
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<typeof EMPTY_UNIT & { is24hDriveUp: boolean; isIndoor: boolean }>({ ...EMPTY_UNIT });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -68,10 +77,36 @@ export default function UnitsPage() {
     if (response.ok) {
       const data = await response.json();
       setLocations(data);
-      if (!locationId && data.length > 0) {
-        setLocationId(data[0].id);
-      }
     }
+  }
+
+  function openModal() {
+    setForm({ ...EMPTY_UNIT, locationId: locations[0]?.id || '' });
+    setFormError(null);
+    setModalOpen(true);
+  }
+
+  function setField(key: string, value: string | boolean) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setFormError(null);
+    const response = await fetch('/api/units', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    });
+    if (response.ok) {
+      setModalOpen(false);
+      fetchUnits();
+    } else {
+      const data = await response.json();
+      setFormError(data.error || 'Failed to create unit');
+    }
+    setSaving(false);
   }
 
   async function fetchUnits() {
@@ -92,27 +127,8 @@ export default function UnitsPage() {
     }
   }
 
-  async function createUnit() {
-    if (!locationId || !code.trim()) return;
-
-    const response = await fetch('/api/units', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        locationId,
-        code,
-        weeklyRate,
-      }),
-    });
-
-    if (response.ok) {
-      setCode('');
-      setWeeklyRate('');
-      fetchUnits();
-    }
-  }
-
   async function deleteUnit(id: string) {
+    if (!window.confirm('Delete this unit? This cannot be undone.')) return;
     const response = await fetch(`/api/units/${id}`, { method: 'DELETE' });
     if (response.ok) fetchUnits();
   }
@@ -123,40 +139,16 @@ export default function UnitsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[var(--text-strong)]">Units</h1>
-        <p className="mt-2 text-[var(--text-muted)]">Track inventory and unit availability by location.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--text-strong)]">Units</h1>
+          <p className="mt-2 text-[var(--text-muted)]">Track inventory and unit availability by location.</p>
+        </div>
+        <Button onClick={openModal}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Unit
+        </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Unit</CardTitle>
-          <CardDescription>Create a basic unit record.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
-            <select
-              value={locationId}
-              onChange={(e) => setLocationId(e.target.value)}
-              className="h-10 rounded-xl border px-3 text-sm"
-              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
-            >
-              <option value="">Select location</option>
-              {locations.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.name}
-                </option>
-              ))}
-            </select>
-            <Input placeholder="Unit code" value={code} onChange={(e) => setCode(e.target.value)} />
-            <Input placeholder="Weekly rate" value={weeklyRate} onChange={(e) => setWeeklyRate(e.target.value)} />
-            <Button onClick={createUnit}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Unit
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Card>
         <CardHeader>
@@ -222,6 +214,81 @@ export default function UnitsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Unit" description="Create a new storage unit record." className="max-w-xl">
+        <form onSubmit={handleCreate} className="space-y-4">
+          {formError && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{formError}</div>}
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Location <span className="text-[var(--danger)]">*</span></label>
+            <select value={form.locationId} onChange={(e) => setField('locationId', e.target.value)} required
+              className="h-10 w-full rounded-xl border px-3 text-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+              <option value="">Select location</option>
+              {locations.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+            </select>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Unit code <span className="text-[var(--danger)]">*</span></label>
+              <Input value={form.code} onChange={(e) => setField('code', e.target.value)} required placeholder="e.g. A-01" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Name</label>
+              <Input value={form.name} onChange={(e) => setField('name', e.target.value)} placeholder="Optional display name" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Type</label>
+              <Input value={form.type} onChange={(e) => setField('type', e.target.value)} placeholder="e.g. Standard" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Size (sq ft)</label>
+              <Input type="number" min="0" value={form.sizeSqft} onChange={(e) => setField('sizeSqft', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Dimensions</label>
+              <Input value={form.dimensions} onChange={(e) => setField('dimensions', e.target.value)} placeholder="e.g. 10×10" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Weekly rate (£)</label>
+              <Input type="number" min="0" step="0.01" value={form.weeklyRate} onChange={(e) => setField('weeklyRate', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Monthly rate (£)</label>
+              <Input type="number" min="0" step="0.01" value={form.monthlyRate} onChange={(e) => setField('monthlyRate', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Status</label>
+              <select value={form.status} onChange={(e) => setField('status', e.target.value)}
+                className="h-10 w-full rounded-xl border px-3 text-sm"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+                <option value="AVAILABLE">AVAILABLE</option>
+                <option value="RESERVED">RESERVED</option>
+                <option value="OCCUPIED">OCCUPIED</option>
+                <option value="MAINTENANCE">MAINTENANCE</option>
+                <option value="INACTIVE">INACTIVE</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.isIndoor} onChange={(e) => setField('isIndoor', e.target.checked)} className="rounded" />
+              Indoor
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is24hDriveUp} onChange={(e) => setField('is24hDriveUp', e.target.checked)} className="rounded" />
+              24h drive-up
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create Unit'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

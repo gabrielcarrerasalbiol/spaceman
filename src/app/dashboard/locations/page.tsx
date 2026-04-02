@@ -9,7 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
+
+const EMPTY_LOC = {
+  name: '', code: '', addressLine1: '', addressLine2: '',
+  townCity: '', county: '', postcode: '',
+  email: '', phone: '', openingHours: '',
+  latitude: '', longitude: '',
+};
 
 interface Location {
   id: string;
@@ -114,13 +122,11 @@ export default function LocationsPage() {
 
   const [locations, setLocations] = useState<Location[]>([]);
   const [search, setSearch] = useState('');
-  const [name, setName] = useState('');
-  const [addressLine1, setAddressLine1] = useState('');
-  const [townCity, setTownCity] = useState('');
-  const [postcode, setPostcode] = useState('');
-  const [latitude, setLatitude] = useState('');
-  const [longitude, setLongitude] = useState('');
   const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState({ ...EMPTY_LOC });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
 
   const mappedLocations = useMemo<MapLocation[]>(() => {
@@ -173,28 +179,37 @@ export default function LocationsPage() {
     }
   }
 
-  async function createLocation() {
-    if (!name.trim()) return;
+  function openModal() {
+    setForm({ ...EMPTY_LOC });
+    setFormError(null);
+    setModalOpen(true);
+  }
 
+  function setField(key: keyof typeof EMPTY_LOC, value: string) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    setFormError(null);
     const response = await fetch('/api/locations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, addressLine1, townCity, postcode, latitude, longitude }),
+      body: JSON.stringify(form),
     });
-
     if (response.ok) {
-      setName('');
-      setAddressLine1('');
-      setTownCity('');
-      setPostcode('');
-      setLatitude('');
-      setLongitude('');
+      setModalOpen(false);
       fetchLocations();
+    } else {
+      const data = await response.json();
+      setFormError(data.error || 'Failed to create location');
     }
+    setSaving(false);
   }
 
   async function handleGeocode() {
-    const query = [addressLine1, townCity, postcode].filter(Boolean).join(', ');
+    const query = [form.addressLine1, form.townCity, form.postcode].filter(Boolean).join(', ');
     if (!query) return;
 
     try {
@@ -203,9 +218,7 @@ export default function LocationsPage() {
       if (!response.ok) return;
       const data = await response.json();
       if (!Array.isArray(data) || data.length === 0) return;
-
-      setLatitude(String(data[0].lat));
-      setLongitude(String(data[0].lon));
+      setForm((prev) => ({ ...prev, latitude: String(data[0].lat), longitude: String(data[0].lon) }));
     } catch (error) {
       console.error('Geocode failed:', error);
     } finally {
@@ -224,36 +237,16 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-[var(--text-strong)]">Locations</h1>
-        <p className="mt-2 text-[var(--text-muted)]">Manage storage locations and branches.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-[var(--text-strong)]">Locations</h1>
+          <p className="mt-2 text-[var(--text-muted)]">Manage storage locations and branches.</p>
+        </div>
+        <Button onClick={openModal}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add Location
+        </Button>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Add Location</CardTitle>
-          <CardDescription>Create a new branch location with optional geocoding.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
-            <Input placeholder="Location name" value={name} onChange={(e) => setName(e.target.value)} />
-            <Input placeholder="Address line 1" value={addressLine1} onChange={(e) => setAddressLine1(e.target.value)} />
-            <Input placeholder="Town/City" value={townCity} onChange={(e) => setTownCity(e.target.value)} />
-            <Input placeholder="Postcode" value={postcode} onChange={(e) => setPostcode(e.target.value)} />
-            <Input placeholder="Latitude" value={latitude} onChange={(e) => setLatitude(e.target.value)} />
-            <Input placeholder="Longitude" value={longitude} onChange={(e) => setLongitude(e.target.value)} />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button type="button" variant="outline" onClick={handleGeocode} disabled={geocoding}>
-              {geocoding ? 'Geocoding...' : 'Geocode'}
-            </Button>
-            <Button onClick={createLocation}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Location
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
 
       <Tabs defaultValue="list" className="space-y-4">
         <TabsList>
@@ -351,6 +344,83 @@ export default function LocationsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Location" description="Create a new branch location." className="max-w-2xl">
+        <form onSubmit={handleCreate} className="space-y-5">
+          {formError && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{formError}</div>}
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Location name <span className="text-[var(--danger)]">*</span></label>
+              <Input value={form.name} onChange={(e) => setField('name', e.target.value)} required />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Code</label>
+              <Input value={form.code} onChange={(e) => setField('code', e.target.value)} placeholder="e.g. LOC-01" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Phone</label>
+              <Input type="tel" value={form.phone} onChange={(e) => setField('phone', e.target.value)} />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Email</label>
+              <Input type="email" value={form.email} onChange={(e) => setField('email', e.target.value)} />
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Address</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Address line 1</label>
+              <Input value={form.addressLine1} onChange={(e) => setField('addressLine1', e.target.value)} />
+            </div>
+            <div className="space-y-1 sm:col-span-2">
+              <label className="text-sm font-medium">Address line 2</label>
+              <Input value={form.addressLine2} onChange={(e) => setField('addressLine2', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Town / City</label>
+              <Input value={form.townCity} onChange={(e) => setField('townCity', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">County</label>
+              <Input value={form.county} onChange={(e) => setField('county', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Postcode</label>
+              <Input value={form.postcode} onChange={(e) => setField('postcode', e.target.value)} />
+            </div>
+          </div>
+
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Coordinates</p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Latitude</label>
+              <Input value={form.latitude} onChange={(e) => setField('latitude', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Longitude</label>
+              <Input value={form.longitude} onChange={(e) => setField('longitude', e.target.value)} />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">&nbsp;</label>
+              <Button type="button" variant="outline" className="w-full" onClick={handleGeocode} disabled={geocoding}>
+                {geocoding ? 'Geocoding...' : 'Geocode address'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Opening hours</label>
+            <Input value={form.openingHours} onChange={(e) => setField('openingHours', e.target.value)} placeholder="e.g. Mon–Sat 8am–6pm" />
+          </div>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Create Location'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

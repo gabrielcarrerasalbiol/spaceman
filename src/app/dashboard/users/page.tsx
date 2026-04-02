@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Plus, Search, Edit, Trash2, UserCheck, UserX, Shield, Users as UsersIcon } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,7 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Modal } from '@/components/ui/modal';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { usePermissions } from '@/hooks/usePermissions';
+
+const EMPTY_USER = { email: '', username: '', password: '', confirmPassword: '', role: 'USER' };
 
 interface User {
   id: string;
@@ -31,6 +34,10 @@ function UsersContent() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get('search') || '');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [userForm, setUserForm] = useState({ ...EMPTY_USER });
+  const [userSaving, setUserSaving] = useState(false);
+  const [userError, setUserError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -41,6 +48,44 @@ function UsersContent() {
   useEffect(() => {
     fetchUsers();
   }, [search]);
+
+  function openUserModal() {
+    setUserForm({ ...EMPTY_USER });
+    setUserError(null);
+    setModalOpen(true);
+  }
+
+  async function handleCreateUser(e: React.FormEvent) {
+    e.preventDefault();
+    setUserError(null);
+    if (userForm.password !== userForm.confirmPassword) {
+      setUserError('Passwords do not match');
+      return;
+    }
+    if (userForm.password.length < 8) {
+      setUserError('Password must be at least 8 characters');
+      return;
+    }
+    setUserSaving(true);
+    const response = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: userForm.email,
+        username: userForm.username || null,
+        password: userForm.password,
+        role: userForm.role,
+      }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setUserError(data.error || 'Failed to create user');
+    } else {
+      setModalOpen(false);
+      fetchUsers();
+    }
+    setUserSaving(false);
+  }
 
   async function fetchUsers() {
     try {
@@ -108,7 +153,7 @@ function UsersContent() {
             Manage users and their permissions
           </p>
         </div>
-        <Button onClick={() => window.location.href = '/dashboard/users/new'}>
+        <Button onClick={openUserModal}>
           <Plus className="mr-2 h-4 w-4" />
           Add User
         </Button>
@@ -229,6 +274,46 @@ function UsersContent() {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create User" description="Add a new user to the system." className="max-w-md">
+        <form onSubmit={handleCreateUser} className="space-y-4">
+          {userError && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{userError}</div>}
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Email <span className="text-[var(--danger)]">*</span></label>
+            <Input type="email" value={userForm.email} onChange={(e) => setUserForm({ ...userForm, email: e.target.value })} required />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Username</label>
+            <Input value={userForm.username} onChange={(e) => setUserForm({ ...userForm, username: e.target.value })} maxLength={12} placeholder="Max 12 characters" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Password <span className="text-[var(--danger)]">*</span></label>
+            <Input type="password" value={userForm.password} onChange={(e) => setUserForm({ ...userForm, password: e.target.value })} required minLength={8} placeholder="Min 8 characters" />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Confirm password <span className="text-[var(--danger)]">*</span></label>
+            <Input type="password" value={userForm.confirmPassword} onChange={(e) => setUserForm({ ...userForm, confirmPassword: e.target.value })} required />
+          </div>
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Role</label>
+            <Select value={userForm.role} onValueChange={(v) => setUserForm({ ...userForm, role: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="USER">User</SelectItem>
+                <SelectItem value="ADMIN">Admin</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>Cancel</Button>
+            <Button type="submit" disabled={userSaving}>{userSaving ? 'Creating...' : 'Create User'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

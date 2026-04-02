@@ -25,6 +25,13 @@ export default function EditClientPage() {
     email: '',
     phone: '',
     billingEmail: '',
+    addressLine1: '',
+    addressLine2: '',
+    townCity: '',
+    county: '',
+    postcode: '',
+    country: '',
+    notes: '',
     status: 'ACTIVE',
   });
 
@@ -53,6 +60,13 @@ export default function EditClientPage() {
         email: client.email || '',
         phone: client.phone || '',
         billingEmail: client.billingEmail || '',
+        addressLine1: client.addressLine1 || '',
+        addressLine2: client.addressLine2 || '',
+        townCity: client.townCity || '',
+        county: client.county || '',
+        postcode: client.postcode || '',
+        country: client.country || '',
+        notes: client.notes || '',
         status: client.status || 'ACTIVE',
       });
     } catch (e) {
@@ -118,26 +132,79 @@ export default function EditClientPage() {
             {success && <div className="rounded-xl border border-[var(--success)] p-3 text-sm text-[var(--success)]">{success}</div>}
 
             <div className="grid gap-3 md:grid-cols-2">
-              <Input placeholder="First name" value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
-              <Input placeholder="Last name" value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
-              <Input placeholder="Company name" value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
-              <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <Input placeholder="Billing email" value={form.billingEmail} onChange={(e) => setForm({ ...form, billingEmail: e.target.value })} />
+              <div className="space-y-1">
+                <label className="text-sm font-medium">First name <span className="text-[var(--danger)]">*</span></label>
+                <Input value={form.firstName} onChange={(e) => setForm({ ...form, firstName: e.target.value })} required />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Last name <span className="text-[var(--danger)]">*</span></label>
+                <Input value={form.lastName} onChange={(e) => setForm({ ...form, lastName: e.target.value })} required />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Company name</label>
+                <Input value={form.companyName} onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Status</label>
+                <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  className="h-10 w-full rounded-xl border px-3 text-sm"
+                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="INACTIVE">INACTIVE</option>
+                  <option value="LEAD">LEAD</option>
+                </select>
+              </div>
             </div>
 
-            <div className="max-w-xs">
-              <label className="mb-2 block text-sm font-medium">Status</label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
-                className="h-10 w-full rounded-xl border px-3 text-sm"
-                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
-              >
-                <option value="ACTIVE">ACTIVE</option>
-                <option value="INACTIVE">INACTIVE</option>
-                <option value="LEAD">LEAD</option>
-              </select>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Contact</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Email</label>
+                <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Phone</label>
+                <Input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-sm font-medium">Billing email</label>
+                <Input type="email" value={form.billingEmail} onChange={(e) => setForm({ ...form, billingEmail: e.target.value })} />
+              </div>
+            </div>
+
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Address</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-sm font-medium">Address line 1</label>
+                <Input value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} />
+              </div>
+              <div className="space-y-1 md:col-span-2">
+                <label className="text-sm font-medium">Address line 2</label>
+                <Input value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Town / City</label>
+                <Input value={form.townCity} onChange={(e) => setForm({ ...form, townCity: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">County</label>
+                <Input value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Postcode</label>
+                <Input value={form.postcode} onChange={(e) => setForm({ ...form, postcode: e.target.value })} />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium">Country</label>
+                <Input value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Notes</label>
+              <textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} rows={3}
+                className="w-full resize-none rounded-xl border px-3 py-2 text-sm"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }} />
             </div>
 
             <div className="flex gap-3">

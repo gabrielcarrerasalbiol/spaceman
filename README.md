@@ -1,203 +1,276 @@
-# Skeleton - Auth Starter
+# Spaceman — Self-Storage Management Platform
 
-A Next.js 14 authentication starter template with NextAuth v5, Prisma, and Tailwind CSS.
+Spaceman is a full-stack web application for managing self-storage facilities. It covers the complete operational lifecycle: locations, storage units, clients, contracts, and visual floor-plan mapping.
 
 ## 🚀 Features
 
-- **Next.js 14** - Latest version with App Router
-- **TypeScript** - Type-safe development
-- **NextAuth v5 (beta)** - Modern authentication
-- **Prisma ORM** - Database toolkit with PostgreSQL
-- **Tailwind CSS** - Utility-first styling
-- **Light/Dark/System Theme** - Built-in theme support with system preference
-- **Responsive Design** - Mobile-friendly layout
-- **User Management** - Admin panel for managing users
-- **Role-based Permissions** - ADMIN and USER roles
-- **Site Settings** - Customizable site name, logo, description, and colors
+### Core Business Modules
+- **Locations** — Branch/facility management with full address, geo-coordinates, opening hours, and interactive map view
+- **Units** — Storage unit inventory per location with pricing (weekly/monthly/sale), size (sqft + dimensions), features (indoor, 24h drive-up), and occupancy status
+- **Bulk Unit Templates** — Declare how many units exist per size at a location (e.g. "10 units of 36 sq ft"); units are auto-generated and numbered sequentially (e.g. `36Sq 1`, `36Sq 2` … `36Sq 10`)
+- **Clients** — Customer records with contact details, billing address, and status (Active / Inactive / Lead)
+- **Contracts** — Rental agreements linking a client to a unit with start/end dates, billing day, rates, deposit, and full status lifecycle
+- **Visual Area Designer** — Canvas-based drag-and-drop floor-plan editor per location where individual units can be placed, resized, and rotated; color-coded live by occupancy status; link units to contracts directly from the map
 
-## 📋 What's Included
-
-### Authentication
-- ✅ Credentials-based authentication (email/password)
-- ✅ Session management with JWT
-- ✅ Protected routes with middleware
-- ✅ Login/logout functionality
-- ✅ Role-based access control
-
-### Pages
-- `/login` - Authentication page
-- `/dashboard` - Protected dashboard
-- `/dashboard/settings` - User settings with tabs (Profile, Appearance, Site Settings, Users)
-- `/dashboard/users` - User management (admin only)
-- `/dashboard/users/new` - Create user (admin only)
-- `/dashboard/users/[id]/edit` - Edit user (admin or owner)
-
-### Components
-- Dashboard layout with sidebar navigation
-- Responsive design (mobile + desktop)
-- Theme toggle (Light/Dark/System)
-- UI components (Button, Input, Card, Tabs, Table, Badge, Select)
-
-### Database Models
-- `users` - User accounts with role support
-- `Role` - User roles (ADMIN, USER)
-- `activities` - Activity logging
-- `Settings` - Site configuration
+### Platform
+- **Authentication** — Credentials-based login via NextAuth v5 with JWT sessions
+- **Role-Based Access Control** — Fine-grained JSON permission system with configurable roles and per-feature guards
+- **Activity Log** — Audit trail for all significant user actions
+- **Site Settings** — Customisable name, logo, description, and primary brand colour stored in the database
+- **Light / Dark / System Theme** — User preference persisted in localStorage
+- **Responsive Design** — Works on mobile and desktop; collapsible sidebar
 
 ## 🛠️ Tech Stack
 
-- **Framework:** Next.js 14.2
-- **Language:** TypeScript 5
-- **Auth:** NextAuth.js v5.0.0-beta.22
-- **Database:** PostgreSQL with Prisma 6.19
-- **Styling:** Tailwind CSS 3.4
-- **UI Icons:** Lucide React
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 14.2 (App Router) |
+| Language | TypeScript 5 |
+| Auth | NextAuth.js v5 (beta.22) |
+| Database | PostgreSQL |
+| ORM | Prisma 6 |
+| Styling | Tailwind CSS 3.4 |
+| Canvas / Map editor | React-Konva (Konva 9) |
+| Interactive map | Leaflet 1.9 |
+| Icons | Lucide React |
+| Data import | csv-parse |
 
 ## 📦 Installation
 
 ### Prerequisites
-- Node.js 18+ installed
+- Node.js 18+
 - PostgreSQL database
-- npm or yarn
+- npm
 
 ### Steps
 
-1. **Clone or copy this directory**
-   ```bash
-   cd /path/to/your/projects
-   ```
-
-2. **Install dependencies**
+1. **Install dependencies**
    ```bash
    npm install
    ```
 
-3. **Set up environment variables**
+2. **Configure environment**
    ```bash
    cp .env.example .env
    ```
-   
-   Edit `.env` with your database credentials:
+   Edit `.env`:
    ```env
-   DATABASE_URL="postgresql://user:password@localhost:5432/skeleton_db?schema=public"
-   DIRECT_URL="postgresql://user:password@localhost:5432/skeleton_db?schema=public"
+   DATABASE_URL="postgresql://user:password@localhost:5432/spaceman?schema=public"
    AUTH_SECRET="your-secret-key-min-32-characters"
    NEXTAUTH_URL="http://localhost:3000"
    ```
 
-4. **Generate Prisma client**
-   ```bash
-   npm run db:generate
-   ```
-
-5. **Push database schema**
+3. **Apply the database schema**
    ```bash
    npm run db:push
    ```
 
-6. **Seed the database (creates default users)**
+4. **Seed default roles and admin user**
    ```bash
    npm run db:seed
    ```
 
-7. **Run development server**
+5. **Start the development server**
    ```bash
    npm run dev
    ```
 
-8. **Open in browser**
-   Navigate to [http://localhost:3000](http://localhost:3000)
+6. Open [http://localhost:3000](http://localhost:3000)
+
+### Data Import Scripts
+Legacy CSV data can be imported with:
+```bash
+npm run import:locations   # import locations from CSV
+npm run import:units       # import units from CSV
+npm run import:all         # import everything
+```
 
 ## 🔐 Default Credentials
 
-After running the seed script, you can log in with:
+| Role  | Email | Password |
+|-------|-------|----------|
+| Admin | admin@example.com | admin123 |
+| User  | user@example.com  | user123  |
 
-| Role  | Email              | Password  |
-|-------|-------------------|-----------|
-| Admin | admin@example.com | admin123  |
-| User  | user@example.com  | user123   |
+> **Change these immediately in production.**
 
-**⚠️ Important:** Change these passwords immediately in production!
+## 👥 User & Role Management
 
-## 👥 User Management Guide
+### Built-in Roles
 
-### Roles
+| Role | Access |
+|------|--------|
+| ADMIN | Full access to all modules and admin features |
+| USER  | View-only access; can edit own profile |
 
-| Role  | Permissions |
-|-------|-------------|
-| ADMIN | Full access: manage users, site settings, all features |
-| USER  | Limited access: view/edit own profile only |
+Roles are stored in the `roles` table with a `permissions` JSON field. Custom roles can be added directly in the database or via the Users admin panel.
 
-### Admin Features
-- Create new users
-- Edit any user's information
-- Activate/deactivate users
-- Delete users (except self)
-- Assign roles
-- Configure site settings
+### Permission Flags (stored as JSON in `roles.permissions`)
+The permissions object keys map to specific API and UI guards. Admins bypass all permission checks.
 
-### User Features
-- View own profile
-- Edit own username and email
-- Change own password
-- Customize theme preference
+## 📍 Locations
 
-### Permission Rules
-- **Admins can do everything**
-- **Users can only view/edit their own profile**
-- Users cannot change their own role
-- Users cannot access admin-only pages
+Each location represents a storage facility branch.
 
-## 🎨 Theme Customization
+**Fields:** name, slug (auto-generated), code, full address, email, phone, opening hours, lat/lng coordinates, active flag.
 
-### Theme Options
-- **Light** - Light mode
-- **Dark** - Dark mode  
-- **System** - Follows system preference
+**Location Editor tabs:**
+- **Details** — Edit all location metadata; geocoding button auto-fills lat/lng via Nominatim (OSM)
+- **Areas** — Visual floor-plan designer (see Area Designer below)
 
-### Site Settings (Admin Only)
-Configure in `/dashboard/settings` → Site Settings tab:
+**List page** shows two tabs:
+- **List** — Searchable table with unit and contract counts, edit/delete actions
+- **Map** — Leaflet interactive map with circle markers for each location (lazy-loaded)
 
-- **Site Name** - Displayed in navbar and login page
-- **Logo URL** - Custom logo image URL
-- **Description** - Site description on login page
-- **Primary Color** - Main accent color (hex)
+## 📦 Units
 
-Changes are saved to the database and persist across sessions.
+Each unit belongs to a location and represents a physical storage space.
+
+**Fields:** code (unique per location), name, type, `sizeSqft`, dimensions, weekly/monthly/sale rates, offer text, `is24hDriveUp`, `isIndoor`, `status`, `active`, description.
+
+### Unit Status Lifecycle
+
+```
+AVAILABLE → RESERVED → OCCUPIED → AVAILABLE
+                      ↓
+                  MAINTENANCE
+                  INACTIVE
+```
+
+| Status | Colour on map |
+|--------|--------------|
+| AVAILABLE | Green |
+| RESERVED | Amber |
+| OCCUPIED | Blue |
+| MAINTENANCE | Red |
+| INACTIVE | Grey |
+
+### Bulk Unit Generation (per Location)
+On the location detail page you can declare unit templates:
+> *"10 units of 36 sq ft"*
+
+This generates 10 individual `Unit` records numbered `36Sq 1` through `36Sq 10`. Generated units then appear in the Area Designer sidebar and can be placed on the canvas. Each can be linked to a contract to drive live occupancy status colouring.
+
+## 🤝 Clients
+
+Customer records used as the subscriber side of a contract.
+
+**Fields:** firstName, lastName, companyName, email, phone, billingEmail, billing address, notes, status (ACTIVE / INACTIVE / LEAD).
+
+## 📄 Contracts
+
+Contracts link a **Client** → **Unit** → **Location** for a rental period.
+
+**Fields:** contractNumber (auto-generated `CTR-YYYYMMDD-XXXX`), status, startDate, endDate, billingDay, weeklyRate, monthlyRate, depositAmount, paymentMethod, signedAt, notes.
+
+### Contract Status Lifecycle
+
+```
+DRAFT → PENDING_SIGNATURE → ACTIVE → TERMINATED
+                                   → EXPIRED
+                                   → CANCELLED
+```
+
+When a contract is **ACTIVE** the linked unit's status on the canvas is shown as **OCCUPIED** (blue).
+
+## 🗺️ Area Designer
+
+The visual floor-plan editor lives at `/dashboard/locations/[id]/edit` → Areas tab.
+
+### Concepts
+- A **Location** has zero or more **LocationArea** records (floors/zones)
+- Each Area has a **canvas** (default 1400×820 px) with an optional background image
+- **UnitAreaPlacement** records store where each unit sits on the canvas (x, y, width, height, rotation, zIndex, shape)
+
+### Interaction
+1. Switch to **Edit Mode**
+2. Drag a unit from the left sidebar onto the canvas
+3. Click a placed unit to select it; use the `Transformer` handles to resize/rotate
+4. Right-click (or press Delete) to remove a placement from the canvas
+5. Click **Save Layout** to persist all placements
+
+Background images can be uploaded (max 3 MB; PNG/JPEG/WebP/SVG accepted) or supplied as a URL.
+
+### Canvas Technology
+Built with **react-konva** (HTML5 Canvas via Konva.js). Each unit renders as a coloured `Rect` with a `Text` label. A `Transformer` node handles resize/rotate in edit mode.
 
 ## 📁 Project Structure
 
 ```
-skeleton/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── auth/
-│   │   │   │   ├── [...nextauth]/route.ts
-│   │   │   │   └── permissions/route.ts
-│   │   │   ├── settings/
-│   │   │   │   └── route.ts
-│   │   │   └── users/
-│   │   │       ├── route.ts
-│   │   │       └── [id]/route.ts
-│   │   ├── dashboard/
-│   │   │   ├── settings/
-│   │   │   │   └── page.tsx
-│   │   │   ├── users/
-│   │   │   │   ├── page.tsx
-│   │   │   │   ├── new/page.tsx
-│   │   │   │   └── [id]/edit/page.tsx
-│   │   │   ├── layout.tsx
-│   │   │   └── page.tsx
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   ├── globals.css
-│   │   ├── layout.tsx
-│   │   └── page.tsx
-│   ├── components/
-│   │   ├── ui/
-│   │   │   ├── badge.tsx
-│   │   │   ├── button.tsx
+spaceman/
+├── prisma/
+│   ├── schema.prisma          # Full data model
+│   ├── seed.ts                # Default roles + admin user
+│   ├── import-data.ts         # CSV import scripts
+│   └── migrations/
+├── public/                    # Static assets & uploaded files
+└── src/
+    ├── app/
+    │   ├── api/
+    │   │   ├── auth/[...nextauth]/    # NextAuth handler
+    │   │   ├── auth/permissions/      # Session permissions endpoint
+    │   │   ├── clients/               # CRUD clients
+    │   │   ├── contracts/             # CRUD contracts
+    │   │   ├── locations/             # CRUD locations
+    │   │   │   └── [id]/areas/        # CRUD areas + placements
+    │   │   ├── roles/                 # CRUD roles
+    │   │   ├── settings/              # Site settings
+    │   │   ├── units/                 # CRUD units
+    │   │   ├── upload/                # File upload handler
+    │   │   └── users/                 # CRUD users + list
+    │   ├── dashboard/
+    │   │   ├── clients/               # Client list + edit
+    │   │   ├── contracts/             # Contract list + edit
+    │   │   ├── locations/             # Location list + edit (with area designer)
+    │   │   ├── settings/              # Site + profile settings
+    │   │   ├── units/                 # Unit list + edit
+    │   │   └── users/                 # User list + new + edit
+    │   ├── login/
+    │   ├── globals.css
+    │   ├── layout.tsx
+    │   └── page.tsx
+    ├── components/
+    │   ├── dashboard-shell.tsx        # App shell: sidebar + header
+    │   ├── location-area-editor.tsx   # Canvas floor-plan editor
+    │   ├── theme-toggle.tsx
+    │   └── ui/                        # Primitive UI components
+    ├── contexts/
+    │   ├── SettingsContext.tsx        # Site settings provider
+    │   └── ThemeContext.tsx           # Theme provider
+    ├── hooks/
+    │   └── usePermissions.ts          # Client-side permission hook
+    ├── lib/
+    │   ├── auth.ts / auth.config.ts   # NextAuth configuration
+    │   ├── permissions.ts             # Server-side permission helpers
+    │   ├── prisma.ts                  # Prisma singleton
+    │   └── utils.ts                   # serializeForJson, cn helpers
+    └── middleware.ts                  # JWT route guard
+```
+
+## 🔧 npm Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` | Start dev server |
+| `npm run build` | Production build |
+| `npm run db:generate` | Regenerate Prisma client |
+| `npm run db:push` | Push schema changes (no migration file) |
+| `npm run db:migrate` | Create and apply a migration |
+| `npm run db:studio` | Open Prisma Studio GUI |
+| `npm run db:seed` | Seed default data |
+| `npm run import:locations` | Import locations from CSV |
+| `npm run import:units` | Import units from CSV |
+| `npm run import:all` | Import all CSV data |
+
+## 🔒 Security Notes
+
+- All API routes check `getCurrentUser()` and return 401 if unauthenticated
+- Admin-only mutations check `isAdmin()` and return 403
+- Passwords are hashed with **bcryptjs**
+- File uploads are validated by MIME type and limited to 3 MB
+- `serializeForJson` strips `BigInt` values to avoid JSON serialisation errors
+- The middleware JWT guard protects all `/dashboard/*` and `/api/*` paths (except `/api/auth/*`)
+- `onDelete: Restrict` on critical FKs prevents orphaned data (e.g. cannot delete a location that has units)
 │   │   │   ├── card.tsx
 │   │   │   ├── input.tsx
 │   │   │   ├── select.tsx
