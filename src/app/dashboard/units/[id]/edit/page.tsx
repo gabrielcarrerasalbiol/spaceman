@@ -178,22 +178,22 @@ export default function EditUnitPage() {
                 <label className="mb-2 block text-sm font-medium">Status</label>
                 <select
                   value={form.status}
-                  onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  onChange={(e) => {
+                    const nextStatus = e.target.value;
+                    setForm({
+                      ...form,
+                      status: nextStatus,
+                      active: nextStatus !== 'INACTIVE',
+                    });
+                  }}
                   className="h-10 w-full rounded-xl border px-3 text-sm"
                   style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
                 >
-                  <option value="AVAILABLE">AVAILABLE</option>
-                  <option value="RESERVED">RESERVED</option>
-                  <option value="OCCUPIED">OCCUPIED</option>
-                  <option value="MAINTENANCE">MAINTENANCE</option>
+                  <option value="AVAILABLE">ACTIVE</option>
                   <option value="INACTIVE">INACTIVE</option>
                 </select>
               </div>
               <div className="space-y-2 pt-6">
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} className="h-4 w-4" />
-                  Active
-                </label>
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={form.isIndoor} onChange={(e) => setForm({ ...form, isIndoor: e.target.checked })} className="h-4 w-4" />
                   Indoor storage
