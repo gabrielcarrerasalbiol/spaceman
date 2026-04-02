@@ -34,20 +34,47 @@ export async function POST(
 
     const existingUnits = await prisma.unit.findMany({
       where: { locationId: id, sizeSqft },
-      select: { id: true, unitNumber: true },
+      select: {
+        id: true,
+        unitNumber: true,
+        _count: {
+          select: {
+            contracts: true,
+          },
+        },
+      },
       orderBy: [{ unitNumber: 'asc' }, { code: 'asc' }],
     });
 
+    let removedCount = 0;
     if (existingUnits.length > quantity) {
-      return NextResponse.json(
-        { error: `This location already has ${existingUnits.length} units for ${sizeSqft}Sqft. Reduce them manually before lowering the target quantity.` },
-        { status: 400 }
-      );
+      const unitsToRemove = existingUnits.length - quantity;
+      const removableUnits = [...existingUnits]
+        .filter((unit) => unit._count.contracts === 0)
+        .sort((left, right) => (right.unitNumber ?? 0) - (left.unitNumber ?? 0));
+
+      if (removableUnits.length < unitsToRemove) {
+        return NextResponse.json(
+          {
+            error: `Cannot reduce to ${quantity}. ${unitsToRemove - removableUnits.length} unit(s) are linked to contracts and cannot be removed.`,
+          },
+          { status: 400 }
+        );
+      }
+
+      const idsToDelete = removableUnits.slice(0, unitsToRemove).map((unit) => unit.id);
+      await prisma.unit.deleteMany({ where: { id: { in: idsToDelete } } });
+      removedCount = idsToDelete.length;
     }
 
-    const usedNumbers = new Set(existingUnits.map((unit) => unit.unitNumber).filter((value): value is number => value !== null));
+    const refreshedUnits = await prisma.unit.findMany({
+      where: { locationId: id, sizeSqft },
+      select: { unitNumber: true },
+    });
+
+    const usedNumbers = new Set(refreshedUnits.map((unit) => unit.unitNumber).filter((value): value is number => value !== null));
     const unitsToCreate = [];
-    for (let nextNumber = 1; existingUnits.length + unitsToCreate.length < quantity; nextNumber += 1) {
+    for (let nextNumber = 1; refreshedUnits.length + unitsToCreate.length < quantity; nextNumber += 1) {
       if (usedNumbers.has(nextNumber)) continue;
       usedNumbers.add(nextNumber);
 
@@ -89,6 +116,7 @@ export async function POST(
         sizeSqft,
         requestedQuantity: quantity,
         createdCount: unitsToCreate.length,
+        removedCount,
         units,
       }),
       { status: 201 }

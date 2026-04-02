@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Layers3, Plus } from 'lucide-react';
+import { Layers3, Plus, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,9 @@ type UnitInventoryItem = {
   unitNumber: number | null;
   sizeSqft: number | null;
   status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
+  _count?: {
+    contracts: number;
+  };
 };
 
 const EMPTY_BULK_FORM = {
@@ -36,6 +39,7 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState({ ...EMPTY_BULK_FORM });
+  const [sizeSelection, setSizeSelection] = useState<'custom' | string>('custom');
 
   useEffect(() => {
     void fetchUnits();
@@ -62,6 +66,13 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
         }),
       }));
   }, [units]);
+
+  const existingSizeOptions = useMemo(() => {
+    return groupedInventory
+      .map((group) => normalizeSizeSqft(group.sizeSqft))
+      .filter((value): value is number => value !== null)
+      .sort((left, right) => left - right);
+  }, [groupedInventory]);
 
   async function fetchUnits() {
     try {
@@ -100,14 +111,46 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
         return;
       }
 
-      setSuccess(`Inventory updated for ${formatUnitSizeLabel(form.sizeSqft)}. ${payload.createdCount} unit(s) created.`);
+      const created = Number(payload.createdCount || 0);
+      const removed = Number(payload.removedCount || 0);
+      setSuccess(`Inventory updated for ${formatUnitSizeLabel(form.sizeSqft)}. Created ${created}, removed ${removed}.`);
       setForm({ ...EMPTY_BULK_FORM });
+      setSizeSelection('custom');
       await fetchUnits();
     } catch (caughtError) {
       console.error('Failed to create units:', caughtError);
       setError('Failed to create units');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleRemoveUnit(unitId: string, unitLabel: string, linkedContracts = 0) {
+    if (linkedContracts > 0) {
+      setError(`${unitLabel} is linked to ${linkedContracts} contract(s) and cannot be removed.`);
+      return;
+    }
+
+    const proceed = window.confirm(`Remove ${unitLabel}? This cannot be undone.`);
+    if (!proceed) return;
+
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const response = await fetch(`/api/units/${unitId}`, { method: 'DELETE' });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setError(payload.error || 'Failed to remove unit');
+        return;
+      }
+
+      setSuccess(`${unitLabel} removed.`);
+      await fetchUnits();
+    } catch (caughtError) {
+      console.error('Failed to remove unit:', caughtError);
+      setError('Failed to remove unit');
     }
   }
 
@@ -124,7 +167,31 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
             {success && <div className="rounded-xl border border-[var(--success)] p-3 text-sm text-[var(--success)]">{success}</div>}
 
             <div className="grid gap-3 md:grid-cols-3">
-              <Input type="number" min="1" placeholder="Size sqft" value={form.sizeSqft} onChange={(event) => setForm({ ...form, sizeSqft: event.target.value })} required />
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-[var(--text-muted)]">Unit size</label>
+                <select
+                  value={sizeSelection}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setSizeSelection(next);
+                    if (next === 'custom') {
+                      setForm({ ...form, sizeSqft: '' });
+                      return;
+                    }
+                    setForm({ ...form, sizeSqft: next });
+                  }}
+                  className="h-10 w-full rounded-xl border px-3 text-sm"
+                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                >
+                  <option value="custom">Custom size...</option>
+                  {existingSizeOptions.map((size) => (
+                    <option key={size} value={String(size)}>{formatUnitSizeLabel(size)}</option>
+                  ))}
+                </select>
+              </div>
+              {sizeSelection === 'custom' && (
+                <Input type="number" min="1" placeholder="Size sqft" value={form.sizeSqft} onChange={(event) => setForm({ ...form, sizeSqft: event.target.value })} required />
+              )}
               <Input type="number" min="1" placeholder="Total quantity" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} required />
               <Input placeholder="Type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} />
               <Input placeholder="Dimensions" value={form.dimensions} onChange={(event) => setForm({ ...form, dimensions: event.target.value })} />
@@ -191,9 +258,21 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {group.items.map((item) => (
-                        <span key={item.id} className="rounded-lg border px-2.5 py-1 text-sm"
+                        <span key={item.id} className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-sm"
                           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
                           {formatUnitDisplayName(item)} <span className="text-[var(--text-muted)]">· {item.status}</span>
+                          {item._count?.contracts ? (
+                            <span className="text-xs text-[var(--text-muted)]">linked ({item._count.contracts})</span>
+                          ) : (
+                            <button
+                              type="button"
+                              className="rounded p-0.5 text-[var(--danger)] transition hover:bg-[var(--surface-1)]"
+                              onClick={() => handleRemoveUnit(item.id, formatUnitDisplayName(item), item._count?.contracts || 0)}
+                              aria-label={`Remove ${formatUnitDisplayName(item)}`}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                         </span>
                       ))}
                     </div>
