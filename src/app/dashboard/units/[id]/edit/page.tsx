@@ -138,7 +138,7 @@ export default function EditUnitPage() {
         </div>
       </div>
 
-      <Card className="max-w-4xl">
+      <Card>
         <CardHeader>
           <CardTitle>Unit Details</CardTitle>
           <CardDescription>Changes here affect availability and contract assignments.</CardDescription>

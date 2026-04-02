@@ -166,7 +166,7 @@ export default function EditLocationPage() {
         </TabsList>
 
         <TabsContent value="details">
-          <Card className="max-w-3xl">
+          <Card>
             <CardHeader>
               <CardTitle>Location Details</CardTitle>
               <CardDescription>These values are used in listings and contract linking.</CardDescription>
