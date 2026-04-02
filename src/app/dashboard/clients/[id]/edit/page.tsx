@@ -121,7 +121,7 @@ export default function EditClientPage() {
         </div>
       </div>
 
-      <Card className="max-w-3xl">
+      <Card>
         <CardHeader>
           <CardTitle>Client Details</CardTitle>
           <CardDescription>Keep contract and contact records up to date.</CardDescription>

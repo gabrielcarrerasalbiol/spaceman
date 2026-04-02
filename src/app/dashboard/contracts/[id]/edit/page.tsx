@@ -163,7 +163,7 @@ export default function EditContractPage() {
         </div>
       </div>
 
-      <Card className="max-w-4xl">
+      <Card>
         <CardHeader>
           <CardTitle>Contract Details</CardTitle>
           <CardDescription>Contract updates are reflected in dashboards and reporting.</CardDescription>

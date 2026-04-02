@@ -164,7 +164,7 @@ export default function EditUserPage() {
         </div>
       </div>
 
-      <Card className="max-w-2xl">
+      <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
