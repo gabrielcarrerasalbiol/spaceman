@@ -32,6 +32,14 @@ const EMPTY_BULK_FORM = {
   description: '',
 };
 
+function inventoryStatusColor(status: UnitInventoryItem['status']) {
+  if (status === 'AVAILABLE') return '#22c55e';
+  if (status === 'RESERVED') return '#f59e0b';
+  if (status === 'OCCUPIED') return '#3b82f6';
+  if (status === 'MAINTENANCE') return '#ef4444';
+  return '#6b7280';
+}
+
 export function LocationUnitSetup({ locationId }: { locationId: string }) {
   const [units, setUnits] = useState<UnitInventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,7 +268,16 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                       {group.items.map((item) => (
                         <span key={item.id} className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-sm"
                           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
-                          {formatUnitDisplayName(item)} <span className="text-[var(--text-muted)]">· {item.status}</span>
+                          {formatUnitDisplayName(item)}
+                          <span
+                            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                            style={{
+                              color: inventoryStatusColor(item.status),
+                              backgroundColor: `color-mix(in srgb, ${inventoryStatusColor(item.status)} 16%, var(--surface-0))`,
+                            }}
+                          >
+                            {item.status}
+                          </span>
                           {item._count?.contracts ? (
                             <span className="text-xs text-[var(--text-muted)]">linked ({item._count.contracts})</span>
                           ) : (

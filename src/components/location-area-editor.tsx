@@ -10,7 +10,7 @@ import {
   Transformer,
 } from 'react-konva';
 import useImage from 'use-image';
-import { ImagePlus, Plus, Save, Trash2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
+import { ChevronDown, ChevronUp, ImagePlus, Plus, Save, Trash2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,14 @@ type Area = {
   active: boolean;
   placements?: Array<Placement & { unit: UnitItem }>;
 };
+
+const STATUS_LEGEND: Array<{ status: UnitItem['status']; label: string }> = [
+  { status: 'AVAILABLE', label: 'Available' },
+  { status: 'RESERVED', label: 'Reserved' },
+  { status: 'OCCUPIED', label: 'Occupied' },
+  { status: 'MAINTENANCE', label: 'Maintenance' },
+  { status: 'INACTIVE', label: 'Inactive' },
+];
 
 function statusFill(status: UnitItem['status']) {
   if (status === 'AVAILABLE') return '#22c55e';
@@ -101,6 +109,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const [unitSearch, setUnitSearch] = useState('');
   const [sizeFilter, setSizeFilter] = useState('ALL');
   const [canvasZoom, setCanvasZoom] = useState(1);
+  const [legendCollapsed, setLegendCollapsed] = useState(false);
 
   const [areaMeta, setAreaMeta] = useState({
     name: '',
@@ -744,11 +753,45 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
             <CardContent className="min-w-0">
               <div
                 ref={canvasViewportRef}
-                className="w-full max-w-full overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-1)]"
+                className="relative w-full max-w-full overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-1)]"
                 style={{ maxHeight: '75vh' }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={onDropUnit}
               >
+                  <div
+                  className="absolute right-3 top-3 z-10 min-w-[180px] rounded-xl border px-3 py-2 shadow-sm"
+                    style={{
+                      borderColor: 'color-mix(in srgb, var(--border) 85%, transparent)',
+                      backgroundColor: 'color-mix(in srgb, var(--surface-0) 92%, transparent)',
+                      backdropFilter: 'blur(8px)',
+                    }}
+                  >
+                  <button
+                    type="button"
+                    onClick={() => setLegendCollapsed((current) => !current)}
+                    className="flex w-full items-center justify-between gap-3 text-left"
+                    style={{ color: 'var(--text-strong)' }}
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Status legend</span>
+                    {legendCollapsed ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
+                  </button>
+                  {!legendCollapsed && (
+                    <div className="mt-2 space-y-1.5">
+                      {STATUS_LEGEND.map((item) => (
+                        <div key={item.status} className="flex items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="h-2.5 w-2.5 rounded-full"
+                              style={{ backgroundColor: statusFill(item.status) }}
+                            />
+                            <span className="text-[var(--text-strong)]">{item.label}</span>
+                          </div>
+                          <span className="font-medium text-[var(--text-muted)]">{item.status}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  </div>
                 <Stage
                   ref={stageRef}
                   width={areaMeta.canvasWidth * canvasZoom}
