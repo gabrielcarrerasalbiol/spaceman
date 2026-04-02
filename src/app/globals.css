@@ -89,6 +89,77 @@ body.sidebar-collapsed .sidebar-nav-link {
   background: var(--surface-2);
 }
 
+@keyframes dashboardFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes dashboardRiseUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes dashboardGrowX {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dashboardGrowY {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes dashboardPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.dashboard-fade-in {
+  animation: dashboardFadeIn 420ms ease-out both;
+}
+
+.dashboard-rise-up {
+  animation: dashboardRiseUp 520ms ease-out both;
+}
+
+.dashboard-grow-x {
+  transform-origin: left center;
+  animation: dashboardGrowX 900ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.dashboard-grow-y {
+  transform-origin: center bottom;
+  animation: dashboardGrowY 760ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.dashboard-pop {
+  animation: dashboardPop 520ms ease-out both;
+}
+
 @layer base {
   body {
     background: radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--accent-soft) 35%, transparent), transparent 34%), var(--app-bg);
