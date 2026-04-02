@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { formatUnitDisplayName, formatUnitSizeLabel, normalizeSizeSqft } from '@/lib/unit-display';
+import { useSettings } from '@/contexts/SettingsContext';
+import { getStatusColor, getStatusLabel } from '@/lib/status-config';
 
 type UnitInventoryItem = {
   id: string;
@@ -32,15 +34,8 @@ const EMPTY_BULK_FORM = {
   description: '',
 };
 
-function inventoryStatusColor(status: UnitInventoryItem['status']) {
-  if (status === 'AVAILABLE') return '#22c55e';
-  if (status === 'RESERVED') return '#f59e0b';
-  if (status === 'OCCUPIED') return '#3b82f6';
-  if (status === 'MAINTENANCE') return '#ef4444';
-  return '#6b7280';
-}
-
 export function LocationUnitSetup({ locationId }: { locationId: string }) {
+  const { settings } = useSettings();
   const [units, setUnits] = useState<UnitInventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -261,7 +256,9 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="font-semibold text-[var(--text-strong)]">{group.label}</p>
-                        <p className="text-sm text-[var(--text-muted)]">Total {total} · Available {available} · Reserved {reserved} · Occupied {occupied}</p>
+                        <p className="text-sm text-[var(--text-muted)]">
+                          Total {total} · {getStatusLabel(settings.unitStatusConfig, 'AVAILABLE')} {available} · {getStatusLabel(settings.unitStatusConfig, 'RESERVED')} {reserved} · {getStatusLabel(settings.unitStatusConfig, 'OCCUPIED')} {occupied}
+                        </p>
                       </div>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2">
@@ -272,11 +269,11 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                           <span
                             className="rounded-full px-2 py-0.5 text-[11px] font-medium"
                             style={{
-                              color: inventoryStatusColor(item.status),
-                              backgroundColor: `color-mix(in srgb, ${inventoryStatusColor(item.status)} 16%, var(--surface-0))`,
+                              color: getStatusColor(settings.unitStatusConfig, item.status),
+                              backgroundColor: `color-mix(in srgb, ${getStatusColor(settings.unitStatusConfig, item.status)} 16%, var(--surface-0))`,
                             }}
                           >
-                            {item.status}
+                            {getStatusLabel(settings.unitStatusConfig, item.status)}
                           </span>
                           {item._count?.contracts ? (
                             <span className="text-xs text-[var(--text-muted)]">linked ({item._count.contracts})</span>

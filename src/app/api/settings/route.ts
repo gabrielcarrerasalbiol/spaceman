@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
-import { DEFAULT_STATUS_CONFIG } from '@/lib/status-config';
+import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig } from '@/lib/status-config';
 
 const SETTINGS_SINGLETON_ID = 'default';
 
@@ -14,6 +14,7 @@ async function getOrCreateSettings() {
       siteLogo: true,
       siteDescription: true,
       primaryColor: true,
+      unitStatusConfig: true,
     },
   });
   if (byDefaultId) return byDefaultId;
@@ -26,6 +27,7 @@ async function getOrCreateSettings() {
       siteLogo: true,
       siteDescription: true,
       primaryColor: true,
+      unitStatusConfig: true,
     },
   });
   if (existing) return existing;
@@ -37,6 +39,7 @@ async function getOrCreateSettings() {
       siteLogo: null,
       siteDescription: null,
       primaryColor: '#3b82f6',
+      unitStatusConfig: DEFAULT_STATUS_CONFIG,
     },
     select: {
       id: true,
@@ -44,6 +47,7 @@ async function getOrCreateSettings() {
       siteLogo: true,
       siteDescription: true,
       primaryColor: true,
+      unitStatusConfig: true,
     },
   });
 }
@@ -58,7 +62,7 @@ export async function GET() {
       siteLogo: settings.siteLogo || null,
       siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
-      unitStatusConfig: DEFAULT_STATUS_CONFIG,
+      unitStatusConfig: normalizeStatusConfig(settings.unitStatusConfig),
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -83,7 +87,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { siteName, siteLogo, siteDescription, primaryColor } = body;
+    const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig } = body;
 
     const settings = await getOrCreateSettings();
 
@@ -94,6 +98,7 @@ export async function POST(request: NextRequest) {
         ...(siteLogo !== undefined && { siteLogo }),
         ...(siteDescription !== undefined && { siteDescription }),
         ...(primaryColor !== undefined && { primaryColor }),
+        ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
       },
       select: {
         id: true,
@@ -101,6 +106,7 @@ export async function POST(request: NextRequest) {
         siteLogo: true,
         siteDescription: true,
         primaryColor: true,
+        unitStatusConfig: true,
       },
     });
 
@@ -109,7 +115,7 @@ export async function POST(request: NextRequest) {
       siteLogo: updated.siteLogo || null,
       siteDescription: updated.siteDescription || null,
       primaryColor: updated.primaryColor,
-      unitStatusConfig: DEFAULT_STATUS_CONFIG,
+      unitStatusConfig: normalizeStatusConfig(updated.unitStatusConfig),
     });
   } catch (error) {
     console.error('Error updating settings:', error);

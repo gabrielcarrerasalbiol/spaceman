@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { Activity, Building2, FileSignature, MapPin, UserRound } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig, type StatusConfig } from '@/lib/status-config';
 
-const OCCUPANCY_COLORS = ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444', '#6b7280'];
+const STATUS_ORDER = ['OCCUPIED', 'AVAILABLE', 'RESERVED', 'MAINTENANCE', 'INACTIVE'] as const;
 
 function formatPercent(value: number) {
   if (!Number.isFinite(value)) return '0%';
@@ -44,7 +45,7 @@ type ContractItem = {
   weeklyRate: number | null;
 };
 
-function buildScope(units: UnitItem[], contracts: ContractItem[]) {
+function buildScope(units: UnitItem[], contracts: ContractItem[], statusConfig: StatusConfig) {
   const statusCounts = {
     OCCUPIED: 0,
     AVAILABLE: 0,
@@ -72,13 +73,19 @@ function buildScope(units: UnitItem[], contracts: ContractItem[]) {
     ? (occupiedUnits / activeOperationalUnits) * 100
     : 0;
 
-  const occupancySlices = [
-    { label: 'Occupied', value: occupiedUnits, color: OCCUPANCY_COLORS[0] },
-    { label: 'Available', value: availableUnits, color: OCCUPANCY_COLORS[1] },
-    { label: 'Reserved', value: reservedUnits, color: OCCUPANCY_COLORS[2] },
-    { label: 'Maintenance', value: maintenanceUnits, color: OCCUPANCY_COLORS[3] },
-    { label: 'Inactive', value: inactiveUnits, color: OCCUPANCY_COLORS[4] },
-  ].filter((slice) => slice.value > 0);
+  const sliceValues = {
+    OCCUPIED: occupiedUnits,
+    AVAILABLE: availableUnits,
+    RESERVED: reservedUnits,
+    MAINTENANCE: maintenanceUnits,
+    INACTIVE: inactiveUnits,
+  };
+
+  const occupancySlices = STATUS_ORDER.map((status) => ({
+    label: statusConfig[status].label,
+    value: sliceValues[status],
+    color: statusConfig[status].color,
+  })).filter((slice) => slice.value > 0);
 
   const donutRadius = 56;
   const donutCircumference = 2 * Math.PI * donutRadius;
@@ -157,7 +164,7 @@ export default async function DashboardPage({
 }) {
   const session = await auth();
   const activeTab = searchParams?.tab === 'operations' ? 'operations' : 'main';
-  const [locations, units, contracts, clients] = await Promise.all([
+  const [locations, units, contracts, clients, settingsRow] = await Promise.all([
     prisma.location.findMany({
       select: {
         id: true,
@@ -184,19 +191,27 @@ export default async function DashboardPage({
       },
     }),
     prisma.client.count(),
+    prisma.settings.findFirst({
+      orderBy: { updatedAt: 'desc' },
+      select: { unitStatusConfig: true },
+    }),
   ]);
+
+  const settingsConfig = normalizeStatusConfig(settingsRow?.unitStatusConfig ?? DEFAULT_STATUS_CONFIG);
+  const occupiedLabel = settingsConfig.OCCUPIED.label;
+  const maintenanceLabel = settingsConfig.MAINTENANCE.label;
 
   const selectedLocationId = searchParams?.locationId || locations[0]?.id || '';
   const selectedLocation = locations.find((location) => location.id === selectedLocationId) || null;
 
-  const allScope = buildScope(units as UnitItem[], contracts as ContractItem[]);
+  const allScope = buildScope(units as UnitItem[], contracts as ContractItem[], settingsConfig);
   const operationsUnits = selectedLocation
     ? units.filter((unit) => unit.locationId === selectedLocation.id)
     : [];
   const operationsContracts = selectedLocation
     ? contracts.filter((contract) => contract.locationId === selectedLocation.id)
     : [];
-  const operationsScope = buildScope(operationsUnits as UnitItem[], operationsContracts as ContractItem[]);
+  const operationsScope = buildScope(operationsUnits as UnitItem[], operationsContracts as ContractItem[], settingsConfig);
 
   const locationStats = locations
     .map((location) => {
@@ -232,7 +247,7 @@ export default async function DashboardPage({
     {
       label: 'Units',
       value: allScope.totalUnits,
-      subtitle: `${allScope.occupiedUnits} occupied`,
+      subtitle: `${allScope.occupiedUnits} ${occupiedLabel.toLowerCase()}`,
       icon: Building2,
       color: '#22c55e',
     },
@@ -362,7 +377,7 @@ export default async function DashboardPage({
                       ))}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">Occupied</p>
+                      <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">{occupiedLabel}</p>
                       <p className="text-xl font-bold text-[var(--text-strong)]">{formatPercent(allScope.occupancyRate)}</p>
                     </div>
                   </div>
@@ -454,7 +469,7 @@ export default async function DashboardPage({
                 <div className="rounded-xl border px-3 py-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
                   <div className="flex items-center gap-2">
                     <Activity className="h-3.5 w-3.5 text-[var(--text-muted)]" />
-                    <p className="text-xs font-medium text-[var(--text-strong)]">Utilization {formatPercent(allScope.utilizationRate)} • Maintenance {allScope.maintenanceUnits}</p>
+                    <p className="text-xs font-medium text-[var(--text-strong)]">Utilization {formatPercent(allScope.utilizationRate)} • {maintenanceLabel} {allScope.maintenanceUnits}</p>
                   </div>
                 </div>
               </CardContent>
@@ -494,10 +509,10 @@ export default async function DashboardPage({
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: 'Units', value: operationsScope.totalUnits, subtitle: `${operationsScope.occupiedUnits} occupied`, icon: Building2, color: '#22c55e' },
+              { label: 'Units', value: operationsScope.totalUnits, subtitle: `${operationsScope.occupiedUnits} ${occupiedLabel.toLowerCase()}`, icon: Building2, color: '#22c55e' },
               { label: 'Contracts', value: operationsContracts.length, subtitle: `${operationsScope.pendingContracts} pending`, icon: FileSignature, color: '#ef4444' },
               { label: 'Occupancy', value: formatPercent(operationsScope.occupancyRate), subtitle: selectedLocation?.name || 'No site', icon: MapPin, color: '#3b82f6' },
-              { label: 'Utilization', value: formatPercent(operationsScope.utilizationRate), subtitle: `${operationsScope.maintenanceUnits} maintenance`, icon: Activity, color: '#f59e0b' },
+              { label: 'Utilization', value: formatPercent(operationsScope.utilizationRate), subtitle: `${operationsScope.maintenanceUnits} ${maintenanceLabel.toLowerCase()}`, icon: Activity, color: '#f59e0b' },
             ].map((item, index) => {
               const Icon = item.icon;
               return (
@@ -546,7 +561,7 @@ export default async function DashboardPage({
                       ))}
                     </svg>
                     <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">Occupied</p>
+                      <p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">{occupiedLabel}</p>
                       <p className="text-xl font-bold text-[var(--text-strong)]">{formatPercent(operationsScope.occupancyRate)}</p>
                     </div>
                   </div>

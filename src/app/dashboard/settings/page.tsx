@@ -34,6 +34,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { usePermissions } from '@/hooks/usePermissions';
 import RoleDesigner from '@/components/role-designer';
+import { UNIT_STATUSES, type StatusConfig } from '@/lib/status-config';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -74,13 +75,16 @@ export default function SettingsPage() {
     siteDescription: '',
     primaryColor: '#3b82f6',
   });
+  const [statusForm, setStatusForm] = useState<StatusConfig>(settings.unitStatusConfig);
 
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [siteLoading, setSiteLoading] = useState(false);
+  const [statusLoading, setStatusLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -119,6 +123,7 @@ export default function SettingsPage() {
         siteDescription: settings.siteDescription || '',
         primaryColor: settings.primaryColor,
       });
+      setStatusForm(settings.unitStatusConfig);
     }
   }, [settings, settingsLoading]);
 
@@ -369,6 +374,23 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleStatusUpdate(e: React.FormEvent) {
+    e.preventDefault();
+    setStatusLoading(true);
+    setStatusMessage(null);
+
+    try {
+      await updateSettings({
+        unitStatusConfig: statusForm,
+      });
+      setStatusMessage({ type: 'success', text: 'Status colors and labels updated successfully!' });
+    } catch (error) {
+      setStatusMessage({ type: 'error', text: 'Failed to update status settings. Please try again.' });
+    } finally {
+      setStatusLoading(false);
+    }
+  }
+
   const StatCard = ({
     title,
     value,
@@ -498,6 +520,12 @@ export default function SettingsPage() {
             <ImageIcon className="h-4 w-4" />
             <span>Branding</span>
           </TabsTrigger>
+          {isAdmin && (
+            <TabsTrigger value="status-colors" className="flex items-center gap-2 rounded-lg">
+              <Palette className="h-4 w-4" />
+              <span>Status Colors</span>
+            </TabsTrigger>
+          )}
           <TabsTrigger value="users" className="flex items-center gap-2 rounded-lg">
             <Users className="h-4 w-4" />
             <span>Users</span>
@@ -1077,6 +1105,93 @@ export default function SettingsPage() {
               </Card>
             </div>
           </TabsContent>
+
+        {isAdmin && (
+          <TabsContent value="status-colors">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                       style={{ backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))` }}>
+                    <Palette className="h-4 w-4" style={{ color: 'var(--accent)' }} />
+                  </div>
+                  <div>
+                    <CardTitle>Unit Status Colors</CardTitle>
+                    <CardDescription>Define how statuses are named and colored across admin screens.</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleStatusUpdate} className="space-y-5">
+                  {statusMessage && (
+                    <div className="rounded-xl border px-4 py-3 text-sm"
+                         style={{
+                           borderColor: statusMessage.type === 'success'
+                             ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                             : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                           backgroundColor: statusMessage.type === 'success'
+                             ? 'color-mix(in srgb, var(--success) 12%, var(--surface-0))'
+                             : 'color-mix(in srgb, var(--danger) 12%, var(--surface-0))',
+                           color: statusMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
+                         }}
+                    >
+                      {statusMessage.text}
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {UNIT_STATUSES.map((statusKey) => {
+                      const row = statusForm[statusKey];
+                      return (
+                        <div key={statusKey} className="rounded-xl border p-4"
+                             style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                          <div className="grid gap-3 md:grid-cols-[140px_minmax(0,1fr)_170px] md:items-center">
+                            <div>
+                              <p className="text-xs font-semibold tracking-wide text-[var(--text-muted)]">{statusKey}</p>
+                            </div>
+                            <Input
+                              value={row.label}
+                              onChange={(e) => setStatusForm((prev) => ({
+                                ...prev,
+                                [statusKey]: { ...prev[statusKey], label: e.target.value },
+                              }))}
+                              placeholder="Display label"
+                            />
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="color"
+                                value={row.color}
+                                onChange={(e) => setStatusForm((prev) => ({
+                                  ...prev,
+                                  [statusKey]: { ...prev[statusKey], color: e.target.value },
+                                }))}
+                                className="h-10 w-12 rounded-lg border-0"
+                              />
+                              <Input
+                                value={row.color}
+                                onChange={(e) => setStatusForm((prev) => ({
+                                  ...prev,
+                                  [statusKey]: { ...prev[statusKey], color: e.target.value },
+                                }))}
+                                className="font-mono text-sm"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="flex justify-end">
+                    <Button type="submit" disabled={statusLoading} className="rounded-xl px-6">
+                      {statusLoading ? 'Saving...' : 'Save Status Settings'}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
 
         {/* Users Tab - Always visible for debugging */}
         <TabsContent value="users">

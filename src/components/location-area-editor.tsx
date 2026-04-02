@@ -15,6 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatUnitDisplayName, formatUnitSizeLabel } from '@/lib/unit-display';
+import { useSettings } from '@/contexts/SettingsContext';
+import { getStatusColor, getStatusEntries, getStatusLabel, type StatusConfig } from '@/lib/status-config';
 
 type UnitItem = {
   id: string;
@@ -51,20 +53,8 @@ type Area = {
   placements?: Array<Placement & { unit: UnitItem }>;
 };
 
-const STATUS_LEGEND: Array<{ status: UnitItem['status']; label: string }> = [
-  { status: 'AVAILABLE', label: 'Available' },
-  { status: 'RESERVED', label: 'Reserved' },
-  { status: 'OCCUPIED', label: 'Occupied' },
-  { status: 'MAINTENANCE', label: 'Maintenance' },
-  { status: 'INACTIVE', label: 'Inactive' },
-];
-
-function statusFill(status: UnitItem['status']) {
-  if (status === 'AVAILABLE') return '#22c55e';
-  if (status === 'RESERVED') return '#f59e0b';
-  if (status === 'OCCUPIED') return '#3b82f6';
-  if (status === 'MAINTENANCE') return '#ef4444';
-  return '#6b7280';
+function statusFill(config: StatusConfig, status: UnitItem['status']) {
+  return getStatusColor(config, status);
 }
 
 function darkenHex(hexColor: string, factor = 0.28) {
@@ -94,6 +84,7 @@ function createPlacement(unitId: string, index: number, x = 100, y = 100): Place
 }
 
 export default function LocationAreaEditor({ locationId }: { locationId: string }) {
+  const { settings } = useSettings();
   const MIN_ZOOM = 0.5;
   const MAX_ZOOM = 2.5;
   const [areas, setAreas] = useState<Area[]>([]);
@@ -215,6 +206,10 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
       }))
       .filter((entry): entry is { placementId: string; unit: UnitItem } => Boolean(entry.unit));
   }, [placements, unitMap]);
+
+  const statusLegend = useMemo(() => {
+    return getStatusEntries(settings.unitStatusConfig);
+  }, [settings.unitStatusConfig]);
 
   useEffect(() => {
     bootstrap();
@@ -701,7 +696,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                             }}
                           >
                             <div className="font-semibold">{formatUnitDisplayName(unit)}</div>
-                            <div className="text-xs text-[var(--text-muted)]">{unit.status}</div>
+                            <div className="text-xs text-[var(--text-muted)]">{getStatusLabel(settings.unitStatusConfig, unit.status)}</div>
                           </div>
                         );
                       })}
@@ -777,12 +772,12 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                   </button>
                   {!legendCollapsed && (
                     <div className="mt-2 space-y-1.5">
-                      {STATUS_LEGEND.map((item) => (
+                      {statusLegend.map((item) => (
                         <div key={item.status} className="flex items-center justify-between gap-3 text-xs">
                           <div className="flex items-center gap-2">
                             <span
                               className="h-2.5 w-2.5 rounded-full"
-                              style={{ backgroundColor: statusFill(item.status) }}
+                              style={{ backgroundColor: statusFill(settings.unitStatusConfig, item.status) }}
                             />
                             <span className="text-[var(--text-strong)]">{item.label}</span>
                           </div>
@@ -810,7 +805,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                         const unit = unitMap.get(placement.unitId);
                         if (!unit) return null;
 
-                        const fill = statusFill(unit.status);
+                        const fill = statusFill(settings.unitStatusConfig, unit.status);
                         const badgeFill = darkenHex(fill);
                         const compact = placement.width < 95 || placement.height < 45;
                         const veryCompact = placement.width < 70 || placement.height < 34;
