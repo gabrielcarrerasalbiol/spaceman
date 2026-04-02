@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
+import { LocationUnitSetup } from '@/components/location-unit-setup';
 
 const LocationAreaEditor = dynamic(() => import('@/components/location-area-editor'), {
   ssr: false,
@@ -154,6 +155,7 @@ export default function EditLocationPage() {
       <Tabs defaultValue="details" className="space-y-4">
         <TabsList>
           <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="areas">Areas</TabsTrigger>
         </TabsList>
 
@@ -211,6 +213,10 @@ export default function EditLocationPage() {
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="inventory">
+          <LocationUnitSetup locationId={params.id as string} />
         </TabsContent>
 
         <TabsContent value="areas">

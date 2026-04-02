@@ -12,7 +12,7 @@ import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
 
 const EMPTY_UNIT = {
-  locationId: '', code: '', name: '', type: '',
+  locationId: '', code: '', unitNumber: '', name: '', type: '',
   sizeSqft: '', dimensions: '',
   weeklyRate: '', monthlyRate: '',
   status: 'AVAILABLE', is24hDriveUp: false, isIndoor: false,
@@ -26,6 +26,7 @@ interface LocationOption {
 interface Unit {
   id: string;
   code: string;
+  unitNumber: number | null;
   name: string | null;
   status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
   weeklyRate: string | null;
@@ -232,7 +233,11 @@ export default function UnitsPage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-sm font-medium">Unit code <span className="text-[var(--danger)]">*</span></label>
-              <Input value={form.code} onChange={(e) => setField('code', e.target.value)} required placeholder="e.g. A-01" />
+              <Input value={form.code} onChange={(e) => setField('code', e.target.value)} required placeholder="e.g. 36Sqft 1" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Unit number</label>
+              <Input type="number" min="1" value={String(form.unitNumber)} onChange={(e) => setField('unitNumber', e.target.value)} placeholder="e.g. 1" />
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Name</label>

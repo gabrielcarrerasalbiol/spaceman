@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { serializeForJson } from '@/lib/utils';
+import { syncMultipleUnitStatuses } from '@/lib/contracts';
 
 export async function GET(request: NextRequest) {
   try {
@@ -69,28 +70,42 @@ export async function POST(request: NextRequest) {
     const generatedContractNumber =
       contractNumber || `CTR-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${Math.floor(Math.random() * 9000 + 1000)}`;
 
-    const contract = await prisma.contract.create({
-      data: {
-        contractNumber: generatedContractNumber,
-        clientId,
-        unitId,
-        locationId,
-        startDate: new Date(startDate),
-        endDate: endDate ? new Date(endDate) : null,
-        weeklyRate: weeklyRate !== undefined && weeklyRate !== '' ? Number(weeklyRate) : null,
-        monthlyRate: monthlyRate !== undefined && monthlyRate !== '' ? Number(monthlyRate) : null,
-        depositAmount: depositAmount !== undefined && depositAmount !== '' ? Number(depositAmount) : null,
-        paymentMethod: paymentMethod || null,
-        notes: notes || null,
-        status: status || 'DRAFT',
-        createdById: BigInt(user.id),
-        updatedById: BigInt(user.id),
-      },
-      include: {
-        client: true,
-        unit: true,
-        location: true,
-      },
+    const selectedUnit = await prisma.unit.findUnique({
+      where: { id: unitId },
+      select: { id: true, locationId: true },
+    });
+
+    if (!selectedUnit || selectedUnit.locationId !== locationId) {
+      return NextResponse.json({ error: 'Selected unit does not belong to this location' }, { status: 400 });
+    }
+
+    const contract = await prisma.$transaction(async (tx) => {
+      const created = await tx.contract.create({
+        data: {
+          contractNumber: generatedContractNumber,
+          clientId,
+          unitId,
+          locationId,
+          startDate: new Date(startDate),
+          endDate: endDate ? new Date(endDate) : null,
+          weeklyRate: weeklyRate !== undefined && weeklyRate !== '' ? Number(weeklyRate) : null,
+          monthlyRate: monthlyRate !== undefined && monthlyRate !== '' ? Number(monthlyRate) : null,
+          depositAmount: depositAmount !== undefined && depositAmount !== '' ? Number(depositAmount) : null,
+          paymentMethod: paymentMethod || null,
+          notes: notes || null,
+          status: status || 'DRAFT',
+          createdById: BigInt(user.id),
+          updatedById: BigInt(user.id),
+        },
+        include: {
+          client: true,
+          unit: true,
+          location: true,
+        },
+      });
+
+      await syncMultipleUnitStatuses(tx, [unitId]);
+      return created;
     });
 
     return NextResponse.json(serializeForJson(contract), { status: 201 });

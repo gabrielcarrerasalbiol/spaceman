@@ -14,11 +14,14 @@ import { ImagePlus, Plus, Save, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { formatUnitDisplayName, formatUnitSizeLabel } from '@/lib/unit-display';
 
 type UnitItem = {
   id: string;
   code: string;
+  unitNumber: number | null;
   name: string | null;
+  sizeSqft: number | null;
   status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
 };
 
@@ -121,6 +124,27 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
       map.set(unit.id, unit);
     }
     return map;
+  }, [units]);
+
+  const groupedUnits = useMemo(() => {
+    const groups = new Map<string, UnitItem[]>();
+    for (const unit of units) {
+      const groupKey = formatUnitSizeLabel(unit.sizeSqft);
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey)!.push(unit);
+    }
+
+    return [...groups.entries()]
+      .sort((left, right) => left[0].localeCompare(right[0], undefined, { numeric: true }))
+      .map(([label, items]) => ({
+        label,
+        items: [...items].sort((left, right) => {
+          const leftNumber = left.unitNumber ?? Number.MAX_SAFE_INTEGER;
+          const rightNumber = right.unitNumber ?? Number.MAX_SAFE_INTEGER;
+          if (leftNumber !== rightNumber) return leftNumber - rightNumber;
+          return left.code.localeCompare(right.code);
+        }),
+      }));
   }, [units]);
 
   useEffect(() => {
@@ -525,28 +549,33 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
               <div>
                 <p className="mb-2 text-sm font-medium text-[var(--text-strong)]">Units</p>
                 <div className="max-h-[360px] space-y-2 overflow-auto pr-1">
-                  {units.map((unit) => {
-                    const placed = placementByUnitId.has(unit.id);
-                    return (
-                      <div
-                        key={unit.id}
-                        draggable={mode === 'edit' && !placed}
-                        onDragStart={(event) => {
-                          event.dataTransfer.setData('text/unit-id', unit.id);
-                        }}
-                        className="rounded-lg border p-2 text-sm"
-                        style={{
-                          borderColor: 'var(--border)',
-                          backgroundColor: placed ? 'var(--surface-1)' : 'var(--surface-0)',
-                          cursor: mode === 'edit' && !placed ? 'grab' : 'default',
-                          opacity: placed ? 0.65 : 1,
-                        }}
-                      >
-                        <div className="font-semibold">{unit.code}</div>
-                        <div className="text-xs text-[var(--text-muted)]">{unit.status}</div>
-                      </div>
-                    );
-                  })}
+                  {groupedUnits.map((group) => (
+                    <div key={group.label} className="space-y-2">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{group.label}</p>
+                      {group.items.map((unit) => {
+                        const placed = placementByUnitId.has(unit.id);
+                        return (
+                          <div
+                            key={unit.id}
+                            draggable={mode === 'edit' && !placed}
+                            onDragStart={(event) => {
+                              event.dataTransfer.setData('text/unit-id', unit.id);
+                            }}
+                            className="rounded-lg border p-2 text-sm"
+                            style={{
+                              borderColor: 'var(--border)',
+                              backgroundColor: placed ? 'var(--surface-1)' : 'var(--surface-0)',
+                              cursor: mode === 'edit' && !placed ? 'grab' : 'default',
+                              opacity: placed ? 0.65 : 1,
+                            }}
+                          >
+                            <div className="font-semibold">{formatUnitDisplayName(unit)}</div>
+                            <div className="text-xs text-[var(--text-muted)]">{unit.status}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
                 <p className="mt-2 text-xs text-[var(--text-muted)]">
                   {mode === 'edit'
@@ -585,7 +614,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                         if (!unit) return null;
 
                         const fill = statusFill(unit.status);
-                        const label = placement.label || unit.code || unit.name || 'Unit';
+                        const label = placement.label || formatUnitDisplayName(unit);
 
                         return (
                           <Fragment key={placement.id}>

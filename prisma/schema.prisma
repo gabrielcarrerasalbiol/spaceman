@@ -136,6 +136,7 @@ model Unit {
   legacyId          Int?       @unique
   locationId        String
   code              String
+  unitNumber        Int?
   name              String?
   type              String?
   sizeSqft          Int?
@@ -160,6 +161,8 @@ model Unit {
   @@index([status])
   @@index([active])
   @@index([locationId])
+  @@index([locationId, sizeSqft])
+  @@unique([locationId, sizeSqft, unitNumber])
   @@map("units")
 }
 

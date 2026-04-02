@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
+import { formatUnitDisplayName, formatUnitSizeLabel } from '@/lib/unit-display';
 
 interface Contract {
   id: string;
@@ -38,6 +39,11 @@ interface UnitOption {
   id: string;
   code: string;
   locationId: string;
+  sizeSqft: number | null;
+  unitNumber: number | null;
+  status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
+  weeklyRate?: string | null;
+  monthlyRate?: string | null;
 }
 
 interface LocationOption {
@@ -71,6 +77,7 @@ export default function ContractsPage() {
   const [clientId, setClientId] = useState('');
   const [unitId, setUnitId] = useState('');
   const [locationId, setLocationId] = useState('');
+  const [unitSize, setUnitSize] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [weeklyRate, setWeeklyRate] = useState('');
@@ -78,6 +85,7 @@ export default function ContractsPage() {
   const [depositAmount, setDepositAmount] = useState('');
   const [billingDay, setBillingDay] = useState('');
   const [notes, setNotes] = useState('');
+  const [status, setStatus] = useState<'DRAFT' | 'PENDING_SIGNATURE' | 'ACTIVE'>('DRAFT');
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -109,6 +117,7 @@ export default function ContractsPage() {
     setClientId('');
     setUnitId('');
     setLocationId('');
+    setUnitSize('');
     setStartDate('');
     setEndDate('');
     setWeeklyRate('');
@@ -116,9 +125,15 @@ export default function ContractsPage() {
     setDepositAmount('');
     setBillingDay('');
     setNotes('');
+    setStatus('DRAFT');
     setFormError(null);
     setModalOpen(true);
   }
+
+  const filteredUnits = units.filter((unit) => unit.locationId === locationId && unit.status === 'AVAILABLE');
+  const availableSizes = [...new Set(filteredUnits.map((unit) => unit.sizeSqft).filter((value) => value !== null))]
+    .sort((left, right) => Number(left) - Number(right));
+  const selectableUnits = filteredUnits.filter((unit) => String(unit.sizeSqft ?? '') === unitSize);
 
   async function fetchContracts() {
     try {
@@ -153,6 +168,7 @@ export default function ContractsPage() {
         depositAmount: depositAmount || null,
         billingDay: billingDay ? Number(billingDay) : null,
         notes: notes || null,
+        status,
       }),
     });
     if (response.ok) {
@@ -270,22 +286,12 @@ export default function ContractsPage() {
           </div>
 
           <div className="space-y-1">
-            <label className="text-sm font-medium">Unit <span className="text-[var(--danger)]">*</span></label>
-            <select value={unitId} onChange={(e) => {
-              setUnitId(e.target.value);
-              const u = units.find((u) => u.id === e.target.value);
-              if (u) setLocationId(u.locationId);
-            }} required
-              className="h-10 w-full rounded-xl border px-3 text-sm"
-              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
-              <option value="">Select unit</option>
-              {units.map((u) => <option key={u.id} value={u.id}>{u.code}</option>)}
-            </select>
-          </div>
-
-          <div className="space-y-1">
             <label className="text-sm font-medium">Location <span className="text-[var(--danger)]">*</span></label>
-            <select value={locationId} onChange={(e) => setLocationId(e.target.value)} required
+            <select value={locationId} onChange={(e) => {
+              setLocationId(e.target.value);
+              setUnitSize('');
+              setUnitId('');
+            }} required
               className="h-10 w-full rounded-xl border px-3 text-sm"
               style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
               <option value="">Select location</option>
@@ -293,7 +299,47 @@ export default function ContractsPage() {
             </select>
           </div>
 
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Unit size <span className="text-[var(--danger)]">*</span></label>
+            <select value={unitSize} onChange={(e) => {
+              setUnitSize(e.target.value);
+              setUnitId('');
+            }} required
+              className="h-10 w-full rounded-xl border px-3 text-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+              <option value="">Select unit size</option>
+              {availableSizes.map((size) => <option key={size} value={String(size)}>{formatUnitSizeLabel(size)}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-1">
+            <label className="text-sm font-medium">Unit number <span className="text-[var(--danger)]">*</span></label>
+            <select value={unitId} onChange={(e) => {
+              setUnitId(e.target.value);
+              const selectedUnit = selectableUnits.find((unit) => unit.id === e.target.value);
+              if (selectedUnit) {
+                if (!weeklyRate && selectedUnit.weeklyRate) setWeeklyRate(String(selectedUnit.weeklyRate));
+                if (!monthlyRate && selectedUnit.monthlyRate) setMonthlyRate(String(selectedUnit.monthlyRate));
+              }
+            }} required
+              className="h-10 w-full rounded-xl border px-3 text-sm"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+              <option value="">Select unit number</option>
+              {selectableUnits.map((unit) => <option key={unit.id} value={unit.id}>{formatUnitDisplayName(unit)}</option>)}
+            </select>
+          </div>
+
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Contract status</label>
+              <select value={status} onChange={(e) => setStatus(e.target.value as 'DRAFT' | 'PENDING_SIGNATURE' | 'ACTIVE')}
+                className="h-10 w-full rounded-xl border px-3 text-sm"
+                style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
+                <option value="DRAFT">DRAFT</option>
+                <option value="PENDING_SIGNATURE">PENDING_SIGNATURE</option>
+                <option value="ACTIVE">ACTIVE</option>
+              </select>
+            </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Start date <span className="text-[var(--danger)]">*</span></label>
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} required />

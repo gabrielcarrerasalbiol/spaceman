@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { serializeForJson } from '@/lib/utils';
+import { syncMultipleUnitStatuses } from '@/lib/contracts';
 
 export async function GET(
   _request: NextRequest,
@@ -42,6 +43,15 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
+    const existingContract = await prisma.contract.findUnique({
+      where: { id },
+      select: { unitId: true },
+    });
+
+    if (!existingContract) {
+      return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+    }
+
     const data: any = {
       updatedById: BigInt(user.id),
     };
@@ -62,14 +72,38 @@ export async function PUT(
       }
     }
 
-    const contract = await prisma.contract.update({
-      where: { id },
-      data,
-      include: {
-        client: true,
-        unit: true,
-        location: true,
-      },
+    const nextUnitId = body.unitId !== undefined ? body.unitId : existingContract.unitId;
+    const nextLocationId = body.locationId !== undefined ? body.locationId : undefined;
+    if (nextUnitId) {
+      const selectedUnit = await prisma.unit.findUnique({
+        where: { id: nextUnitId },
+        select: { id: true, locationId: true },
+      });
+
+      if (!selectedUnit) {
+        return NextResponse.json({ error: 'Selected unit not found' }, { status: 400 });
+      }
+
+      if (nextLocationId && selectedUnit.locationId !== nextLocationId) {
+        return NextResponse.json({ error: 'Selected unit does not belong to this location' }, { status: 400 });
+      }
+
+      data.locationId = nextLocationId || selectedUnit.locationId;
+    }
+
+    const contract = await prisma.$transaction(async (tx) => {
+      const updated = await tx.contract.update({
+        where: { id },
+        data,
+        include: {
+          client: true,
+          unit: true,
+          location: true,
+        },
+      });
+
+      await syncMultipleUnitStatuses(tx, [existingContract.unitId, updated.unitId]);
+      return updated;
     });
 
     return NextResponse.json(serializeForJson(contract));
@@ -90,7 +124,19 @@ export async function DELETE(
 
     const { id } = await params;
 
-    await prisma.contract.delete({ where: { id } });
+    const existingContract = await prisma.contract.findUnique({
+      where: { id },
+      select: { unitId: true },
+    });
+
+    if (!existingContract) {
+      return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.contract.delete({ where: { id } });
+      await syncMultipleUnitStatuses(tx, [existingContract.unitId]);
+    });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting contract:', error);

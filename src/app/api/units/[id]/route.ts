@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { serializeForJson } from '@/lib/utils';
+import { buildGeneratedUnitCode } from '@/lib/unit-display';
 
 export async function GET(
   _request: NextRequest,
@@ -48,7 +49,7 @@ export async function PUT(
     const body = await request.json();
 
     const data: any = { updatedById: BigInt(user.id) };
-    const numericFields = ['sizeSqft', 'weeklyRate', 'monthlyRate', 'salePrice'];
+    const numericFields = ['sizeSqft', 'unitNumber', 'weeklyRate', 'monthlyRate', 'salePrice'];
     const scalarFields = ['locationId', 'code', 'name', 'type', 'dimensions', 'offer', 'status', 'description'];
 
     for (const key of scalarFields) {
@@ -64,6 +65,27 @@ export async function PUT(
     if (body.is24hDriveUp !== undefined) data.is24hDriveUp = Boolean(body.is24hDriveUp);
     if (body.isIndoor !== undefined) data.isIndoor = Boolean(body.isIndoor);
     if (body.active !== undefined) data.active = Boolean(body.active);
+
+    const nextSizeSqft = data.sizeSqft !== undefined ? data.sizeSqft : undefined;
+    const nextUnitNumber = data.unitNumber !== undefined ? data.unitNumber : undefined;
+    if ((body.code === undefined || body.code === '') && (nextSizeSqft !== undefined || nextUnitNumber !== undefined)) {
+      const existingUnit = await prisma.unit.findUnique({
+        where: { id },
+        select: { sizeSqft: true, unitNumber: true },
+      });
+
+      const generatedCode = buildGeneratedUnitCode(
+        nextSizeSqft !== undefined ? nextSizeSqft : existingUnit?.sizeSqft,
+        nextUnitNumber !== undefined ? nextUnitNumber : existingUnit?.unitNumber
+      );
+
+      if (generatedCode) {
+        data.code = generatedCode;
+        if (body.name === undefined || body.name === '') {
+          data.name = generatedCode;
+        }
+      }
+    }
 
     const unit = await prisma.unit.update({ where: { id }, data, include: { location: true } });
     return NextResponse.json(serializeForJson(unit));

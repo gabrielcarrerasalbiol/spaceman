@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { serializeForJson } from '@/lib/utils';
+import { buildGeneratedUnitCode } from '@/lib/unit-display';
 
 export async function GET(request: NextRequest) {
   try {
@@ -49,6 +50,7 @@ export async function POST(request: NextRequest) {
     const {
       locationId,
       code,
+      unitNumber,
       name,
       type,
       sizeSqft,
@@ -63,17 +65,26 @@ export async function POST(request: NextRequest) {
       description,
     } = body;
 
-    if (!locationId || !code) {
-      return NextResponse.json({ error: 'Location and code are required' }, { status: 400 });
+    if (!locationId) {
+      return NextResponse.json({ error: 'Location is required' }, { status: 400 });
+    }
+
+    const normalizedSizeSqft = sizeSqft ? Number(sizeSqft) : null;
+    const normalizedUnitNumber = unitNumber !== undefined && unitNumber !== '' ? Number(unitNumber) : null;
+    const normalizedCode = code || buildGeneratedUnitCode(normalizedSizeSqft, normalizedUnitNumber);
+
+    if (!normalizedCode) {
+      return NextResponse.json({ error: 'Code or size and unit number are required' }, { status: 400 });
     }
 
     const unit = await prisma.unit.create({
       data: {
         locationId,
-        code,
-        name: name || null,
+        code: normalizedCode,
+        unitNumber: normalizedUnitNumber,
+        name: name || normalizedCode,
         type: type || null,
-        sizeSqft: sizeSqft ? Number(sizeSqft) : null,
+        sizeSqft: normalizedSizeSqft,
         dimensions: dimensions || null,
         weeklyRate: weeklyRate !== undefined && weeklyRate !== '' ? Number(weeklyRate) : null,
         monthlyRate: monthlyRate !== undefined && monthlyRate !== '' ? Number(monthlyRate) : null,

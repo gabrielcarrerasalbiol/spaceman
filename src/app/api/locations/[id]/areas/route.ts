@@ -22,7 +22,9 @@ export async function GET(
               select: {
                 id: true,
                 code: true,
+                unitNumber: true,
                 name: true,
+                sizeSqft: true,
                 status: true,
               },
             },

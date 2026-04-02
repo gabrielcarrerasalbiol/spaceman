@@ -27,6 +27,7 @@ export default function EditUnitPage() {
   const [form, setForm] = useState({
     locationId: '',
     code: '',
+    unitNumber: '',
     name: '',
     type: '',
     sizeSqft: '',
@@ -71,6 +72,7 @@ export default function EditUnitPage() {
       setForm({
         locationId: unit.locationId || '',
         code: unit.code || '',
+        unitNumber: unit.unitNumber?.toString() || '',
         name: unit.name || '',
         type: unit.type || '',
         sizeSqft: unit.sizeSqft?.toString() || '',
@@ -159,6 +161,7 @@ export default function EditUnitPage() {
                 ))}
               </select>
               <Input placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} required />
+              <Input placeholder="Unit number" value={form.unitNumber} onChange={(e) => setForm({ ...form, unitNumber: e.target.value })} />
               <Input placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <Input placeholder="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} />
               <Input placeholder="Size sqft" value={form.sizeSqft} onChange={(e) => setForm({ ...form, sizeSqft: e.target.value })} />

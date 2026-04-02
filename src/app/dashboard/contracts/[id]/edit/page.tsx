@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePermissions } from '@/hooks/usePermissions';
+import { formatUnitDisplayName, formatUnitSizeLabel } from '@/lib/unit-display';
 
 interface ClientOption {
   id: string;
@@ -18,6 +19,10 @@ interface ClientOption {
 interface UnitOption {
   id: string;
   code: string;
+  locationId: string;
+  sizeSqft: number | null;
+  unitNumber: number | null;
+  status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
 }
 
 interface LocationOption {
@@ -38,6 +43,7 @@ export default function EditContractPage() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [units, setUnits] = useState<UnitOption[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [unitSize, setUnitSize] = useState('');
 
   const [form, setForm] = useState({
     contractNumber: '',
@@ -82,6 +88,7 @@ export default function EditContractPage() {
       if (locationsRes.ok) setLocations(await locationsRes.json());
 
       const contract = await contractRes.json();
+      const unitSizeValue = contract.unit?.sizeSqft !== null && contract.unit?.sizeSqft !== undefined ? String(contract.unit.sizeSqft) : '';
       setForm({
         contractNumber: contract.contractNumber || '',
         clientId: contract.clientId || '',
@@ -95,6 +102,7 @@ export default function EditContractPage() {
         depositAmount: contract.depositAmount?.toString() || '',
         status: contract.status || 'DRAFT',
       });
+      setUnitSize(unitSizeValue);
     } catch (e) {
       setError('Failed to load contract');
     } finally {
@@ -131,6 +139,14 @@ export default function EditContractPage() {
   if (permissionsLoading || loading || !isAdmin) {
     return <div className="min-h-[400px] flex items-center justify-center text-[var(--text-muted)]">Loading...</div>;
   }
+
+  const selectableUnits = units.filter((unit) => {
+    if (unit.locationId !== form.locationId) return false;
+    if (String(unit.sizeSqft ?? '') !== unitSize) return false;
+    return unit.status === 'AVAILABLE' || unit.id === form.unitId;
+  });
+  const sizeOptions = [...new Set(units.filter((unit) => unit.locationId === form.locationId).map((unit) => unit.sizeSqft).filter((value) => value !== null))]
+    .sort((left, right) => Number(left) - Number(right));
 
   return (
     <div className="space-y-6">
@@ -173,16 +189,28 @@ export default function EditContractPage() {
                   <option key={client.id} value={client.id}>{client.firstName} {client.lastName}</option>
                 ))}
               </select>
-              <select value={form.unitId} onChange={(e) => setForm({ ...form, unitId: e.target.value })} className="h-10 rounded-xl border px-3 text-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
-                <option value="">Unit</option>
-                {units.map((unit) => (
-                  <option key={unit.id} value={unit.id}>{unit.code}</option>
-                ))}
-              </select>
-              <select value={form.locationId} onChange={(e) => setForm({ ...form, locationId: e.target.value })} className="h-10 rounded-xl border px-3 text-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+              <select value={form.locationId} onChange={(e) => {
+                setForm({ ...form, locationId: e.target.value, unitId: '' });
+                setUnitSize('');
+              }} className="h-10 rounded-xl border px-3 text-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
                 <option value="">Location</option>
                 {locations.map((location) => (
                   <option key={location.id} value={location.id}>{location.name}</option>
+                ))}
+              </select>
+              <select value={unitSize} onChange={(e) => {
+                setUnitSize(e.target.value);
+                setForm({ ...form, unitId: '' });
+              }} className="h-10 rounded-xl border px-3 text-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <option value="">Unit size</option>
+                {sizeOptions.map((size) => (
+                  <option key={size} value={String(size)}>{formatUnitSizeLabel(size)}</option>
+                ))}
+              </select>
+              <select value={form.unitId} onChange={(e) => setForm({ ...form, unitId: e.target.value })} className="h-10 rounded-xl border px-3 text-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <option value="">Unit number</option>
+                {selectableUnits.map((unit) => (
+                  <option key={unit.id} value={unit.id}>{formatUnitDisplayName(unit)}</option>
                 ))}
               </select>
               <Input type="date" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} required />
