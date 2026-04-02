@@ -67,16 +67,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newSettings),
       });
-      if (response.ok) {
-        const data = await response.json();
-        setSettings({
-          siteName: data.siteName || defaultSettings.siteName,
-          siteLogo: data.siteLogo || null,
-          siteDescription: data.siteDescription || null,
-          primaryColor: data.primaryColor || defaultSettings.primaryColor,
-          unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
-        });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null);
+        throw new Error(payload?.error || 'Failed to update settings');
       }
+
+      const data = await response.json();
+      setSettings({
+        siteName: data.siteName || defaultSettings.siteName,
+        siteLogo: data.siteLogo || null,
+        siteDescription: data.siteDescription || null,
+        primaryColor: data.primaryColor || defaultSettings.primaryColor,
+        unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
+      });
     } catch (error) {
       console.error('Failed to update settings:', error);
       throw error;

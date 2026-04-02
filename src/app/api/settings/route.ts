@@ -3,22 +3,31 @@ import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig } from '@/lib/status-config';
 
+const SETTINGS_SINGLETON_ID = 'default';
+
+async function getOrCreateSettings() {
+  const byDefaultId = await prisma.settings.findUnique({ where: { id: SETTINGS_SINGLETON_ID } });
+  if (byDefaultId) return byDefaultId;
+
+  const existing = await prisma.settings.findFirst({ orderBy: { updatedAt: 'desc' } });
+  if (existing) return existing;
+
+  return prisma.settings.create({
+    data: {
+      id: SETTINGS_SINGLETON_ID,
+      siteName: 'Skeleton',
+      siteLogo: null,
+      siteDescription: null,
+      primaryColor: '#3b82f6',
+      unitStatusConfig: DEFAULT_STATUS_CONFIG,
+    },
+  });
+}
+
 // GET /api/settings - Get site settings
 export async function GET() {
   try {
-    let settings = await prisma.settings.findFirst();
-
-    if (!settings) {
-      settings = await prisma.settings.create({
-        data: {
-          siteName: 'Skeleton',
-          siteLogo: null,
-          siteDescription: null,
-          primaryColor: '#3b82f6',
-          unitStatusConfig: DEFAULT_STATUS_CONFIG,
-        },
-      });
-    }
+    const settings = await getOrCreateSettings();
 
     return NextResponse.json({
       siteName: settings.siteName,
@@ -52,37 +61,25 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig } = body;
 
-    let settings = await prisma.settings.findFirst();
+    const settings = await getOrCreateSettings();
 
-    if (settings) {
-      settings = await prisma.settings.update({
-        where: { id: settings.id },
-        data: {
-          ...(siteName !== undefined && { siteName }),
-          ...(siteLogo !== undefined && { siteLogo }),
-          ...(siteDescription !== undefined && { siteDescription }),
-          ...(primaryColor !== undefined && { primaryColor }),
-          ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
-        },
-      });
-    } else {
-      settings = await prisma.settings.create({
-        data: {
-          siteName: siteName || 'Skeleton',
-          siteLogo: siteLogo || null,
-          siteDescription: siteDescription || null,
-          primaryColor: primaryColor || '#3b82f6',
-          unitStatusConfig: normalizeStatusConfig(unitStatusConfig),
-        },
-      });
-    }
+    const updated = await prisma.settings.update({
+      where: { id: settings.id },
+      data: {
+        ...(siteName !== undefined && { siteName }),
+        ...(siteLogo !== undefined && { siteLogo }),
+        ...(siteDescription !== undefined && { siteDescription }),
+        ...(primaryColor !== undefined && { primaryColor }),
+        ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
+      },
+    });
 
     return NextResponse.json({
-      siteName: settings.siteName,
-      siteLogo: settings.siteLogo || null,
-      siteDescription: settings.siteDescription || null,
-      primaryColor: settings.primaryColor,
-      unitStatusConfig: normalizeStatusConfig(settings.unitStatusConfig),
+      siteName: updated.siteName,
+      siteLogo: updated.siteLogo || null,
+      siteDescription: updated.siteDescription || null,
+      primaryColor: updated.primaryColor,
+      unitStatusConfig: normalizeStatusConfig(updated.unitStatusConfig),
     });
   } catch (error) {
     console.error('Error updating settings:', error);
