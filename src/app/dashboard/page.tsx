@@ -253,13 +253,13 @@ export default async function DashboardPage({
   ];
 
   return (
-    <div className="space-y-3">
-      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-0)), var(--surface-0) 58%)' }}>
+    <div className="space-y-2">
+      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-2" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-0)), var(--surface-0) 58%)' }}>
         <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 65%)' }} />
         <div className="relative grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">Operations Overview</p>
-            <h1 className="mt-0.5 text-xl font-bold text-[var(--text-strong)] leading-tight">Dashboard</h1>
+            <h1 className="text-xl font-bold text-[var(--text-strong)] leading-tight">Dashboard</h1>
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">Operations Overview</p>
           </div>
 
           <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
@@ -279,7 +279,7 @@ export default async function DashboardPage({
         </div>
       </section>
 
-      <section className="dashboard-rise-up rounded-2xl border px-2.5 pt-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+      <section className="dashboard-rise-up rounded-2xl border px-2.5 pt-1.5 pb-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
         <div className="flex gap-1.5 border-b" style={{ borderColor: 'var(--border)' }} role="tablist" aria-label="Dashboard view tabs">
           <Link
             href="/dashboard?tab=main"
@@ -312,7 +312,7 @@ export default async function DashboardPage({
 
       {activeTab === 'main' && (
         <Card className="dashboard-rise-up">
-          <CardContent className="space-y-3 p-3 md:p-4">
+          <CardContent className="space-y-3 p-2 pt-1.5 md:p-3 md:pt-1.5">
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map((item, index) => {
               const Icon = item.icon;
@@ -466,7 +466,7 @@ export default async function DashboardPage({
 
       {activeTab === 'operations' && (
         <Card className="dashboard-rise-up">
-          <CardContent className="space-y-3 p-3 md:p-4">
+          <CardContent className="space-y-3 p-2 pt-1.5 md:p-3 md:pt-1.5">
             <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
               <p className="text-sm font-semibold text-[var(--text-strong)]">Operations Overview by Location</p>
               <p className="mt-1 text-xs text-[var(--text-muted)]">Choose a site to view only its operational graphics and KPIs.</p>
