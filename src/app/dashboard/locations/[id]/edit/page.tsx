@@ -8,6 +8,7 @@ import { ArrowLeft, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LocationUnitSetup } from '@/components/location-unit-setup';
@@ -42,6 +43,8 @@ export default function EditLocationPage() {
     longitude: '',
     active: true,
   });
+
+  const locationLabel = form.name.trim() || 'Unnamed location';
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) router.push('/dashboard');
@@ -139,17 +142,20 @@ export default function EditLocationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <Link href="/dashboard/locations">
-          <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-3xl font-bold text-[var(--text-strong)]">Edit Location</h1>
-          <p className="mt-1 text-[var(--text-muted)]">Update branch details and contact info.</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard/locations">
+            <Button variant="outline" size="sm">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-3xl font-bold text-[var(--text-strong)]">Edit Location: {locationLabel}</h1>
+            <p className="mt-1 text-[var(--text-muted)]">Update branch details and contact info for this location.</p>
+          </div>
         </div>
+        <Badge className="text-sm px-3 py-1.5" variant="default">{locationLabel}</Badge>
       </div>
 
       <Tabs defaultValue="details" className="space-y-4">

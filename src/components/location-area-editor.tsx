@@ -85,6 +85,8 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const [uploadingBackground, setUploadingBackground] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newAreaName, setNewAreaName] = useState('');
+  const [unitSearch, setUnitSearch] = useState('');
+  const [sizeFilter, setSizeFilter] = useState('ALL');
 
   const [areaMeta, setAreaMeta] = useState({
     name: '',
@@ -138,6 +140,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
       .sort((left, right) => left[0].localeCompare(right[0], undefined, { numeric: true }))
       .map(([label, items]) => ({
         label,
+        sizeSqft: items[0]?.sizeSqft ?? null,
         items: [...items].sort((left, right) => {
           const leftNumber = left.unitNumber ?? Number.MAX_SAFE_INTEGER;
           const rightNumber = right.unitNumber ?? Number.MAX_SAFE_INTEGER;
@@ -146,6 +149,35 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
         }),
       }));
   }, [units]);
+
+  const sizeOptions = useMemo(() => {
+    return [...new Set(units.map((unit) => unit.sizeSqft).filter((value) => value !== null))]
+      .sort((left, right) => Number(left) - Number(right));
+  }, [units]);
+
+  const filteredGroupedUnits = useMemo(() => {
+    const normalizedQuery = unitSearch.trim().toLowerCase();
+    return groupedUnits
+      .filter((group) => (sizeFilter === 'ALL' ? true : String(group.sizeSqft ?? '') === sizeFilter))
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((unit) => {
+          if (!normalizedQuery) return true;
+          const displayName = formatUnitDisplayName(unit).toLowerCase();
+          return displayName.includes(normalizedQuery);
+        }),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [groupedUnits, sizeFilter, unitSearch]);
+
+  const placedUnits = useMemo(() => {
+    return placements
+      .map((placement) => ({
+        placementId: placement.id,
+        unit: unitMap.get(placement.unitId),
+      }))
+      .filter((entry): entry is { placementId: string; unit: UnitItem } => Boolean(entry.unit));
+  }, [placements, unitMap]);
 
   useEffect(() => {
     bootstrap();
@@ -218,6 +250,8 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
       label: placement.label,
     })));
     setSelectedPlacementId(null);
+    setUnitSearch('');
+    setSizeFilter('ALL');
   }
 
   async function handleCreateArea() {
@@ -548,8 +582,26 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
 
               <div>
                 <p className="mb-2 text-sm font-medium text-[var(--text-strong)]">Units</p>
+                <div className="mb-3 space-y-2">
+                  <Input
+                    value={unitSearch}
+                    onChange={(event) => setUnitSearch(event.target.value)}
+                    placeholder="Search unit number..."
+                  />
+                  <select
+                    value={sizeFilter}
+                    onChange={(event) => setSizeFilter(event.target.value)}
+                    className="h-10 w-full rounded-xl border px-3 text-sm"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                  >
+                    <option value="ALL">All sizes</option>
+                    {sizeOptions.map((size) => (
+                      <option key={size} value={String(size)}>{formatUnitSizeLabel(size)}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="max-h-[360px] space-y-2 overflow-auto pr-1">
-                  {groupedUnits.map((group) => (
+                  {filteredGroupedUnits.map((group) => (
                     <div key={group.label} className="space-y-2">
                       <p className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{group.label}</p>
                       {group.items.map((unit) => {
@@ -576,12 +628,36 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                       })}
                     </div>
                   ))}
+                  {filteredGroupedUnits.length === 0 && (
+                    <p className="py-4 text-sm text-[var(--text-muted)]">No units match your filters.</p>
+                  )}
                 </div>
                 <p className="mt-2 text-xs text-[var(--text-muted)]">
                   {mode === 'edit'
                     ? 'Drag unplaced units to the canvas to create boxes.'
                     : 'Switch to edit mode to place and modify units.'}
                 </p>
+
+                {mode === 'edit' && (
+                  <div className="mt-4">
+                    <p className="mb-2 text-sm font-medium text-[var(--text-strong)]">Placed on canvas</p>
+                    <div className="max-h-[200px] space-y-2 overflow-auto pr-1">
+                      {placedUnits.length === 0 ? (
+                        <p className="text-xs text-[var(--text-muted)]">No units placed yet.</p>
+                      ) : (
+                        placedUnits.map(({ placementId, unit }) => (
+                          <div key={placementId} className="flex items-center justify-between rounded-lg border px-2 py-1.5"
+                            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                            <span className="text-sm">{formatUnitDisplayName(unit)}</span>
+                            <Button type="button" size="sm" variant="outline" onClick={() => removePlacement(placementId)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -632,6 +708,14 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                               opacity={0.9}
                               onClick={() => setSelectedPlacementId(placement.id)}
                               onTap={() => setSelectedPlacementId(placement.id)}
+                              onDblClick={() => {
+                                if (mode !== 'edit') return;
+                                removePlacement(placement.id);
+                              }}
+                              onDblTap={() => {
+                                if (mode !== 'edit') return;
+                                removePlacement(placement.id);
+                              }}
                               onDragEnd={(event) => {
                                 if (mode !== 'edit') return;
                                 updatePlacement(placement.id, {
