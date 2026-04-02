@@ -193,42 +193,61 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
             {error && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{error}</div>}
             {success && <div className="rounded-xl border border-[var(--success)] p-3 text-sm text-[var(--success)]">{success}</div>}
 
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-2">
-                <label className="text-xs font-medium text-[var(--text-muted)]">Unit size</label>
-                <select
-                  value={sizeSelection}
-                  onChange={(event) => {
-                    const next = event.target.value;
-                    setSizeSelection(next);
-                    if (next === 'custom') {
-                      setForm({ ...form, sizeSqft: '' });
-                      return;
-                    }
-                    setForm({ ...form, sizeSqft: next });
-                  }}
-                  className="h-10 w-full rounded-xl border px-3 text-sm"
-                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
-                >
-                  <option value="custom">Custom size...</option>
-                  {existingSizeOptions.map((size) => (
-                    <option key={size} value={String(size)}>{formatUnitSizeLabel(size)}</option>
-                  ))}
-                </select>
-              </div>
-              {sizeSelection === 'custom' && (
-                <Input type="number" min="1" placeholder="Size sqft" value={form.sizeSqft} onChange={(event) => setForm({ ...form, sizeSqft: event.target.value })} required />
-              )}
-              <Input type="number" min="1" placeholder="Total quantity" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} required />
-              <Input placeholder="Type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} />
-              <Input placeholder="Dimensions" value={form.dimensions} onChange={(event) => setForm({ ...form, dimensions: event.target.value })} />
-              <Input type="number" min="0" step="0.01" placeholder="Weekly rate" value={form.weeklyRate} onChange={(event) => setForm({ ...form, weeklyRate: event.target.value })} />
-              <Input type="number" min="0" step="0.01" placeholder="Monthly rate" value={form.monthlyRate} onChange={(event) => setForm({ ...form, monthlyRate: event.target.value })} />
-            </div>
+            <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-3">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--text-muted)]">Unit size</label>
+                  <select
+                    value={sizeSelection}
+                    onChange={(event) => {
+                      const next = event.target.value;
+                      setSizeSelection(next);
+                      if (next === 'custom') {
+                        setForm({ ...form, sizeSqft: '' });
+                        return;
+                      }
+                      setForm({ ...form, sizeSqft: next });
+                    }}
+                    className="h-10 w-full rounded-xl border px-3 text-sm"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                  >
+                    <option value="custom">Custom size...</option>
+                    {existingSizeOptions.map((size) => (
+                      <option key={size} value={String(size)}>{formatUnitSizeLabel(size)}</option>
+                    ))}
+                  </select>
+                </div>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input type="number" min="0" step="0.01" placeholder="Sale price" value={form.salePrice} onChange={(event) => setForm({ ...form, salePrice: event.target.value })} />
-              <Input placeholder="Offer / label" value={form.offer} onChange={(event) => setForm({ ...form, offer: event.target.value })} />
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--text-muted)]">Size sqft</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="Size sqft"
+                    value={form.sizeSqft}
+                    onChange={(event) => setForm({ ...form, sizeSqft: event.target.value })}
+                    required
+                    disabled={sizeSelection !== 'custom'}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-[var(--text-muted)]">Total quantity</label>
+                  <Input type="number" min="1" placeholder="Total quantity" value={form.quantity} onChange={(event) => setForm({ ...form, quantity: event.target.value })} required />
+                </div>
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <Input placeholder="Type" value={form.type} onChange={(event) => setForm({ ...form, type: event.target.value })} />
+                <Input placeholder="Dimensions" value={form.dimensions} onChange={(event) => setForm({ ...form, dimensions: event.target.value })} />
+                <Input type="number" min="0" step="0.01" placeholder="Weekly rate" value={form.weeklyRate} onChange={(event) => setForm({ ...form, weeklyRate: event.target.value })} />
+              </div>
+
+              <div className="grid gap-3 md:grid-cols-3">
+                <Input type="number" min="0" step="0.01" placeholder="Monthly rate" value={form.monthlyRate} onChange={(event) => setForm({ ...form, monthlyRate: event.target.value })} />
+                <Input type="number" min="0" step="0.01" placeholder="Sale price" value={form.salePrice} onChange={(event) => setForm({ ...form, salePrice: event.target.value })} />
+                <Input placeholder="Offer / label" value={form.offer} onChange={(event) => setForm({ ...form, offer: event.target.value })} />
+              </div>
             </div>
 
             <Input placeholder="Description" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
