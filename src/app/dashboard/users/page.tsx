@@ -274,9 +274,6 @@ function UsersContent() {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create User" description="Add a new user to the system." className="max-w-md">
         <form onSubmit={handleCreateUser} className="space-y-4">
