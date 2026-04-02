@@ -63,7 +63,11 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       <aside className="hidden border-r lg:fixed lg:inset-y-0 lg:flex lg:h-screen lg:w-[var(--sidebar-width)] lg:flex-col" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
         <div className="flex h-20 items-center border-b px-6" style={{ borderColor: 'var(--border)' }}>
           <Link href="/dashboard" className="flex items-center gap-3" prefetch={true}>
-            {settings.siteLogo ? (
+            {isSidebarCollapsed ? (
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ backgroundColor: 'var(--accent-soft)' }}>
+                <span className="text-xl font-bold" style={{ color: 'var(--accent)' }}>S</span>
+              </div>
+            ) : settings.siteLogo ? (
               <img
                 src={settings.siteLogo}
                 alt={settings.siteName}
