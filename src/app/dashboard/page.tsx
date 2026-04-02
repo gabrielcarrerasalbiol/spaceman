@@ -263,26 +263,6 @@ export default async function DashboardPage({
           Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              href="/dashboard?tab=main"
-              className="h-8 rounded-full border px-3 text-xs font-medium inline-flex items-center"
-              style={{
-                borderColor: 'var(--border)',
-                backgroundColor: activeTab === 'main' ? 'var(--surface-2)' : 'var(--surface-0)',
-              }}
-            >
-              Main Dashboard
-            </Link>
-            <Link
-              href={`/dashboard?tab=operations${selectedLocationId ? `&locationId=${selectedLocationId}` : ''}`}
-              className="h-8 rounded-full border px-3 text-xs font-medium inline-flex items-center"
-              style={{
-                borderColor: 'var(--border)',
-                backgroundColor: activeTab === 'operations' ? 'var(--surface-2)' : 'var(--surface-0)',
-              }}
-            >
-              Operations Overview
-            </Link>
             <span className="rounded-full border px-3 py-1 text-xs" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
               All-Site Occupancy {formatPercent(allScope.occupancyRate)}
             </span>
@@ -293,6 +273,33 @@ export default async function DashboardPage({
               Role {(session?.user as any)?.role || 'USER'}
             </span>
           </div>
+        </div>
+      </section>
+
+      <section className="dashboard-rise-up rounded-2xl border p-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Link
+            href="/dashboard?tab=main"
+            className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
+            style={{
+              borderColor: activeTab === 'main' ? 'var(--accent)' : 'var(--border)',
+              backgroundColor: activeTab === 'main' ? 'color-mix(in srgb, var(--accent) 14%, var(--surface-0))' : 'var(--surface-1)',
+              color: activeTab === 'main' ? 'var(--accent)' : 'var(--text-strong)',
+            }}
+          >
+            Main Dashboard (All Sites)
+          </Link>
+          <Link
+            href={`/dashboard?tab=operations${selectedLocationId ? `&locationId=${selectedLocationId}` : ''}`}
+            className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
+            style={{
+              borderColor: activeTab === 'operations' ? 'var(--accent)' : 'var(--border)',
+              backgroundColor: activeTab === 'operations' ? 'color-mix(in srgb, var(--accent) 14%, var(--surface-0))' : 'var(--surface-1)',
+              color: activeTab === 'operations' ? 'var(--accent)' : 'var(--text-strong)',
+            }}
+          >
+            Operations Overview by Location
+          </Link>
         </div>
       </section>
 
