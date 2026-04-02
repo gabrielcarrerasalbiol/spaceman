@@ -29,14 +29,17 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "csv-parse": "^6.2.1",
+    "konva": "^9.3.22",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.460.0",
     "next": "^14.2.0",
     "next-auth": "^5.0.0-beta.22",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
+    "react-konva": "^18.2.10",
     "tailwind-merge": "^2.5.4",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "use-image": "^1.1.4"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

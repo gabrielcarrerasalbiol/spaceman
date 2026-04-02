@@ -95,6 +95,7 @@ model Location {
   updatedById    BigInt?
   units          Unit[]
   contracts      Contract[]
+  areas          LocationArea[]
 
   @@index([name])
   @@index([active])
@@ -154,6 +155,7 @@ model Unit {
   updatedById       BigInt?
   location          Location   @relation(fields: [locationId], references: [id], onDelete: Restrict)
   contracts         Contract[]
+  areaPlacements    UnitAreaPlacement[]
 
   @@index([status])
   @@index([active])
@@ -194,6 +196,48 @@ model Contract {
   @@map("contracts")
 }
 
+model LocationArea {
+  id                 String              @id @default(cuid())
+  locationId         String
+  name               String
+  description        String?
+  backgroundImageUrl String?
+  canvasWidth        Int                 @default(1400)
+  canvasHeight       Int                 @default(820)
+  sortOrder          Int                 @default(0)
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  location           Location            @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  placements         UnitAreaPlacement[]
+
+  @@index([locationId, sortOrder])
+  @@map("location_areas")
+}
+
+model UnitAreaPlacement {
+  id          String         @id @default(cuid())
+  areaId      String
+  unitId      String
+  shape       PlacementShape @default(RECTANGLE)
+  x           Float
+  y           Float
+  width       Float
+  height      Float
+  rotation    Float          @default(0)
+  zIndex      Int            @default(0)
+  label       String?
+  points      Json?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  area        LocationArea   @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  unit        Unit           @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([areaId, zIndex])
+  @@index([unitId])
+  @@map("unit_area_placements")
+}
+
 enum ActivityType {
   LOGIN
   LOGOUT
@@ -222,4 +266,9 @@ enum ClientStatus {
   ACTIVE
   INACTIVE
   LEAD
+}
+
+enum PlacementShape {
+  RECTANGLE
+  POLYGON
 }

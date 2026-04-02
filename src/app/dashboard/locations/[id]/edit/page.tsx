@@ -3,11 +3,18 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { ArrowLeft, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePermissions } from '@/hooks/usePermissions';
+
+const LocationAreaEditor = dynamic(() => import('@/components/location-area-editor'), {
+  ssr: false,
+  loading: () => <p className="text-[var(--text-muted)]">Loading area editor...</p>,
+});
 
 export default function EditLocationPage() {
   const params = useParams();
@@ -144,59 +151,72 @@ export default function EditLocationPage() {
         </div>
       </div>
 
-      <Card className="max-w-3xl">
-        <CardHeader>
-          <CardTitle>Location Details</CardTitle>
-          <CardDescription>These values are used in listings and contract linking.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{error}</div>}
-            {success && <div className="rounded-xl border border-[var(--success)] p-3 text-sm text-[var(--success)]">{success}</div>}
+      <Tabs defaultValue="details" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="areas">Areas</TabsTrigger>
+        </TabsList>
 
-            <div className="grid gap-3 md:grid-cols-2">
-              <Input placeholder="Location name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-              <Input placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
-              <Input placeholder="Address line 1" value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} />
-              <Input placeholder="Address line 2" value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} />
-              <Input placeholder="Town/City" value={form.townCity} onChange={(e) => setForm({ ...form, townCity: e.target.value })} />
-              <Input placeholder="County" value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} />
-              <Input placeholder="Postcode" value={form.postcode} onChange={(e) => setForm({ ...form, postcode: e.target.value })} />
-              <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-              <Input placeholder="Opening hours" value={form.openingHours} onChange={(e) => setForm({ ...form, openingHours: e.target.value })} />
-              <Input placeholder="Latitude" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} />
-              <Input placeholder="Longitude" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
-            </div>
+        <TabsContent value="details">
+          <Card className="max-w-3xl">
+            <CardHeader>
+              <CardTitle>Location Details</CardTitle>
+              <CardDescription>These values are used in listings and contract linking.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && <div className="rounded-xl border border-[var(--danger)] p-3 text-sm text-[var(--danger)]">{error}</div>}
+                {success && <div className="rounded-xl border border-[var(--success)] p-3 text-sm text-[var(--success)]">{success}</div>}
 
-            <div>
-              <Button type="button" variant="outline" onClick={handleGeocode} disabled={geocoding}>
-                {geocoding ? 'Geocoding...' : 'Geocode'}
-              </Button>
-            </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input placeholder="Location name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                  <Input placeholder="Code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} />
+                  <Input placeholder="Address line 1" value={form.addressLine1} onChange={(e) => setForm({ ...form, addressLine1: e.target.value })} />
+                  <Input placeholder="Address line 2" value={form.addressLine2} onChange={(e) => setForm({ ...form, addressLine2: e.target.value })} />
+                  <Input placeholder="Town/City" value={form.townCity} onChange={(e) => setForm({ ...form, townCity: e.target.value })} />
+                  <Input placeholder="County" value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} />
+                  <Input placeholder="Postcode" value={form.postcode} onChange={(e) => setForm({ ...form, postcode: e.target.value })} />
+                  <Input placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                  <Input placeholder="Phone" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                  <Input placeholder="Opening hours" value={form.openingHours} onChange={(e) => setForm({ ...form, openingHours: e.target.value })} />
+                  <Input placeholder="Latitude" value={form.latitude} onChange={(e) => setForm({ ...form, latitude: e.target.value })} />
+                  <Input placeholder="Longitude" value={form.longitude} onChange={(e) => setForm({ ...form, longitude: e.target.value })} />
+                </div>
 
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={form.active}
-                onChange={(e) => setForm({ ...form, active: e.target.checked })}
-                className="h-4 w-4"
-              />
-              Active location
-            </label>
+                <div>
+                  <Button type="button" variant="outline" onClick={handleGeocode} disabled={geocoding}>
+                    {geocoding ? 'Geocoding...' : 'Geocode'}
+                  </Button>
+                </div>
 
-            <div className="flex gap-3">
-              <Button type="submit" disabled={saving}>
-                <Save className="h-4 w-4 mr-2" />
-                {saving ? 'Saving...' : 'Save Changes'}
-              </Button>
-              <Link href="/dashboard/locations">
-                <Button type="button" variant="outline">Cancel</Button>
-              </Link>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.active}
+                    onChange={(e) => setForm({ ...form, active: e.target.checked })}
+                    className="h-4 w-4"
+                  />
+                  Active location
+                </label>
+
+                <div className="flex gap-3">
+                  <Button type="submit" disabled={saving}>
+                    <Save className="h-4 w-4 mr-2" />
+                    {saving ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Link href="/dashboard/locations">
+                    <Button type="button" variant="outline">Cancel</Button>
+                  </Link>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="areas">
+          <LocationAreaEditor locationId={params.id as string} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
