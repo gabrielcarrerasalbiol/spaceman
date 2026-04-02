@@ -10,7 +10,7 @@ import {
   Transformer,
 } from 'react-konva';
 import useImage from 'use-image';
-import { ImagePlus, Plus, Save, Trash2, Upload } from 'lucide-react';
+import { ImagePlus, Plus, Save, Trash2, Upload, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,6 +87,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const [newAreaName, setNewAreaName] = useState('');
   const [unitSearch, setUnitSearch] = useState('');
   const [sizeFilter, setSizeFilter] = useState('ALL');
+  const [canvasZoom, setCanvasZoom] = useState(1);
 
   const [areaMeta, setAreaMeta] = useState({
     name: '',
@@ -127,6 +128,18 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     }
     return map;
   }, [units]);
+
+  function clampZoom(value: number) {
+    return Math.min(2.5, Math.max(0.5, value));
+  }
+
+  function zoomIn() {
+    setCanvasZoom((previous) => clampZoom(Number((previous + 0.1).toFixed(2))));
+  }
+
+  function zoomOut() {
+    setCanvasZoom((previous) => clampZoom(Number((previous - 0.1).toFixed(2))));
+  }
 
   const groupedUnits = useMemo(() => {
     const groups = new Map<string, UnitItem[]>();
@@ -321,8 +334,8 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     if (!stage) return;
 
     const rect = stage.container().getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const x = (event.clientX - rect.left) / canvasZoom;
+    const y = (event.clientY - rect.top) / canvasZoom;
 
     const next = createPlacement(unitId, placements.length, x - 55, y - 25);
     setPlacements([...placements, next]);
@@ -677,7 +690,13 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={onDropUnit}
               >
-                <Stage ref={stageRef} width={areaMeta.canvasWidth} height={areaMeta.canvasHeight}>
+                <Stage
+                  ref={stageRef}
+                  width={areaMeta.canvasWidth * canvasZoom}
+                  height={areaMeta.canvasHeight * canvasZoom}
+                  scaleX={canvasZoom}
+                  scaleY={canvasZoom}
+                >
                   <Layer>
                     {backgroundImage && (
                       <KonvaImage image={backgroundImage} width={areaMeta.canvasWidth} height={areaMeta.canvasHeight} listening={false} />
@@ -690,7 +709,19 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                         if (!unit) return null;
 
                         const fill = statusFill(unit.status);
-                        const label = placement.label || formatUnitDisplayName(unit);
+                        const compact = placement.width < 95 || placement.height < 45;
+                        const veryCompact = placement.width < 70 || placement.height < 34;
+                        const baseSize = unit.sizeSqft ? String(unit.sizeSqft) : '';
+                        const mainLabel = placement.label || (baseSize ? (compact ? baseSize : `${baseSize}SQFT`) : formatUnitDisplayName(unit));
+                        const badgeLabel = unit.unitNumber ? String(unit.unitNumber) : '';
+
+                        let fontFamily = 'Arial';
+                        if ((unit.sizeSqft ?? 0) >= 100) fontFamily = 'Georgia';
+                        else if ((unit.sizeSqft ?? 0) >= 50) fontFamily = 'Trebuchet MS';
+
+                        const labelFontSize = veryCompact ? 8 : compact ? 9 : 12;
+                        const labelYOffset = veryCompact ? 4 : 6;
+                        const badgeRadius = veryCompact ? 7 : 9;
 
                         return (
                           <Fragment key={placement.id}>
@@ -743,15 +774,44 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                             />
                             <Text
                               x={placement.x + 6}
-                              y={placement.y + 6}
+                              y={placement.y + labelYOffset}
                               width={Math.max(20, placement.width - 12)}
-                              text={label}
+                              text={mainLabel}
                               fill="#0b1020"
-                              fontSize={12}
+                              fontSize={labelFontSize}
+                              fontFamily={fontFamily}
                               fontStyle="bold"
                               listening={false}
                               rotation={placement.rotation}
                             />
+
+                            {badgeLabel && (
+                              <>
+                                <Rect
+                                  x={placement.x + placement.width - badgeRadius * 2 - 4}
+                                  y={placement.y + 4}
+                                  width={badgeRadius * 2}
+                                  height={badgeRadius * 2}
+                                  cornerRadius={badgeRadius}
+                                  fill="#111827"
+                                  opacity={0.92}
+                                  listening={false}
+                                />
+                                <Text
+                                  x={placement.x + placement.width - badgeRadius * 2 - 4}
+                                  y={placement.y + 4}
+                                  width={badgeRadius * 2}
+                                  height={badgeRadius * 2}
+                                  align="center"
+                                  verticalAlign="middle"
+                                  text={badgeLabel}
+                                  fill="#ffffff"
+                                  fontSize={veryCompact ? 8 : 10}
+                                  fontStyle="bold"
+                                  listening={false}
+                                />
+                              </>
+                            )}
                           </Fragment>
                         );
                       })}
@@ -769,6 +829,16 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                   </Button>
                 </div>
               )}
+
+              <div className="mt-3 flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={zoomOut} disabled={canvasZoom <= 0.5}>
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[64px] text-center text-sm text-[var(--text-muted)]">{Math.round(canvasZoom * 100)}%</span>
+                <Button type="button" variant="outline" size="sm" onClick={zoomIn} disabled={canvasZoom >= 2.5}>
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
