@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { UnitStatus } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { serializeForJson } from '@/lib/utils';
 import { buildGeneratedUnitCode } from '@/lib/unit-display';
+
+const UNIT_STATUS_VALUES = new Set<UnitStatus>([
+  UnitStatus.AVAILABLE,
+  UnitStatus.RESERVED,
+  UnitStatus.OCCUPIED,
+  UnitStatus.MAINTENANCE,
+  UnitStatus.INACTIVE,
+]);
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +21,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const locationId = searchParams.get('locationId') || '';
-    const status = searchParams.get('status') || '';
+    const rawStatus = searchParams.get('status') || '';
+    const status = UNIT_STATUS_VALUES.has(rawStatus as UnitStatus)
+      ? (rawStatus as UnitStatus)
+      : undefined;
     const pageParam = Number(searchParams.get('page') || '');
     const limitParam = Number(searchParams.get('limit') || '');
 
