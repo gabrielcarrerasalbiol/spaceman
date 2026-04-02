@@ -128,6 +128,8 @@ export default function LocationsPage() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [geocoding, setGeocoding] = useState(false);
+  const [deleteMessage, setDeleteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [deletingLocationId, setDeletingLocationId] = useState<string | null>(null);
 
   const mappedLocations = useMemo<MapLocation[]>(() => {
     return locations
@@ -227,8 +229,39 @@ export default function LocationsPage() {
   }
 
   async function deleteLocation(id: string) {
-    const response = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
-    if (response.ok) fetchLocations();
+    const location = locations.find((item) => item.id === id);
+    if (!location) return;
+
+    if (location._count?.units > 0) {
+      setDeleteMessage({ type: 'error', text: 'This location cannot be deleted while it still has units attached.' });
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete location "${location.name}"? This action cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      setDeletingLocationId(id);
+      setDeleteMessage(null);
+
+      const response = await fetch(`/api/locations/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        setDeleteMessage({ type: 'success', text: `Location "${location.name}" deleted.` });
+        await fetchLocations();
+        return;
+      }
+
+      const payload = await response.json().catch(() => null);
+      setDeleteMessage({
+        type: 'error',
+        text: payload?.error || 'Failed to delete location.',
+      });
+    } catch (error) {
+      console.error('Failed to delete location:', error);
+      setDeleteMessage({ type: 'error', text: 'Failed to delete location.' });
+    } finally {
+      setDeletingLocationId(null);
+    }
   }
 
   if (permissionsLoading || !isAdmin) {
@@ -261,6 +294,23 @@ export default function LocationsPage() {
               <CardDescription>Search and maintain location records.</CardDescription>
             </CardHeader>
             <CardContent>
+              {deleteMessage && (
+                <div
+                  className="mb-4 rounded-xl border px-4 py-3 text-sm"
+                  style={{
+                    borderColor: deleteMessage.type === 'success'
+                      ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                      : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                    backgroundColor: deleteMessage.type === 'success'
+                      ? 'color-mix(in srgb, var(--success) 12%, var(--surface-0))'
+                      : 'color-mix(in srgb, var(--danger) 12%, var(--surface-0))',
+                    color: deleteMessage.type === 'success' ? 'var(--success)' : 'var(--danger)',
+                  }}
+                >
+                  {deleteMessage.text}
+                </div>
+              )}
+
               <div className="mb-4 max-w-sm">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
@@ -308,7 +358,13 @@ export default function LocationsPage() {
                               <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/locations/${location.id}/edit`}>
                                 <Edit className="h-4 w-4" />
                               </Button>
-                              <Button variant="outline" size="sm" onClick={() => deleteLocation(location.id)}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => deleteLocation(location.id)}
+                                disabled={deletingLocationId === location.id}
+                                title={location._count?.units > 0 ? 'Remove units before deleting this location' : 'Delete location'}
+                              >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
