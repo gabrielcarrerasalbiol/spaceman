@@ -10,7 +10,7 @@ import {
   Transformer,
 } from 'react-konva';
 import useImage from 'use-image';
-import { Plus, Save, Trash2 } from 'lucide-react';
+import { ImagePlus, Plus, Save, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,6 +79,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const [mode, setMode] = useState<'view' | 'edit'>('view');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingBackground, setUploadingBackground] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newAreaName, setNewAreaName] = useState('');
 
@@ -96,6 +97,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const [backgroundImage] = useImage(areaMeta.backgroundImageUrl || '');
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
+  const backgroundFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const placementByUnitId = useMemo(() => {
     return new Set(placements.map((placement) => placement.unitId));
@@ -329,6 +331,44 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     }
   }
 
+  async function handleBackgroundUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setUploadingBackground(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('type', 'location-area-background');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        setError(payload.error || 'Failed to upload background image');
+        return;
+      }
+
+      setAreaMeta((previous) => ({
+        ...previous,
+        backgroundImageUrl: payload.url,
+      }));
+    } catch (e) {
+      setError('Failed to upload background image');
+    } finally {
+      setUploadingBackground(false);
+      if (backgroundFileInputRef.current) {
+        backgroundFileInputRef.current.value = '';
+      }
+    }
+  }
+
   if (loading) {
     return <p className="text-[var(--text-muted)]">Loading areas...</p>;
   }
@@ -417,6 +457,39 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                 placeholder="Background image URL"
                 disabled={mode !== 'edit'}
               />
+              <input
+                ref={backgroundFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg,image/gif,image/webp,image/svg+xml"
+                onChange={handleBackgroundUpload}
+                className="hidden"
+                disabled={mode !== 'edit' || uploadingBackground}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => backgroundFileInputRef.current?.click()}
+                  disabled={mode !== 'edit' || uploadingBackground}
+                >
+                  {uploadingBackground ? (
+                    <Upload className="mr-2 h-4 w-4" />
+                  ) : (
+                    <ImagePlus className="mr-2 h-4 w-4" />
+                  )}
+                  {uploadingBackground ? 'Uploading...' : 'Upload Background'}
+                </Button>
+                {areaMeta.backgroundImageUrl && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setAreaMeta({ ...areaMeta, backgroundImageUrl: '' })}
+                    disabled={mode !== 'edit' || uploadingBackground}
+                  >
+                    Remove Background
+                  </Button>
+                )}
+              </div>
               <Input
                 value={areaMeta.description}
                 onChange={(event) => setAreaMeta({ ...areaMeta, description: event.target.value })}
