@@ -155,7 +155,6 @@ model Unit {
   location          Location   @relation(fields: [locationId], references: [id], onDelete: Restrict)
   contracts         Contract[]
 
-  @@unique([locationId, code])
   @@index([status])
   @@index([active])
   @@index([locationId])

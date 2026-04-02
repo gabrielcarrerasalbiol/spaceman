@@ -45,7 +45,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, code, addressLine1, addressLine2, townCity, county, postcode, email, phone, openingHours, active } = body;
+    const { name, code, addressLine1, addressLine2, townCity, county, postcode, email, phone, openingHours, latitude, longitude, active } = body;
 
     const data: any = {
       updatedById: BigInt(user.id),
@@ -68,6 +68,8 @@ export async function PUT(
     if (email !== undefined) data.email = email || null;
     if (phone !== undefined) data.phone = phone || null;
     if (openingHours !== undefined) data.openingHours = openingHours || null;
+    if (latitude !== undefined) data.latitude = latitude === '' || latitude === null ? null : Number(latitude);
+    if (longitude !== undefined) data.longitude = longitude === '' || longitude === null ? null : Number(longitude);
     if (active !== undefined) data.active = Boolean(active);
 
     const location = await prisma.location.update({ where: { id }, data });

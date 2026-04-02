@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (!isAdmin(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
     const body = await request.json();
-    const { name, code, addressLine1, addressLine2, townCity, county, postcode, email, phone, openingHours } = body;
+    const { name, code, addressLine1, addressLine2, townCity, county, postcode, email, phone, openingHours, latitude, longitude } = body;
 
     if (!name) {
       return NextResponse.json({ error: 'Name is required' }, { status: 400 });
@@ -65,6 +65,8 @@ export async function POST(request: NextRequest) {
         email: email || null,
         phone: phone || null,
         openingHours: openingHours || null,
+        latitude: latitude !== undefined && latitude !== '' ? Number(latitude) : null,
+        longitude: longitude !== undefined && longitude !== '' ? Number(longitude) : null,
         createdById: BigInt(user.id),
         updatedById: BigInt(user.id),
       },
