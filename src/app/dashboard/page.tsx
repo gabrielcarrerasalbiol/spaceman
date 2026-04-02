@@ -253,37 +253,39 @@ export default async function DashboardPage({
   ];
 
   return (
-    <div className="space-y-4">
-      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-5 py-5" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-0)), var(--surface-0) 58%)' }}>
+    <div className="space-y-3">
+      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-3" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-0)), var(--surface-0) 58%)' }}>
         <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 65%)' }} />
         <div className="relative">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">Operations Overview</p>
-          <h1 className="mt-1 text-2xl font-bold text-[var(--text-strong)]">Dashboard</h1>
-          <p className="mt-1 text-sm text-[var(--text-muted)]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">Operations Overview</p>
+          <h1 className="mt-0.5 text-xl font-bold text-[var(--text-strong)] leading-tight">Dashboard</h1>
+          <p className="mt-0.5 text-xs text-[var(--text-muted)]">
           Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!
           </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <span className="rounded-full border px-3 py-1 text-xs" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <span className="rounded-full border px-2.5 py-0.5 text-[11px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
               All-Site Occupancy {formatPercent(allScope.occupancyRate)}
             </span>
-            <span className="rounded-full border px-3 py-1 text-xs" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+            <span className="rounded-full border px-2.5 py-0.5 text-[11px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
               All-Site Utilization {formatPercent(allScope.utilizationRate)}
             </span>
-            <span className="rounded-full border px-3 py-1 text-xs" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+            <span className="rounded-full border px-2.5 py-0.5 text-[11px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
               Role {(session?.user as any)?.role || 'USER'}
             </span>
           </div>
         </div>
       </section>
 
-      <section className="dashboard-rise-up rounded-2xl border p-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
-        <div className="grid gap-2 sm:grid-cols-2">
+      <section className="dashboard-rise-up rounded-2xl border px-2.5 pt-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+        <div className="flex gap-1.5 border-b" style={{ borderColor: 'var(--border)' }} role="tablist" aria-label="Dashboard view tabs">
           <Link
             href="/dashboard?tab=main"
-            className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
+            role="tab"
+            aria-selected={activeTab === 'main'}
+            className="rounded-t-lg px-3 py-2 text-sm font-semibold transition"
             style={{
-              borderColor: activeTab === 'main' ? 'var(--accent)' : 'var(--border)',
-              backgroundColor: activeTab === 'main' ? 'color-mix(in srgb, var(--accent) 14%, var(--surface-0))' : 'var(--surface-1)',
+              borderBottom: activeTab === 'main' ? '2px solid var(--accent)' : '2px solid transparent',
+              backgroundColor: activeTab === 'main' ? 'color-mix(in srgb, var(--accent) 10%, var(--surface-0))' : 'transparent',
               color: activeTab === 'main' ? 'var(--accent)' : 'var(--text-strong)',
             }}
           >
@@ -291,10 +293,12 @@ export default async function DashboardPage({
           </Link>
           <Link
             href={`/dashboard?tab=operations${selectedLocationId ? `&locationId=${selectedLocationId}` : ''}`}
-            className="rounded-xl border px-4 py-2.5 text-sm font-semibold transition"
+            role="tab"
+            aria-selected={activeTab === 'operations'}
+            className="rounded-t-lg px-3 py-2 text-sm font-semibold transition"
             style={{
-              borderColor: activeTab === 'operations' ? 'var(--accent)' : 'var(--border)',
-              backgroundColor: activeTab === 'operations' ? 'color-mix(in srgb, var(--accent) 14%, var(--surface-0))' : 'var(--surface-1)',
+              borderBottom: activeTab === 'operations' ? '2px solid var(--accent)' : '2px solid transparent',
+              backgroundColor: activeTab === 'operations' ? 'color-mix(in srgb, var(--accent) 10%, var(--surface-0))' : 'transparent',
               color: activeTab === 'operations' ? 'var(--accent)' : 'var(--text-strong)',
             }}
           >
