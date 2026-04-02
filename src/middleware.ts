@@ -4,9 +4,15 @@ import { getToken } from 'next-auth/jwt';
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const method = request.method;
 
   // Never block Auth.js internals.
   if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next();
+  }
+
+  // Public settings endpoint is used by the login page for branding.
+  if (pathname === '/api/settings' && method === 'GET') {
     return NextResponse.next();
   }
 
