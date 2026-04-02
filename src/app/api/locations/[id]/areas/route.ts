@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
   _request: NextRequest,
@@ -32,7 +33,7 @@ export async function GET(
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }],
     });
 
-    return NextResponse.json(areas);
+    return NextResponse.json(serializeForJson(areas));
   } catch (error) {
     console.error('Error fetching location areas:', error);
     return NextResponse.json({ error: 'Failed to fetch location areas' }, { status: 500 });
@@ -74,7 +75,7 @@ export async function POST(
       },
     });
 
-    return NextResponse.json(area, { status: 201 });
+    return NextResponse.json(serializeForJson(area), { status: 201 });
   } catch (error) {
     console.error('Error creating location area:', error);
     return NextResponse.json({ error: 'Failed to create location area' }, { status: 500 });

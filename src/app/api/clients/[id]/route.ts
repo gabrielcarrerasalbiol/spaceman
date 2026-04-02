@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
   _request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
 
     if (!client) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
 
-    return NextResponse.json(client);
+    return NextResponse.json(serializeForJson(client));
   } catch (error) {
     console.error('Error fetching client:', error);
     return NextResponse.json({ error: 'Failed to fetch client' }, { status: 500 });
@@ -74,7 +75,7 @@ export async function PUT(
     }
 
     const client = await prisma.client.update({ where: { id }, data });
-    return NextResponse.json(client);
+    return NextResponse.json(serializeForJson(client));
   } catch (error) {
     console.error('Error updating client:', error);
     return NextResponse.json({ error: 'Failed to update client' }, { status: 500 });

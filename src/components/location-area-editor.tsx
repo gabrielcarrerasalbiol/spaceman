@@ -335,6 +335,14 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     const file = event.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 3 * 1024 * 1024) {
+      setError('Background image must be 3MB or smaller');
+      if (backgroundFileInputRef.current) {
+        backgroundFileInputRef.current.value = '';
+      }
+      return;
+    }
+
     setUploadingBackground(true);
     setError(null);
 
@@ -351,7 +359,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
       const payload = await response.json();
 
       if (!response.ok) {
-        setError(payload.error || 'Failed to upload background image');
+        setError(payload.error || payload.details || 'Failed to upload background image');
         return;
       }
 
@@ -360,7 +368,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
         backgroundImageUrl: payload.url,
       }));
     } catch (e) {
-      setError('Failed to upload background image');
+      setError(e instanceof Error ? e.message : 'Failed to upload background image');
     } finally {
       setUploadingBackground(false);
       if (backgroundFileInputRef.current) {
@@ -490,6 +498,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                   </Button>
                 )}
               </div>
+              <p className="text-xs text-[var(--text-muted)]">PNG, JPG, GIF, WebP, or SVG up to 3MB.</p>
               <Input
                 value={areaMeta.description}
                 onChange={(event) => setAreaMeta({ ...areaMeta, description: event.target.value })}

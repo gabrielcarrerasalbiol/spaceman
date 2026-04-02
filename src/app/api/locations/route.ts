@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,7 +27,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json(locations);
+    return NextResponse.json(serializeForJson(locations));
   } catch (error) {
     console.error('Error fetching locations:', error);
     return NextResponse.json({ error: 'Failed to fetch locations' }, { status: 500 });
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(location, { status: 201 });
+    return NextResponse.json(serializeForJson(location), { status: 201 });
   } catch (error) {
     console.error('Error creating location:', error);
     return NextResponse.json({ error: 'Failed to create location' }, { status: 500 });

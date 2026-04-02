@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
   _request: NextRequest,
@@ -35,7 +36,7 @@ export async function GET(
       return NextResponse.json({ error: 'Area not found' }, { status: 404 });
     }
 
-    return NextResponse.json(area);
+    return NextResponse.json(serializeForJson(area));
   } catch (error) {
     console.error('Error fetching location area:', error);
     return NextResponse.json({ error: 'Failed to fetch location area' }, { status: 500 });
@@ -111,7 +112,7 @@ export async function PUT(
       return areaUpdate;
     });
 
-    return NextResponse.json(updated);
+    return NextResponse.json(serializeForJson(updated));
   } catch (error) {
     console.error('Error updating location area:', error);
     return NextResponse.json({ error: 'Failed to update location area' }, { status: 500 });

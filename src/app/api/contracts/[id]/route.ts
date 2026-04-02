@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
   _request: NextRequest,
@@ -22,7 +23,7 @@ export async function GET(
 
     if (!contract) return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
 
-    return NextResponse.json(contract);
+    return NextResponse.json(serializeForJson(contract));
   } catch (error) {
     console.error('Error fetching contract:', error);
     return NextResponse.json({ error: 'Failed to fetch contract' }, { status: 500 });
@@ -71,7 +72,7 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json(contract);
+    return NextResponse.json(serializeForJson(contract));
   } catch (error) {
     console.error('Error updating contract:', error);
     return NextResponse.json({ error: 'Failed to update contract' }, { status: 500 });

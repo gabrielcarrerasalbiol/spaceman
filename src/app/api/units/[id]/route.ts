@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
   _request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
 
     if (!unit) return NextResponse.json({ error: 'Unit not found' }, { status: 404 });
 
-    return NextResponse.json(unit);
+    return NextResponse.json(serializeForJson(unit));
   } catch (error) {
     console.error('Error fetching unit:', error);
     return NextResponse.json({ error: 'Failed to fetch unit' }, { status: 500 });
@@ -65,7 +66,7 @@ export async function PUT(
     if (body.active !== undefined) data.active = Boolean(body.active);
 
     const unit = await prisma.unit.update({ where: { id }, data, include: { location: true } });
-    return NextResponse.json(unit);
+    return NextResponse.json(serializeForJson(unit));
   } catch (error) {
     console.error('Error updating unit:', error);
     return NextResponse.json({ error: 'Failed to update unit' }, { status: 500 });

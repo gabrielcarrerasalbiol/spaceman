@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,41 +45,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size (max 5MB)
-    const maxSize = 5 * 1024 * 1024; // 5MB
+    // The route returns a base64 data URL, which expands the payload size.
+    // Keep the raw file under ~3MB so the JSON response stays within serverless limits.
+    const maxSize = 3 * 1024 * 1024;
     if (file.size > maxSize) {
       console.error('File too large:', file.size);
       return NextResponse.json(
-        { error: 'File size exceeds 5MB limit' },
+        { error: 'File size exceeds 3MB limit for inline uploads' },
         { status: 400 }
       );
     }
 
-    // For Vercel serverless, use /tmp directory
-    const uploadDir = '/tmp/uploads';
-    console.log('Upload directory:', uploadDir);
-
-    if (!existsSync(uploadDir)) {
-      console.log('Creating upload directory...');
-      await mkdir(uploadDir, { recursive: true });
-    }
-
-    // Generate unique filename
+    // Convert file to an inline data URL. This avoids relying on ephemeral disk.
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
     const timestamp = Date.now();
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
     const filename = `${timestamp}-${originalName}`;
-    const filepath = path.join(uploadDir, filename);
 
-    console.log('Saving file:', filepath);
-
-    // Convert file to buffer and write to disk
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
-
-    console.log('File saved successfully:', filename);
-
-    // For Vercel, return a base64 data URL instead of a file path
     const base64 = buffer.toString('base64');
     const mimeType = file.type;
     const dataUrl = `data:${mimeType};base64,${base64}`;

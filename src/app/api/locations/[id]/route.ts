@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
   _request: NextRequest,
@@ -27,7 +28,7 @@ export async function GET(
     });
 
     if (!location) return NextResponse.json({ error: 'Location not found' }, { status: 404 });
-    return NextResponse.json(location);
+    return NextResponse.json(serializeForJson(location));
   } catch (error) {
     console.error('Error fetching location:', error);
     return NextResponse.json({ error: 'Failed to fetch location' }, { status: 500 });
@@ -74,7 +75,7 @@ export async function PUT(
 
     const location = await prisma.location.update({ where: { id }, data });
 
-    return NextResponse.json(location);
+    return NextResponse.json(serializeForJson(location));
   } catch (error) {
     console.error('Error updating location:', error);
     return NextResponse.json({ error: 'Failed to update location' }, { status: 500 });

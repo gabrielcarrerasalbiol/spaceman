@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { serializeForJson } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -31,7 +32,7 @@ export async function GET(request: NextRequest) {
       orderBy: [{ location: { name: 'asc' } }, { code: 'asc' }],
     });
 
-    return NextResponse.json(units);
+    return NextResponse.json(serializeForJson(units));
   } catch (error) {
     console.error('Error fetching units:', error);
     return NextResponse.json({ error: 'Failed to fetch units' }, { status: 500 });
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
       include: { location: true },
     });
 
-    return NextResponse.json(unit, { status: 201 });
+    return NextResponse.json(serializeForJson(unit), { status: 201 });
   } catch (error) {
     console.error('Error creating unit:', error);
     return NextResponse.json({ error: 'Failed to create unit' }, { status: 500 });
