@@ -38,6 +38,16 @@ interface Unit {
   };
 }
 
+interface UnitsApiPaginatedResponse {
+  items: Unit[];
+  pagination: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+  };
+}
+
 const statusVariant: Record<string, 'success' | 'warning' | 'danger' | 'secondary'> = {
   AVAILABLE: 'success',
   RESERVED: 'warning',
@@ -54,6 +64,10 @@ export default function UnitsPage() {
   const [locations, setLocations] = useState<LocationOption[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<typeof EMPTY_UNIT & { is24hDriveUp: boolean; isIndoor: boolean }>({ ...EMPTY_UNIT });
   const [saving, setSaving] = useState(false);
@@ -71,6 +85,10 @@ export default function UnitsPage() {
 
   useEffect(() => {
     fetchUnits();
+  }, [search, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
   }, [search]);
 
   async function fetchLocations() {
@@ -115,11 +133,19 @@ export default function UnitsPage() {
       setLoading(true);
       const params = new URLSearchParams();
       if (search) params.set('search', search);
+      params.set('page', String(currentPage));
+      params.set('limit', String(pageSize));
 
       const response = await fetch(`/api/units?${params.toString()}`);
       if (response.ok) {
-        const data = await response.json();
-        setUnits(data);
+        const data: UnitsApiPaginatedResponse = await response.json();
+        setUnits(data.items);
+        setTotalItems(data.pagination.totalItems);
+        setTotalPages(data.pagination.totalPages);
+
+        if (data.pagination.page !== currentPage) {
+          setCurrentPage(data.pagination.page);
+        }
       }
     } catch (error) {
       console.error('Failed to load units:', error);
@@ -131,7 +157,9 @@ export default function UnitsPage() {
   async function deleteUnit(id: string) {
     if (!window.confirm('Delete this unit? This cannot be undone.')) return;
     const response = await fetch(`/api/units/${id}`, { method: 'DELETE' });
-    if (response.ok) fetchUnits();
+    if (response.ok) {
+      fetchUnits();
+    }
   }
 
   if (permissionsLoading || !isAdmin) {
@@ -172,45 +200,76 @@ export default function UnitsPage() {
               No units found.
             </div>
           ) : (
-            <div className="rounded-xl border border-[var(--border)]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Code</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Weekly</TableHead>
-                    <TableHead>Contracts</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {units.map((unit) => (
-                    <TableRow key={unit.id}>
-                      <TableCell>
-                        <div className="font-medium">{unit.code}</div>
-                        {unit.name && <div className="text-xs text-[var(--text-muted)]">{unit.name}</div>}
-                      </TableCell>
-                      <TableCell>{unit.location?.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant[unit.status] || 'secondary'}>{unit.status}</Badge>
-                      </TableCell>
-                      <TableCell>{unit.weeklyRate ? `£${unit.weeklyRate}` : '-'}</TableCell>
-                      <TableCell>{unit._count?.contracts || 0}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/units/${unit.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => deleteUnit(unit.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+            <div className="space-y-3">
+              <div className="rounded-xl border border-[var(--border)]">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Weekly</TableHead>
+                      <TableHead>Contracts</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {units.map((unit) => (
+                      <TableRow key={unit.id}>
+                        <TableCell>
+                          <div className="font-medium">{unit.code}</div>
+                          {unit.name && <div className="text-xs text-[var(--text-muted)]">{unit.name}</div>}
+                        </TableCell>
+                        <TableCell>{unit.location?.name || '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant[unit.status] || 'secondary'}>{unit.status}</Badge>
+                        </TableCell>
+                        <TableCell>{unit.weeklyRate ? `£${unit.weeklyRate}` : '-'}</TableCell>
+                        <TableCell>{unit._count?.contracts || 0}</TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/units/${unit.id}/edit`}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => deleteUnit(unit.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-[var(--text-muted)]">
+                  Showing {units.length} of {totalItems} units
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                    disabled={currentPage <= 1 || loading}
+                  >
+                    Previous
+                  </Button>
+                  <span className="min-w-[110px] text-center text-sm text-[var(--text-muted)]">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                    disabled={currentPage >= totalPages || loading}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             </div>
           )}
         </CardContent>

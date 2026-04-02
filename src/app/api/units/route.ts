@@ -12,20 +12,58 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
     const locationId = searchParams.get('locationId') || '';
+    const pageParam = Number(searchParams.get('page') || '');
+    const limitParam = Number(searchParams.get('limit') || '');
+
+    const isPaginatedRequest = Number.isFinite(pageParam) && pageParam > 0 && Number.isFinite(limitParam) && limitParam > 0;
+    const page = isPaginatedRequest ? Math.max(1, Math.floor(pageParam)) : 1;
+    const limit = isPaginatedRequest ? Math.min(100, Math.floor(limitParam)) : 0;
+
+    const where = {
+      ...(search
+        ? {
+            OR: [
+              { code: { contains: search, mode: 'insensitive' as const } },
+              { name: { contains: search, mode: 'insensitive' as const } },
+              { type: { contains: search, mode: 'insensitive' as const } },
+            ],
+          }
+        : {}),
+      ...(locationId ? { locationId } : {}),
+    };
+
+    if (isPaginatedRequest) {
+      const totalItems = await prisma.unit.count({ where });
+      const totalPages = Math.max(1, Math.ceil(totalItems / limit));
+      const safePage = Math.min(page, totalPages);
+      const skip = (safePage - 1) * limit;
+
+      const units = await prisma.unit.findMany({
+        where,
+        include: {
+          location: true,
+          _count: { select: { contracts: true } },
+        },
+        orderBy: [{ location: { name: 'asc' } }, { code: 'asc' }],
+        skip,
+        take: limit,
+      });
+
+      return NextResponse.json(
+        serializeForJson({
+          items: units,
+          pagination: {
+            page: safePage,
+            limit,
+            totalItems,
+            totalPages,
+          },
+        })
+      );
+    }
 
     const units = await prisma.unit.findMany({
-      where: {
-        ...(search
-          ? {
-              OR: [
-                { code: { contains: search, mode: 'insensitive' } },
-                { name: { contains: search, mode: 'insensitive' } },
-                { type: { contains: search, mode: 'insensitive' } },
-              ],
-            }
-          : {}),
-        ...(locationId ? { locationId } : {}),
-      },
+      where,
       include: {
         location: true,
         _count: { select: { contracts: true } },
