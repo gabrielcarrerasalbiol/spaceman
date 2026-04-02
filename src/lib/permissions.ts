@@ -1,4 +1,5 @@
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export type UserRole = 'ADMIN' | 'USER';
 
@@ -53,6 +54,63 @@ export async function requireAuth(): Promise<SessionUser> {
 export async function requireAdmin(): Promise<SessionUser> {
   const user = await requireAuth();
   if (!isAdmin(user)) {
+    throw new Error('Forbidden');
+  }
+  return user;
+}
+
+function flattenPermissions(input: unknown, prefix = ''): Record<string, boolean> {
+  if (!input || typeof input !== 'object') return {};
+
+  const source = input as Record<string, unknown>;
+  const result: Record<string, boolean> = {};
+
+  for (const [key, value] of Object.entries(source)) {
+    const nextKey = prefix ? `${prefix}.${key}` : key;
+
+    if (typeof value === 'boolean') {
+      result[nextKey] = value;
+      continue;
+    }
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      Object.assign(result, flattenPermissions(value, nextKey));
+    }
+  }
+
+  return result;
+}
+
+export async function getPermissionMapForUser(user: SessionUser | null): Promise<Record<string, boolean>> {
+  if (!user) return {};
+  if (isAdmin(user)) return { all: true };
+
+  const roleName = String(user.role || 'USER').toUpperCase();
+  const role = await prisma.role.findFirst({
+    where: {
+      name: roleName,
+      active: true,
+    },
+    select: {
+      permissions: true,
+    },
+  });
+
+  return flattenPermissions(role?.permissions ?? {});
+}
+
+export async function hasPermission(user: SessionUser | null, key: string): Promise<boolean> {
+  if (!user) return false;
+  if (isAdmin(user)) return true;
+
+  const map = await getPermissionMapForUser(user);
+  return Boolean(map.all || map[key]);
+}
+
+export async function requirePermission(key: string): Promise<SessionUser> {
+  const user = await requireAuth();
+  const allowed = await hasPermission(user, key);
+  if (!allowed) {
     throw new Error('Forbidden');
   }
   return user;

@@ -33,12 +33,13 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
 import { usePermissions } from '@/hooks/usePermissions';
+import RoleDesigner from '@/components/role-designer';
 
 export default function SettingsPage() {
   const router = useRouter();
   const { update } = useSession();
   const { data: session } = useSession();
-  const { isAdmin, user: currentUser } = usePermissions();
+  const { isAdmin, canManageRoles, user: currentUser } = usePermissions();
 
   // Enhanced debugging
   useEffect(() => {
@@ -501,6 +502,12 @@ export default function SettingsPage() {
             <Users className="h-4 w-4" />
             <span>Users</span>
           </TabsTrigger>
+          {(isAdmin || canManageRoles) && (
+            <TabsTrigger value="roles" className="flex items-center gap-2 rounded-lg">
+              <Shield className="h-4 w-4" />
+              <span>Roles</span>
+            </TabsTrigger>
+          )}
         </TabsList>
 
         {/* Profile Tab */}
@@ -1139,6 +1146,12 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </TabsContent>
+
+        {(isAdmin || canManageRoles) && (
+          <TabsContent value="roles">
+            <RoleDesigner />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

@@ -330,6 +330,15 @@ All API routes are in `src/app/api/`. Every route:
 | `/api/roles/[id]` | PUT | Update role (admin only) |
 | `/api/roles/[id]` | DELETE | Delete role (admin only; cannot delete system roles) |
 
+Role permissions are stored in `roles.permissions` as JSON. The application currently supports flat dotted keys such as:
+
+- `menus.users`
+- `menus.locations`
+- `actions.roles.manage`
+- `actions.contracts.manage`
+
+Nested JSON is also accepted by API routes and flattened at runtime.
+
 ### 3.5 Locations
 
 | Route | Method | Description |
@@ -442,6 +451,9 @@ getCurrentUser()        // → SessionUser | null  (reads JWT from server sessio
 isAdmin(user)           // → boolean
 isOwner(user, targetId) // → boolean
 canManageUser(user, id) // → isAdmin || isOwner
+getPermissionMapForUser(user) // → flattened permission map from role JSON
+hasPermission(user, key)      // → checks key, supports admin/all bypass
+requirePermission(key)        // throws 'Forbidden' if missing key
 requireAuth()           // throws 'Unauthorized'
 requireAdmin()          // throws 'Forbidden'
 ```
@@ -449,6 +461,45 @@ requireAdmin()          // throws 'Forbidden'
 ### 4.4 Client-side Hook (`src/hooks/usePermissions.ts`)
 
 Fetches `/api/auth/permissions` on mount. Returns the user's permission flags object. Used in page components to conditionally render admin UI.
+
+Hook returns:
+
+- `hasPermission(key, defaultValue?)`
+- `canManageRoles` (maps to `actions.roles.manage`)
+- `canManageUsers` (maps to `actions.users.manage`)
+- `permissionMap` (flattened key-value object)
+
+### 4.5 Role Designer and Permission Extension
+
+Role CRUD and permission editing is available in Settings under the Roles tab:
+
+- Component: `src/components/role-designer.tsx`
+- Page integration: `src/app/dashboard/settings/page.tsx`
+- API persistence: `src/app/api/roles/route.ts`, `src/app/api/roles/[id]/route.ts`
+
+When adding new functionality, update role authorisation in this order:
+
+1. Add a new permission key in `src/components/role-designer.tsx` under `PERMISSION_GROUPS`, or add it as a custom key in the Role Designer UI.
+2. Enforce the key where needed (sidebar visibility, page guards, API checks).
+3. If the new feature has menu visibility, use `menus.<feature>`.
+4. If the new feature controls write/admin actions, use `actions.<feature>.<verb>`.
+5. Update this architecture document with any new permission domains so future changes remain consistent.
+
+Current enforced API examples:
+
+- Role CRUD requires `actions.roles.manage` (or ADMIN)
+- User role assignment/list route requires `actions.users.manage` (or ADMIN)
+
+Recommended key naming conventions:
+
+- Menu visibility: `menus.<section>`
+- Functional actions: `actions.<domain>.<operation>`
+
+Examples:
+
+- `menus.reports`
+- `actions.reports.export`
+- `actions.invoices.approve`
 
 ---
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { isAdmin } from '@/lib/permissions';
+import { hasPermission, isAdmin } from '@/lib/permissions';
 
 // GET /api/roles - Get all roles
 export async function GET() {
@@ -18,7 +18,9 @@ export async function GET() {
       role: (session.user as any).role,
     };
 
-    if (!isAdmin(currentUser)) {
+    const canManageRoles = isAdmin(currentUser) || await hasPermission(currentUser, 'actions.roles.manage');
+
+    if (!canManageRoles) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -56,7 +58,9 @@ export async function POST(request: NextRequest) {
       role: (session.user as any).role,
     };
 
-    if (!isAdmin(currentUser)) {
+    const canManageRoles = isAdmin(currentUser) || await hasPermission(currentUser, 'actions.roles.manage');
+
+    if (!canManageRoles) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

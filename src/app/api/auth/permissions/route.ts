@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
-
-// Basic permissions structure
-const DEFAULT_PERMISSIONS = {
-  dashboard: { overview: true },
-  settings: { profile: true, password: true },
-};
 
 export async function GET() {
   try {
@@ -17,15 +12,32 @@ export async function GET() {
       return NextResponse.json({ success: false, permissions: {} });
     }
 
-    // Return basic permissions for authenticated users
+    const roleName = String((session.user as any).role || 'USER').toUpperCase();
+    const role = await prisma.role.findFirst({
+      where: {
+        name: roleName,
+        active: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        label: true,
+        permissions: true,
+      },
+    });
+
+    const permissions = role?.permissions ?? {};
+
     return NextResponse.json({
       success: true,
-      permissions: DEFAULT_PERMISSIONS,
-      role: {
-        id: 1,
-        name: 'user',
-        label: 'User',
-      },
+      permissions,
+      role: role
+        ? {
+            id: role.id,
+            name: role.name,
+            label: role.label,
+          }
+        : null,
     });
   } catch (error) {
     console.error('[Permissions API] Error:', error);

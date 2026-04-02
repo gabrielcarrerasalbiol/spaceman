@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { isAdmin } from '@/lib/permissions';
+import { hasPermission, isAdmin } from '@/lib/permissions';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,6 +9,17 @@ export async function GET(request: NextRequest) {
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const currentUser = {
+      id: (session.user as any).id,
+      email: session.user.email || '',
+      role: (session.user as any).role,
+    };
+
+    const canManageUsers = isAdmin(currentUser) || await hasPermission(currentUser, 'actions.users.manage');
+    if (!canManageUsers) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Get all users with their roles
@@ -49,6 +60,17 @@ export async function POST(request: NextRequest) {
 
     if (!session?.user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const currentUser = {
+      id: (session.user as any).id,
+      email: session.user.email || '',
+      role: (session.user as any).role,
+    };
+
+    const canManageUsers = isAdmin(currentUser) || await hasPermission(currentUser, 'actions.users.manage');
+    if (!canManageUsers) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     // Update user role

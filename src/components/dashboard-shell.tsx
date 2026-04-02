@@ -19,8 +19,67 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const { settings } = useSettings();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [permissionFlags, setPermissionFlags] = useState<Record<string, boolean> | null>(null);
 
   const isAdmin = (session?.user as any)?.role === 'ADMIN';
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function fetchPermissions() {
+      try {
+        const response = await fetch('/api/auth/permissions');
+        if (!response.ok) return;
+
+        const payload = await response.json();
+        const flattened: Record<string, boolean> = {};
+
+        function flattenPermissions(input: unknown, prefix = '') {
+          if (!input || typeof input !== 'object') return;
+          const source = input as Record<string, unknown>;
+
+          for (const [key, value] of Object.entries(source)) {
+            const nextKey = prefix ? `${prefix}.${key}` : key;
+            if (typeof value === 'boolean') {
+              flattened[nextKey] = value;
+              continue;
+            }
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+              flattenPermissions(value, nextKey);
+            }
+          }
+        }
+
+        flattenPermissions(payload?.permissions ?? {});
+
+        if (mounted) {
+          setPermissionFlags(flattened);
+        }
+      } catch {
+        // Keep fallback menu defaults when permissions cannot be fetched.
+      }
+    }
+
+    fetchPermissions();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  function hasPermission(key: string, defaultValue = false) {
+    if (isAdmin) return true;
+    if (!permissionFlags) return defaultValue;
+    if (key in permissionFlags) return Boolean(permissionFlags[key]);
+    return defaultValue;
+  }
+
+  const canSeeUsers = hasPermission('menus.users');
+  const canSeeLocations = hasPermission('menus.locations');
+  const canSeeUnits = hasPermission('menus.units');
+  const canSeeClients = hasPermission('menus.clients');
+  const canSeeContracts = hasPermission('menus.contracts');
+  const canSeeSettings = hasPermission('menus.settings', true);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -109,7 +168,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <Home className="h-5 w-5" />
               <span className="sidebar-nav-label">Dashboard</span>
             </Link>
-            {isAdmin && (
+            {canSeeUsers && (
               <Link
                 href="/dashboard/users"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -123,7 +182,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">Users</span>
               </Link>
             )}
-            {isAdmin && (
+            {canSeeLocations && (
               <Link
                 href="/dashboard/locations"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -137,7 +196,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">Locations</span>
               </Link>
             )}
-            {isAdmin && (
+            {canSeeUnits && (
               <Link
                 href="/dashboard/units"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -151,7 +210,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">Units</span>
               </Link>
             )}
-            {isAdmin && (
+            {canSeeClients && (
               <Link
                 href="/dashboard/clients"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -165,7 +224,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">Clients</span>
               </Link>
             )}
-            {isAdmin && (
+            {canSeeContracts && (
               <Link
                 href="/dashboard/contracts"
                 className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -179,18 +238,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">Contracts</span>
               </Link>
             )}
-            <Link
-              href="/dashboard/settings"
-              className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
-              prefetch={true}
-              onClick={(e) => {
-                e.preventDefault();
-                window.location.href = '/dashboard/settings';
-              }}
-            >
-              <Settings className="h-5 w-5" />
-              <span className="sidebar-nav-label">Settings</span>
-            </Link>
+            {canSeeSettings && (
+              <Link
+                href="/dashboard/settings"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/settings';
+                }}
+              >
+                <Settings className="h-5 w-5" />
+                <span className="sidebar-nav-label">Settings</span>
+              </Link>
+            )}
           </nav>
         </div>
 
@@ -268,7 +329,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             <Home className="h-5 w-5" />
             <span>Dashboard</span>
           </Link>
-          {isAdmin && (
+          {canSeeUsers && (
             <Link
               href="/dashboard/users"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -282,7 +343,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <span>Users</span>
             </Link>
           )}
-          {isAdmin && (
+          {canSeeLocations && (
             <Link
               href="/dashboard/locations"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -296,7 +357,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <span>Locations</span>
             </Link>
           )}
-          {isAdmin && (
+          {canSeeUnits && (
             <Link
               href="/dashboard/units"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -310,7 +371,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <span>Units</span>
             </Link>
           )}
-          {isAdmin && (
+          {canSeeClients && (
             <Link
               href="/dashboard/clients"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -324,7 +385,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <span>Clients</span>
             </Link>
           )}
-          {isAdmin && (
+          {canSeeContracts && (
             <Link
               href="/dashboard/contracts"
               className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -338,18 +399,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <span>Contracts</span>
             </Link>
           )}
-          <Link
-            href="/dashboard/settings"
-            className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
-            prefetch={true}
-            onClick={(e) => {
-              e.preventDefault();
-              window.location.href = '/dashboard/settings';
-            }}
-          >
-            <Settings className="h-5 w-5" />
-            <span>Settings</span>
-          </Link>
+          {canSeeSettings && (
+            <Link
+              href="/dashboard/settings"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/settings';
+              }}
+            >
+              <Settings className="h-5 w-5" />
+              <span>Settings</span>
+            </Link>
+          )}
           <button
             onClick={handleSignOut}
             className="flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left transition"
