@@ -40,6 +40,42 @@ export default async function DashboardPage() {
           <CardContent>
             <div className="space-y-2">
               <a
+                href="/dashboard/locations"
+                className="block rounded-lg border border-[var(--border)] p-3 transition hover:bg-[var(--surface-1)]"
+              >
+                <div className="font-semibold text-[var(--text-strong)]">Locations</div>
+                <div className="text-sm text-[var(--text-muted)]">
+                  Manage branches and site records
+                </div>
+              </a>
+              <a
+                href="/dashboard/units"
+                className="block rounded-lg border border-[var(--border)] p-3 transition hover:bg-[var(--surface-1)]"
+              >
+                <div className="font-semibold text-[var(--text-strong)]">Units</div>
+                <div className="text-sm text-[var(--text-muted)]">
+                  Track availability and rates
+                </div>
+              </a>
+              <a
+                href="/dashboard/clients"
+                className="block rounded-lg border border-[var(--border)] p-3 transition hover:bg-[var(--surface-1)]"
+              >
+                <div className="font-semibold text-[var(--text-strong)]">Clients</div>
+                <div className="text-sm text-[var(--text-muted)]">
+                  Maintain customer records
+                </div>
+              </a>
+              <a
+                href="/dashboard/contracts"
+                className="block rounded-lg border border-[var(--border)] p-3 transition hover:bg-[var(--surface-1)]"
+              >
+                <div className="font-semibold text-[var(--text-strong)]">Contracts</div>
+                <div className="text-sm text-[var(--text-muted)]">
+                  Link clients, units and terms
+                </div>
+              </a>
+              <a
                 href="/dashboard/settings"
                 className="block rounded-lg border border-[var(--border)] p-3 transition hover:bg-[var(--surface-1)]"
               >

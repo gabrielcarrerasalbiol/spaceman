@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor } from 'lucide-react';
+import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -119,6 +119,62 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">Users</span>
               </Link>
             )}
+            {isAdmin && (
+              <Link
+                href="/dashboard/locations"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/locations';
+                }}
+              >
+                <MapPin className="h-5 w-5" />
+                <span className="sidebar-nav-label">Locations</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/dashboard/units"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/units';
+                }}
+              >
+                <Box className="h-5 w-5" />
+                <span className="sidebar-nav-label">Units</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/dashboard/clients"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/clients';
+                }}
+              >
+                <UserRound className="h-5 w-5" />
+                <span className="sidebar-nav-label">Clients</span>
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/dashboard/contracts"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/contracts';
+                }}
+              >
+                <FileSignature className="h-5 w-5" />
+                <span className="sidebar-nav-label">Contracts</span>
+              </Link>
+            )}
             <Link
               href="/dashboard/settings"
               className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -220,6 +276,62 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             >
               <Users className="h-5 w-5" />
               <span>Users</span>
+            </Link>
+          )}
+          {isAdmin && (
+            <Link
+              href="/dashboard/locations"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/locations';
+              }}
+            >
+              <MapPin className="h-5 w-5" />
+              <span>Locations</span>
+            </Link>
+          )}
+          {isAdmin && (
+            <Link
+              href="/dashboard/units"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/units';
+              }}
+            >
+              <Box className="h-5 w-5" />
+              <span>Units</span>
+            </Link>
+          )}
+          {isAdmin && (
+            <Link
+              href="/dashboard/clients"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/clients';
+              }}
+            >
+              <UserRound className="h-5 w-5" />
+              <span>Clients</span>
+            </Link>
+          )}
+          {isAdmin && (
+            <Link
+              href="/dashboard/contracts"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/contracts';
+              }}
+            >
+              <FileSignature className="h-5 w-5" />
+              <span>Contracts</span>
             </Link>
           )}
           <Link

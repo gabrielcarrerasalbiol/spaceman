@@ -72,9 +72,155 @@ model activities {
   @@map("activities")
 }
 
+model Location {
+  id             String    @id @default(cuid())
+  name           String
+  slug           String    @unique
+  code           String?   @unique
+  addressLine1   String?
+  addressLine2   String?
+  townCity       String?
+  county         String?
+  postcode       String?
+  email          String?
+  phone          String?
+  openingHours   String?
+  latitude       Decimal?  @db.Decimal(10, 7)
+  longitude      Decimal?  @db.Decimal(10, 7)
+  active         Boolean   @default(true)
+  legacyId       Int?      @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdById    BigInt?
+  updatedById    BigInt?
+  units          Unit[]
+  contracts      Contract[]
+
+  @@index([name])
+  @@index([active])
+  @@map("locations")
+}
+
+model Client {
+  id               String      @id @default(cuid())
+  legacyId         Int?        @unique
+  status           ClientStatus @default(ACTIVE)
+  companyName      String?
+  firstName        String
+  lastName         String
+  email            String?
+  phone            String?
+  billingEmail     String?
+  notes            String?
+  addressLine1     String?
+  addressLine2     String?
+  townCity         String?
+  county           String?
+  postcode         String?
+  country          String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  createdById      BigInt?
+  updatedById      BigInt?
+  contracts        Contract[]
+
+  @@index([status])
+  @@index([email])
+  @@index([lastName, firstName])
+  @@map("clients")
+}
+
+model Unit {
+  id                String     @id @default(cuid())
+  legacyId          Int?       @unique
+  locationId        String
+  code              String
+  name              String?
+  type              String?
+  sizeSqft          Int?
+  dimensions        String?
+  weeklyRate        Decimal?   @db.Decimal(10, 2)
+  monthlyRate       Decimal?   @db.Decimal(10, 2)
+  salePrice         Decimal?   @db.Decimal(10, 2)
+  offer             String?
+  is24hDriveUp      Boolean    @default(false)
+  isIndoor          Boolean    @default(false)
+  status            UnitStatus @default(AVAILABLE)
+  active            Boolean    @default(true)
+  description       String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  createdById       BigInt?
+  updatedById       BigInt?
+  location          Location   @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  contracts         Contract[]
+
+  @@unique([locationId, code])
+  @@index([status])
+  @@index([active])
+  @@index([locationId])
+  @@map("units")
+}
+
+model Contract {
+  id                 String          @id @default(cuid())
+  contractNumber     String          @unique
+  legacyId           Int?            @unique
+  status             ContractStatus  @default(DRAFT)
+  clientId           String
+  unitId             String
+  locationId         String
+  startDate          DateTime
+  endDate            DateTime?
+  billingDay         Int?
+  weeklyRate         Decimal?        @db.Decimal(10, 2)
+  monthlyRate        Decimal?        @db.Decimal(10, 2)
+  depositAmount      Decimal?        @db.Decimal(10, 2)
+  paymentMethod      String?
+  signedAt           DateTime?
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  createdById        BigInt?
+  updatedById        BigInt?
+  client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  unit               Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict)
+  location           Location        @relation(fields: [locationId], references: [id], onDelete: Restrict)
+
+  @@index([clientId])
+  @@index([unitId])
+  @@index([locationId])
+  @@index([status])
+  @@index([startDate])
+  @@map("contracts")
+}
+
 enum ActivityType {
   LOGIN
   LOGOUT
   PASSWORD_CHANGE
   PROFILE_UPDATE
+}
+
+enum UnitStatus {
+  AVAILABLE
+  RESERVED
+  OCCUPIED
+  MAINTENANCE
+  INACTIVE
+}
+
+enum ContractStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  ACTIVE
+  TERMINATED
+  EXPIRED
+  CANCELLED
+}
+
+enum ClientStatus {
+  ACTIVE
+  INACTIVE
+  LEAD
 }
