@@ -75,6 +75,8 @@ function createPlacement(unitId: string, index: number, x = 100, y = 100): Place
 }
 
 export default function LocationAreaEditor({ locationId }: { locationId: string }) {
+  const MIN_ZOOM = 0.5;
+  const MAX_ZOOM = 2.5;
   const [areas, setAreas] = useState<Area[]>([]);
   const [units, setUnits] = useState<UnitItem[]>([]);
   const [selectedAreaId, setSelectedAreaId] = useState<string>('');
@@ -104,6 +106,8 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const stageRef = useRef<any>(null);
   const transformerRef = useRef<any>(null);
   const backgroundFileInputRef = useRef<HTMLInputElement | null>(null);
+  const canvasViewportRef = useRef<HTMLDivElement | null>(null);
+  const previousZoomRef = useRef(1);
 
   const placementByUnitId = useMemo(() => {
     return new Set(placements.map((placement) => placement.unitId));
@@ -130,7 +134,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   }, [units]);
 
   function clampZoom(value: number) {
-    return Math.min(2.5, Math.max(0.5, value));
+    return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
   }
 
   function zoomIn() {
@@ -195,6 +199,34 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   useEffect(() => {
     bootstrap();
   }, [locationId]);
+
+  useEffect(() => {
+    const viewport = canvasViewportRef.current;
+    if (!viewport) {
+      previousZoomRef.current = canvasZoom;
+      return;
+    }
+
+    const previousZoom = previousZoomRef.current;
+    if (previousZoom === canvasZoom) return;
+
+    const centerX = viewport.scrollLeft + viewport.clientWidth / 2;
+    const centerY = viewport.scrollTop + viewport.clientHeight / 2;
+    const ratio = canvasZoom / previousZoom;
+
+    const nextScrollLeft = centerX * ratio - viewport.clientWidth / 2;
+    const nextScrollTop = centerY * ratio - viewport.clientHeight / 2;
+
+    requestAnimationFrame(() => {
+      const maxScrollLeft = Math.max(0, viewport.scrollWidth - viewport.clientWidth);
+      const maxScrollTop = Math.max(0, viewport.scrollHeight - viewport.clientHeight);
+
+      viewport.scrollLeft = Math.min(maxScrollLeft, Math.max(0, nextScrollLeft));
+      viewport.scrollTop = Math.min(maxScrollTop, Math.max(0, nextScrollTop));
+    });
+
+    previousZoomRef.current = canvasZoom;
+  }, [canvasZoom]);
 
   useEffect(() => {
     if (!selectedPlacementId || !transformerRef.current || !stageRef.current) {
@@ -502,6 +534,20 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                 {mode === 'edit' ? 'View Mode' : 'Edit Mode'}
               </Button>
             )}
+            {selectedArea && (
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={zoomOut} disabled={canvasZoom <= MIN_ZOOM}>
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[64px] text-center text-sm text-[var(--text-muted)]">{Math.round(canvasZoom * 100)}%</span>
+                <Button type="button" variant="outline" size="sm" onClick={zoomIn} disabled={canvasZoom >= MAX_ZOOM}>
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={() => setCanvasZoom(1)} disabled={canvasZoom === 1}>
+                  Reset
+                </Button>
+              </div>
+            )}
             {selectedArea && mode === 'edit' && (
               <Button type="button" onClick={handleSaveArea} disabled={saving}>
                 <Save className="mr-2 h-4 w-4" />
@@ -686,7 +732,9 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
             </CardHeader>
             <CardContent>
               <div
+                ref={canvasViewportRef}
                 className="overflow-auto rounded-xl border border-[var(--border)] bg-[var(--surface-1)]"
+                style={{ maxHeight: '75vh' }}
                 onDragOver={(event) => event.preventDefault()}
                 onDrop={onDropUnit}
               >
@@ -830,15 +878,6 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                 </div>
               )}
 
-              <div className="mt-3 flex items-center gap-2">
-                <Button type="button" variant="outline" size="sm" onClick={zoomOut} disabled={canvasZoom <= 0.5}>
-                  <ZoomOut className="h-4 w-4" />
-                </Button>
-                <span className="min-w-[64px] text-center text-sm text-[var(--text-muted)]">{Math.round(canvasZoom * 100)}%</span>
-                <Button type="button" variant="outline" size="sm" onClick={zoomIn} disabled={canvasZoom >= 2.5}>
-                  <ZoomIn className="h-4 w-4" />
-                </Button>
-              </div>
             </CardContent>
           </Card>
         </div>
