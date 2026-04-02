@@ -59,6 +59,17 @@ function statusFill(status: UnitItem['status']) {
   return '#6b7280';
 }
 
+function darkenHex(hexColor: string, factor = 0.28) {
+  const hex = hexColor.replace('#', '');
+  if (hex.length !== 6) return hexColor;
+
+  const red = Math.max(0, Math.floor(parseInt(hex.slice(0, 2), 16) * (1 - factor)));
+  const green = Math.max(0, Math.floor(parseInt(hex.slice(2, 4), 16) * (1 - factor)));
+  const blue = Math.max(0, Math.floor(parseInt(hex.slice(4, 6), 16) * (1 - factor)));
+
+  return `#${red.toString(16).padStart(2, '0')}${green.toString(16).padStart(2, '0')}${blue.toString(16).padStart(2, '0')}`;
+}
+
 function createPlacement(unitId: string, index: number, x = 100, y = 100): Placement {
   return {
     id: `${unitId}-${Date.now()}-${index}`,
@@ -757,6 +768,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                         if (!unit) return null;
 
                         const fill = statusFill(unit.status);
+                        const badgeFill = darkenHex(fill);
                         const compact = placement.width < 95 || placement.height < 45;
                         const veryCompact = placement.width < 70 || placement.height < 34;
                         const baseSize = unit.sizeSqft ? String(unit.sizeSqft) : '';
@@ -770,6 +782,9 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                         const labelFontSize = veryCompact ? 8 : compact ? 9 : 12;
                         const labelYOffset = veryCompact ? 4 : 6;
                         const badgeRadius = veryCompact ? 7 : 9;
+                        const badgeInset = 4;
+                        const badgeX = placement.x + placement.width - badgeRadius * 2 - badgeInset;
+                        const badgeY = placement.y + placement.height - badgeRadius * 2 - badgeInset;
 
                         return (
                           <Fragment key={placement.id}>
@@ -836,18 +851,18 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                             {badgeLabel && (
                               <>
                                 <Rect
-                                  x={placement.x + placement.width - badgeRadius * 2 - 4}
-                                  y={placement.y + 4}
+                                  x={badgeX}
+                                  y={badgeY}
                                   width={badgeRadius * 2}
                                   height={badgeRadius * 2}
                                   cornerRadius={badgeRadius}
-                                  fill="#111827"
+                                  fill={badgeFill}
                                   opacity={0.92}
                                   listening={false}
                                 />
                                 <Text
-                                  x={placement.x + placement.width - badgeRadius * 2 - 4}
-                                  y={placement.y + 4}
+                                  x={badgeX}
+                                  y={badgeY}
                                   width={badgeRadius * 2}
                                   height={badgeRadius * 2}
                                   align="center"
