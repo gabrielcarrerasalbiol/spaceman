@@ -1,12 +1,14 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig, type StatusConfig } from '@/lib/status-config';
 
 interface SiteSettings {
   siteName: string;
   siteLogo: string | null;
   siteDescription: string | null;
   primaryColor: string;
+  unitStatusConfig: StatusConfig;
 }
 
 interface SettingsContextType {
@@ -21,6 +23,7 @@ const defaultSettings: SiteSettings = {
   siteLogo: null,
   siteDescription: null,
   primaryColor: '#3b82f6',
+  unitStatusConfig: DEFAULT_STATUS_CONFIG,
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -39,6 +42,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           siteLogo: data.siteLogo || null,
           siteDescription: data.siteDescription || null,
           primaryColor: data.primaryColor || defaultSettings.primaryColor,
+          unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
         });
       }
     } catch (error) {
@@ -70,6 +74,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           siteLogo: data.siteLogo || null,
           siteDescription: data.siteDescription || null,
           primaryColor: data.primaryColor || defaultSettings.primaryColor,
+          unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
         });
       }
     } catch (error) {

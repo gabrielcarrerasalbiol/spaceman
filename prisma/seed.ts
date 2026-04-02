@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { DEFAULT_STATUS_CONFIG } from '../src/lib/status-config';
 
 const prisma = new PrismaClient();
 
@@ -17,6 +18,7 @@ async function main() {
       siteLogo: null,
       siteDescription: 'A Next.js authentication starter template',
       primaryColor: '#3b82f6',
+      unitStatusConfig: DEFAULT_STATUS_CONFIG,
     },
   });
   console.log('✅ Settings created:', settings);

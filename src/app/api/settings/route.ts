@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig } from '@/lib/status-config';
 
 // GET /api/settings - Get site settings
 export async function GET() {
@@ -14,6 +15,7 @@ export async function GET() {
           siteLogo: null,
           siteDescription: null,
           primaryColor: '#3b82f6',
+          unitStatusConfig: DEFAULT_STATUS_CONFIG,
         },
       });
     }
@@ -23,6 +25,7 @@ export async function GET() {
       siteLogo: settings.siteLogo || null,
       siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
+      unitStatusConfig: normalizeStatusConfig(settings.unitStatusConfig),
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { siteName, siteLogo, siteDescription, primaryColor } = body;
+    const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig } = body;
 
     let settings = await prisma.settings.findFirst();
 
@@ -59,6 +62,7 @@ export async function POST(request: NextRequest) {
           ...(siteLogo !== undefined && { siteLogo }),
           ...(siteDescription !== undefined && { siteDescription }),
           ...(primaryColor !== undefined && { primaryColor }),
+          ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
         },
       });
     } else {
@@ -68,6 +72,7 @@ export async function POST(request: NextRequest) {
           siteLogo: siteLogo || null,
           siteDescription: siteDescription || null,
           primaryColor: primaryColor || '#3b82f6',
+          unitStatusConfig: normalizeStatusConfig(unitStatusConfig),
         },
       });
     }
@@ -77,6 +82,7 @@ export async function POST(request: NextRequest) {
       siteLogo: settings.siteLogo || null,
       siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
+      unitStatusConfig: normalizeStatusConfig(settings.unitStatusConfig),
     });
   } catch (error) {
     console.error('Error updating settings:', error);
