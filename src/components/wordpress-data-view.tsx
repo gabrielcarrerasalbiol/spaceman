@@ -73,6 +73,32 @@ function renderValue(value: unknown) {
   return String(value);
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+}
+
+function extractFeaturedImageUrl(payload: unknown): string | null {
+  const source = asRecord(payload);
+  const acf = asRecord(source.acf);
+  const meta = asRecord(source.meta);
+
+  const candidates: unknown[] = [
+    asRecord(acf.main_image).url,
+    asRecord(meta.main_image).url,
+    asRecord(source.main_image).url,
+    source.featured_image,
+    source.image,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return null;
+}
+
 function buildWordPressUrl(siteUrl: string, endpoint: string) {
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
   return `${siteUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
@@ -115,6 +141,7 @@ export default function WordPressDataView() {
   const lastPullText = cache.lastPulledAt
     ? new Date(cache.lastPulledAt).toLocaleString()
     : 'Never';
+  const detailFeaturedImageUrl = useMemo(() => extractFeaturedImageUrl(detailModal.payload), [detailModal.payload]);
 
   const locationsTotalPages = Math.max(1, Math.ceil(cache.locations.length / WORDPRESS_PAGE_SIZE));
   const unitsTotalPages = Math.max(1, Math.ceil(cache.units.length / WORDPRESS_PAGE_SIZE));
@@ -575,15 +602,37 @@ export default function WordPressDataView() {
         onClose={() => setDetailModal({ open: false, title: '', payload: null })}
         title={detailModal.title || 'WordPress Item Details'}
         description="All recovered fields from WordPress payload"
-        className="max-w-3xl"
+        className="max-w-6xl"
       >
         <div className="space-y-3">
-          <pre
-            className="rounded-xl border p-4 text-xs overflow-auto max-h-[60vh]"
-            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}
-          >
+          <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_320px]">
+            <pre
+              className="rounded-xl border p-4 text-xs overflow-auto max-h-[60vh]"
+              style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}
+            >
 {JSON.stringify(detailModal.payload, null, 2)}
-          </pre>
+            </pre>
+
+            <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+              <p className="mb-3 text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                Featured Image
+              </p>
+              {detailFeaturedImageUrl ? (
+                <a href={detailFeaturedImageUrl} target="_blank" rel="noreferrer" className="block">
+                  <img
+                    src={detailFeaturedImageUrl}
+                    alt="WordPress featured image"
+                    className="h-auto w-full rounded-lg border object-cover"
+                    style={{ borderColor: 'var(--border)' }}
+                  />
+                </a>
+              ) : (
+                <div className="flex min-h-[180px] items-center justify-center rounded-lg border px-4 text-center text-sm" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
+                  No featured image found in this payload.
+                </div>
+              )}
+            </div>
+          </div>
           <div className="flex justify-end">
             <Button type="button" variant="outline" onClick={() => setDetailModal({ open: false, title: '', payload: null })}>
               Close

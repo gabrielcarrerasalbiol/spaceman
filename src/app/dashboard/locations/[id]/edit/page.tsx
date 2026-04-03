@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Globe, Save } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { LocationUnitSetup } from '@/components/location-unit-setup';
 
@@ -26,6 +27,14 @@ export default function EditLocationPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
+  const [wordpressFilling, setWordpressFilling] = useState(false);
+  const [wordpressPreviewOpen, setWordpressPreviewOpen] = useState(false);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [wordpressPreview, setWordpressPreview] = useState<{
+    matchedBy: string;
+    wordpressTitle: string;
+    mappedFields: Partial<Record<WordPressFillKey, string>>;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -45,6 +54,47 @@ export default function EditLocationPage() {
   });
 
   const locationLabel = form.name.trim() || 'Unnamed location';
+
+  const WORDPRESS_FILL_FIELDS: Array<{ key: WordPressFillKey; label: string }> = [
+    { key: 'addressLine1', label: 'Address line 1' },
+    { key: 'addressLine2', label: 'Address line 2' },
+    { key: 'townCity', label: 'Town/City' },
+    { key: 'county', label: 'County' },
+    { key: 'postcode', label: 'Postcode' },
+    { key: 'email', label: 'Email' },
+    { key: 'phone', label: 'Phone' },
+    { key: 'openingHours', label: 'Opening hours' },
+    { key: 'latitude', label: 'Latitude' },
+    { key: 'longitude', label: 'Longitude' },
+  ];
+
+  const previewRows = wordpressPreview
+    ? WORDPRESS_FILL_FIELDS
+        .map(({ key, label }) => {
+          const incomingValue = String(wordpressPreview.mappedFields[key] ?? '').trim();
+          if (!incomingValue) return null;
+
+          const currentValue = String(form[key] ?? '').trim();
+          const willApply = !currentValue || overwriteExisting;
+
+          return {
+            key,
+            label,
+            currentValue,
+            incomingValue,
+            willApply,
+            reason: currentValue ? (overwriteExisting ? 'overwrite' : 'kept') : 'fill',
+          };
+        })
+        .filter((row): row is {
+          key: WordPressFillKey;
+          label: string;
+          currentValue: string;
+          incomingValue: string;
+          willApply: boolean;
+          reason: 'overwrite' | 'kept' | 'fill';
+        } => row !== null)
+    : [];
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) router.push('/dashboard');
@@ -147,6 +197,74 @@ export default function EditLocationPage() {
     }
   }
 
+  async function handleFillFromWordPress() {
+    try {
+      setWordpressFilling(true);
+      setError(null);
+      setSuccess(null);
+
+      const response = await fetch('/api/wordpress/location-enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationId: params.id as string }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(payload?.error || 'Failed to fetch location data from WordPress.');
+        return;
+      }
+
+      const mapped = (payload?.mappedFields && typeof payload.mappedFields === 'object') ? payload.mappedFields : {};
+      const nextMapped: Partial<Record<WordPressFillKey, string>> = {};
+      for (const { key } of WORDPRESS_FILL_FIELDS) {
+        nextMapped[key] = String((mapped as Record<string, unknown>)[key] ?? '').trim();
+      }
+
+      setWordpressPreview({
+        matchedBy: String(payload?.matchedBy || 'matched'),
+        wordpressTitle: String(payload?.wordpressTitle || payload?.wordpressId || 'WordPress location'),
+        mappedFields: nextMapped,
+      });
+      setOverwriteExisting(false);
+      setWordpressPreviewOpen(true);
+    } catch (e) {
+      console.error('WordPress fill failed:', e);
+      setError('Failed to fetch location data from WordPress.');
+    } finally {
+      setWordpressFilling(false);
+    }
+  }
+
+  function applyWordPressPreview() {
+    if (!wordpressPreview) return;
+
+    let appliedCount = 0;
+    setForm((prev) => {
+      const next = { ...prev };
+
+      for (const { key } of WORDPRESS_FILL_FIELDS) {
+        const incomingValue = String(wordpressPreview.mappedFields[key] ?? '').trim();
+        if (!incomingValue) continue;
+
+        const currentValue = String(prev[key] ?? '').trim();
+        if (!currentValue || overwriteExisting) {
+          next[key] = incomingValue as any;
+          appliedCount += 1;
+        }
+      }
+
+      return next;
+    });
+
+    setWordpressPreviewOpen(false);
+    if (appliedCount > 0) {
+      setSuccess(`Applied ${appliedCount} field${appliedCount > 1 ? 's' : ''} from WordPress (${wordpressPreview.matchedBy}). Save changes to persist.`);
+    } else {
+      setSuccess('No fields were applied from WordPress with current overwrite settings.');
+    }
+  }
+
   if (permissionsLoading || loading || !isAdmin) {
     return <div className="min-h-[400px] flex items-center justify-center text-[var(--text-muted)]">Loading...</div>;
   }
@@ -203,9 +321,15 @@ export default function EditLocationPage() {
                 </div>
 
                 <div>
-                  <Button type="button" variant="outline" onClick={handleGeocode} disabled={geocoding}>
-                    {geocoding ? 'Geocoding...' : 'Geocode'}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={handleGeocode} disabled={geocoding}>
+                      {geocoding ? 'Geocoding...' : 'Geocode'}
+                    </Button>
+                    <Button type="button" variant="outline" onClick={handleFillFromWordPress} disabled={wordpressFilling}>
+                      <Globe className="h-4 w-4 mr-2" />
+                      {wordpressFilling ? 'Loading from WordPress...' : 'Fill Missing from WordPress'}
+                    </Button>
+                  </div>
                 </div>
 
                 <label className="flex items-center gap-2 text-sm">
@@ -240,6 +364,89 @@ export default function EditLocationPage() {
           <LocationAreaEditor locationId={params.id as string} />
         </TabsContent>
       </Tabs>
+
+      <Modal
+        open={wordpressPreviewOpen}
+        onClose={() => setWordpressPreviewOpen(false)}
+        title="Review WordPress Data Match"
+        description="Confirm which fields should be copied into this location form"
+        className="max-w-4xl"
+      >
+        <div className="space-y-4">
+          <div className="rounded-xl border p-3 text-sm" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+            <p style={{ color: 'var(--text-strong)' }}>
+              Source: <strong>{wordpressPreview?.wordpressTitle || '-'}</strong>
+            </p>
+            <p style={{ color: 'var(--text-muted)' }}>
+              Matched by: {wordpressPreview?.matchedBy || '-'}
+            </p>
+          </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={overwriteExisting}
+              onChange={(e) => setOverwriteExisting(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Overwrite existing form values (if unchecked, only empty fields are filled)
+          </label>
+
+          <div className="max-h-[50vh] overflow-y-auto rounded-xl border" style={{ borderColor: 'var(--border)' }}>
+            <table className="w-full text-sm">
+              <thead style={{ backgroundColor: 'var(--surface-1)' }}>
+                <tr>
+                  <th className="px-3 py-2 text-left">Field</th>
+                  <th className="px-3 py-2 text-left">Current</th>
+                  <th className="px-3 py-2 text-left">WordPress</th>
+                  <th className="px-3 py-2 text-left">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {previewRows.length === 0 ? (
+                  <tr>
+                    <td className="px-3 py-3 text-[var(--text-muted)]" colSpan={4}>No usable fields were found in the WordPress payload.</td>
+                  </tr>
+                ) : (
+                  previewRows.map((row) => (
+                    <tr key={row.key} className="border-t" style={{ borderColor: 'var(--border)' }}>
+                      <td className="px-3 py-2 font-medium">{row.label}</td>
+                      <td className="px-3 py-2">{row.currentValue || <span className="text-[var(--text-muted)]">(empty)</span>}</td>
+                      <td className="px-3 py-2">{row.incomingValue}</td>
+                      <td className="px-3 py-2">
+                        {row.reason === 'fill' && <span className="text-[var(--success)]">Fill missing</span>}
+                        {row.reason === 'overwrite' && <span className="text-[var(--warning)]">Overwrite</span>}
+                        {row.reason === 'kept' && <span className="text-[var(--text-muted)]">Keep current</span>}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => setWordpressPreviewOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={applyWordPressPreview}>
+              Apply to Form
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
+
+type WordPressFillKey =
+  | 'addressLine1'
+  | 'addressLine2'
+  | 'townCity'
+  | 'county'
+  | 'postcode'
+  | 'email'
+  | 'phone'
+  | 'openingHours'
+  | 'latitude'
+  | 'longitude';
