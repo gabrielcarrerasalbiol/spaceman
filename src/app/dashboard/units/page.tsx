@@ -451,7 +451,7 @@ export default function UnitsPage() {
                             const matchedChildUnit = matchedWordPressUnits[childUnit.id] || null;
                             return (
                               <TableRow key={childUnit.id} className="bg-[var(--surface-0)]">
-                                <TableCell></TableCell>
+                                <TableCell> </TableCell>
                                 <TableCell>
                                   <div className="flex items-center gap-2">
                                     <div className="w-2 h-2 rounded-full bg-[var(--text-muted)] opacity-30" />
