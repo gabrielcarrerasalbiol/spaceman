@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Box, Edit, Plus, Search, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Box, ChevronDown, ChevronRight, Edit, Plus, Search, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -62,6 +62,24 @@ function renderWordPressValue(value: unknown) {
   return String(value);
 }
 
+function extractBaseCode(code: string): string {
+  if (!code) return '';
+  const parts = code.trim().split(/\s+/);
+  return parts[0];
+}
+
+function groupUnitsByBaseCode(units: Unit[]): Map<string, Unit[]> {
+  const grouped = new Map<string, Unit[]>();
+  for (const unit of units) {
+    const baseCode = extractBaseCode(unit.code);
+    if (!grouped.has(baseCode)) {
+      grouped.set(baseCode, []);
+    }
+    grouped.get(baseCode)!.push(unit);
+  }
+  return grouped;
+}
+
 interface Unit {
   id: string;
   code: string;
@@ -116,6 +134,7 @@ export default function UnitsPage() {
   const [form, setForm] = useState<typeof EMPTY_UNIT & { is24hDriveUp: boolean; isIndoor: boolean }>({ ...EMPTY_UNIT });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [expandedBaseCodes, setExpandedBaseCodes] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -230,6 +249,29 @@ export default function UnitsPage() {
     }
   }
 
+  function toggleBaseCode(baseCode: string) {
+    setExpandedBaseCodes((prev) => {
+      const next = new Set(prev);
+      if (next.has(baseCode)) {
+        next.delete(baseCode);
+      } else {
+        next.add(baseCode);
+      }
+      return next;
+    });
+  }
+
+  function getBaseUnit(units: Unit[]): Unit | null {
+    const base = units.find(u => !u.unitNumber);
+    return base || units[0] || null;
+  }
+
+  function getChildUnits(units: Unit[]): Unit[] {
+    if (units.length === 1) return [];
+    const baseCode = extractBaseCode(units[0].code);
+    return units.filter(u => extractBaseCode(u.code) === baseCode && u.id !== getBaseUnit(units)?.id);
+  }
+
   if (permissionsLoading || !isAdmin) {
     return null;
   }
@@ -311,6 +353,7 @@ export default function UnitsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-8"></TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
@@ -324,53 +367,148 @@ export default function UnitsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {units.map((unit) => {
-                      const matchedWordPressUnit = matchedWordPressUnits[unit.id] || null;
+                    {Array.from(groupUnitsByBaseCode(units).entries()).map(([baseCode, groupUnits]) => {
+                      const baseUnit = getBaseUnit(groupUnits);
+                      if (!baseUnit) return null;
+
+                      const childUnits = getChildUnits(groupUnits);
+                      const hasChildren = childUnits.length > 0;
+                      const isExpanded = expandedBaseCodes.has(baseCode);
 
                       return (
-                      <TableRow key={unit.id}>
-                        <TableCell>
-                          <div className="font-medium">{unit.code}</div>
-                          {unit.name && <div className="text-xs text-[var(--text-muted)]">{unit.name}</div>}
-                        </TableCell>
-                        <TableCell>{unit.location?.name || '-'}</TableCell>
-                        <TableCell>
-                          <Badge variant={statusVariant[unit.status] || 'secondary'}>{unit.status}</Badge>
-                        </TableCell>
-                        <TableCell>{unit.weeklyRate ? `£${unit.weeklyRate}` : '-'}</TableCell>
-                        <TableCell>
-                          {matchedWordPressUnit ? (
-                            isTruthyFlag(getWordPressUnitField(matchedWordPressUnit, 'prorize_onsale')) ? (
-                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
-                            ) : (
-                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
-                            )
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell>
-                          {matchedWordPressUnit ? (
-                            isTruthyFlag(getWordPressUnitField(matchedWordPressUnit, 'active')) ? (
-                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
-                            ) : (
-                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
-                            )
-                          ) : '-'}
-                        </TableCell>
-                        <TableCell>{matchedWordPressUnit ? renderWordPressValue(getWordPressUnitField(matchedWordPressUnit, '_weekly_rate', 'weekly_rate')) : '-'}</TableCell>
-                        <TableCell>{matchedWordPressUnit ? renderWordPressValue(getWordPressUnitField(matchedWordPressUnit, 'prorize_id')) : '-'}</TableCell>
-                        <TableCell>{unit._count?.contracts || 0}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/units/${unit.id}/edit`}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => deleteUnit(unit.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    )})}
+                        <React.Fragment key={baseCode}>
+                          {/* Base/Parent Row */}
+                          <TableRow className={hasChildren ? 'bg-[var(--surface-1)]' : ''}>
+                            <TableCell>
+                              {hasChildren ? (
+                                <button
+                                  onClick={() => toggleBaseCode(baseCode)}
+                                  className="flex h-6 w-6 items-center justify-center rounded hover:bg-[var(--surface-2)] transition-colors"
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-[var(--text-muted)]" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-[var(--text-muted)]" />
+                                  )}
+                                </button>
+                              ) : null}
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{baseUnit.code}</div>
+                              {baseUnit.name && baseUnit.name !== baseUnit.code && (
+                                <div className="text-xs text-[var(--text-muted)]">{baseUnit.name}</div>
+                              )}
+                              {hasChildren && (
+                                <div className="text-xs text-[var(--text-muted)] mt-1">
+                                  {childUnits.length} variant{childUnits.length > 1 ? 's' : ''}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>{baseUnit.location?.name || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant={statusVariant[baseUnit.status] || 'secondary'}>{baseUnit.status}</Badge>
+                            </TableCell>
+                            <TableCell>{baseUnit.weeklyRate ? `£${baseUnit.weeklyRate}` : '-'}</TableCell>
+                            <TableCell>
+                              {matchedWordPressUnits[baseUnit.id] ? (
+                                isTruthyFlag(getWordPressUnitField(matchedWordPressUnits[baseUnit.id], 'prorize_onsale')) ? (
+                                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
+                                )
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {matchedWordPressUnits[baseUnit.id] ? (
+                                isTruthyFlag(getWordPressUnitField(matchedWordPressUnits[baseUnit.id], 'active')) ? (
+                                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
+                                )
+                              ) : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {matchedWordPressUnits[baseUnit.id] ? renderWordPressValue(getWordPressUnitField(matchedWordPressUnits[baseUnit.id], '_weekly_rate', 'weekly_rate')) : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {matchedWordPressUnits[baseUnit.id] ? renderWordPressValue(getWordPressUnitField(matchedWordPressUnits[baseUnit.id], 'prorize_id')) : '-'}
+                            </TableCell>
+                            <TableCell>{baseUnit._count?.contracts || 0}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button variant="outline" size="sm" onClick={() => (window.location.href = `/dashboard/units/${baseUnit.id}/edit`)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="sm" onClick={() => deleteUnit(baseUnit.id)}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Child Rows - Collapsible */}
+                          {isExpanded && childUnits.map((childUnit) => {
+                            const matchedChildUnit = matchedWordPressUnits[childUnit.id] || null;
+                            return (
+                              <TableRow key={childUnit.id} className="bg-[var(--surface-0)]">
+                                <TableCell></TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-[var(--text-muted)] opacity-30" />
+                                    <div>
+                                      <div className="font-medium text-sm">{childUnit.code}</div>
+                                      {childUnit.name && childUnit.name !== childUnit.code && (
+                                        <div className="text-xs text-[var(--text-muted)]">{childUnit.name}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm text-[var(--text-muted)]">{childUnit.location?.name || '-'}</TableCell>
+                                <TableCell>
+                                  <Badge variant={statusVariant[childUnit.status] || 'secondary'} className="text-xs">{childUnit.status}</Badge>
+                                </TableCell>
+                                <TableCell className="text-sm">{childUnit.weeklyRate ? `£${childUnit.weeklyRate}` : '-'}</TableCell>
+                                <TableCell>
+                                  {matchedChildUnit ? (
+                                    isTruthyFlag(getWordPressUnitField(matchedChildUnit, 'prorize_onsale')) ? (
+                                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
+                                    ) : (
+                                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
+                                    )
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {matchedChildUnit ? (
+                                    isTruthyFlag(getWordPressUnitField(matchedChildUnit, 'active')) ? (
+                                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
+                                    ) : (
+                                      <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
+                                    )
+                                  ) : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm text-[var(--text-muted)]">
+                                  {matchedChildUnit ? renderWordPressValue(getWordPressUnitField(matchedChildUnit, '_weekly_rate', 'weekly_rate')) : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm text-[var(--text-muted)]">
+                                  {matchedChildUnit ? renderWordPressValue(getWordPressUnitField(matchedChildUnit, 'prorize_id')) : '-'}
+                                </TableCell>
+                                <TableCell className="text-sm text-[var(--text-muted)]">{childUnit._count?.contracts || 0}</TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => (window.location.href = `/dashboard/units/${childUnit.id}/edit`)}>
+                                      <Edit className="h-3 w-3" />
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => deleteUnit(childUnit.id)}>
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
