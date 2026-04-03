@@ -456,13 +456,13 @@ export default async function DashboardPage({
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
-                  <Link href="/dashboard/locations" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition hover:opacity-90" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}>
+                  <Link href="/dashboard/locations" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
                     Locations
                   </Link>
-                  <Link href="/dashboard/units" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition hover:opacity-90" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}>
+                  <Link href="/dashboard/units" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
                     Units
                   </Link>
-                  <Link href="/dashboard/contracts" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition hover:opacity-90" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}>
+                  <Link href="/dashboard/contracts" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
                     Contracts
                   </Link>
                 </div>
@@ -499,8 +499,8 @@ export default async function DashboardPage({
                 </select>
                 <button
                   type="submit"
-                  className="h-9 rounded-xl border px-3 text-sm font-medium"
-                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                  className="h-9 rounded-xl border px-3 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+                  style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}
                 >
                   Apply Site
                 </button>
