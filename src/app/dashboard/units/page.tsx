@@ -353,7 +353,7 @@ export default function UnitsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-8"></TableHead>
+                      <TableHead className="w-8">&nbsp;</TableHead>
                       <TableHead>Code</TableHead>
                       <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>

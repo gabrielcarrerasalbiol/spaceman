@@ -268,8 +268,8 @@ export default async function DashboardPage({
   ];
 
   return (
-    <div className="space-y-2">
-      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+    <div className="space-y-4">
+      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-5 py-4 shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--border) 60%, transparent)', backgroundColor: 'var(--surface-0)' }}>
         <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--accent-soft) 55%, transparent), transparent 65%)' }} />
         <div className="relative grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
@@ -277,7 +277,7 @@ export default async function DashboardPage({
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>Operations Overview</p>
           </div>
 
-          <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--surface-0) 86%, var(--surface-1))' }}>
+          <div className="rounded-xl border px-4 py-3 md:min-w-[300px]" style={{ borderColor: 'color-mix(in srgb, var(--border) 60%, transparent)', backgroundColor: 'color-mix(in srgb, var(--surface-1) 50%, var(--surface-0))' }}>
             <p className="text-xs" style={{ color: 'var(--text-strong)' }}>Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
@@ -294,7 +294,7 @@ export default async function DashboardPage({
         </div>
       </section>
 
-      <section className="dashboard-rise-up rounded-2xl border px-2.5 pt-1.5 pb-0" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+      <section className="dashboard-rise-up rounded-2xl border px-3 pt-2 pb-0 shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--border) 60%, transparent)', backgroundColor: 'var(--surface-0)' }}>
         <div className="flex gap-1.5 border-b" style={{ borderColor: 'var(--border)' }} role="tablist" aria-label="Dashboard view tabs">
           <Link
             href="/dashboard?tab=main"
@@ -326,15 +326,15 @@ export default async function DashboardPage({
       </section>
 
       {activeTab === 'main' && (
-        <Card className="dashboard-rise-up">
-          <CardContent className="space-y-3 p-2 pt-1.5 md:p-3 md:pt-1.5">
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Card className="dashboard-rise-up border-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 40%, transparent)' }}>
+          <CardContent className="space-y-4 p-4 pt-3 md:p-5 md:pt-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map((item, index) => {
               const Icon = item.icon;
               return (
-                <Card key={item.label} className="dashboard-rise-up overflow-hidden" style={{ animationDelay: `${index * 70}ms` }}>
+                <Card key={item.label} className="dashboard-rise-up overflow-hidden border shadow-sm" style={{ animationDelay: `${index * 70}ms`, borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
                   <CardContent className="p-0">
-                    <div className="flex items-center justify-between p-4">
+                    <div className="flex items-center justify-between p-5">
                       <div>
                         <p className="text-sm text-[var(--text-muted)]">{item.label}</p>
                         <p className="mt-1 text-2xl font-bold text-[var(--text-strong)]">{item.value}</p>
@@ -351,7 +351,7 @@ export default async function DashboardPage({
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
-            <Card className="dashboard-rise-up" style={{ animationDelay: '120ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '120ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-lg">All-Site Occupancy Mix</CardTitle>
                 <CardDescription>Distribution of all units by status.</CardDescription>
@@ -397,7 +397,7 @@ export default async function DashboardPage({
               </CardContent>
             </Card>
 
-            <Card className="dashboard-rise-up" style={{ animationDelay: '180ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '180ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-lg">Units by Location</CardTitle>
                 <CardDescription>Top locations by unit volume and utilization.</CardDescription>
@@ -428,8 +428,8 @@ export default async function DashboardPage({
             </Card>
           </section>
 
-          <section className="grid gap-3 md:grid-cols-3">
-            <Card className="dashboard-rise-up" style={{ animationDelay: '140ms' }}>
+          <section className="grid gap-4 md:grid-cols-3">
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '140ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-base">Monthly Recurring Revenue</CardTitle>
                 <CardDescription>Estimated from active contracts across all sites.</CardDescription>
@@ -439,7 +439,7 @@ export default async function DashboardPage({
                 <p className="mt-2 text-xs text-[var(--text-muted)]">Annual run rate: {formatMoney(allScope.annualRunRate)}</p>
               </CardContent>
             </Card>
-            <Card className="dashboard-rise-up" style={{ animationDelay: '210ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '210ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-base">Weekly Contract Revenue</CardTitle>
                 <CardDescription>Weekly snapshots from active agreements.</CardDescription>
@@ -449,7 +449,7 @@ export default async function DashboardPage({
                 <p className="mt-2 text-xs text-[var(--text-muted)]">Based on explicit weekly rates only.</p>
               </CardContent>
             </Card>
-            <Card className="dashboard-rise-up" style={{ animationDelay: '280ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '280ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-base">Quick Actions</CardTitle>
                 <CardDescription>Jump to core sections fast.</CardDescription>
@@ -480,9 +480,9 @@ export default async function DashboardPage({
       )}
 
       {activeTab === 'operations' && (
-        <Card className="dashboard-rise-up">
-          <CardContent className="space-y-3 p-2 pt-1.5 md:p-3 md:pt-1.5">
-            <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+        <Card className="dashboard-rise-up border-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 40%, transparent)' }}>
+          <CardContent className="space-y-4 p-4 pt-3 md:p-5 md:pt-4">
+            <div className="rounded-xl border p-4" style={{ borderColor: 'color-mix(in srgb, var(--border) 60%, transparent)', backgroundColor: 'color-mix(in srgb, var(--surface-1) 50%, var(--surface-0))' }}>
               <p className="text-sm font-semibold text-[var(--text-strong)]">Operations Overview by Location</p>
               <p className="mt-1 text-xs text-[var(--text-muted)]">Choose a site to view only its operational graphics and KPIs.</p>
               <form method="get" className="flex flex-wrap items-center gap-2">
@@ -507,7 +507,7 @@ export default async function DashboardPage({
               </form>
             </div>
 
-          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               { label: 'Units', value: operationsScope.totalUnits, subtitle: `${operationsScope.occupiedUnits} ${occupiedLabel.toLowerCase()}`, icon: Building2, color: 'var(--success)' },
               { label: 'Contracts', value: operationsContracts.length, subtitle: `${operationsScope.pendingContracts} pending`, icon: FileSignature, color: 'var(--danger)' },
@@ -516,7 +516,7 @@ export default async function DashboardPage({
             ].map((item, index) => {
               const Icon = item.icon;
               return (
-                <Card key={item.label} className="dashboard-rise-up overflow-hidden" style={{ animationDelay: `${index * 70}ms` }}>
+                <Card key={item.label} className="dashboard-rise-up overflow-hidden border shadow-sm" style={{ animationDelay: `${index * 70}ms`, borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
                   <CardContent className="p-0">
                     <div className="flex items-center justify-between p-4">
                       <div>
@@ -535,7 +535,7 @@ export default async function DashboardPage({
           </section>
 
           <section className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
-            <Card className="dashboard-rise-up" style={{ animationDelay: '120ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '120ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-lg">Site Occupancy Mix</CardTitle>
                 <CardDescription>Status distribution for {selectedLocation?.name || 'selected site'}.</CardDescription>
@@ -581,7 +581,7 @@ export default async function DashboardPage({
               </CardContent>
             </Card>
 
-            <Card className="dashboard-rise-up" style={{ animationDelay: '220ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '220ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-lg">Contract Flow (Site)</CardTitle>
                 <CardDescription>New contracts for this location in last 6 months.</CardDescription>
@@ -610,8 +610,8 @@ export default async function DashboardPage({
             </Card>
           </section>
 
-          <section className="grid gap-3 md:grid-cols-3">
-            <Card className="dashboard-rise-up" style={{ animationDelay: '140ms' }}>
+          <section className="grid gap-4 md:grid-cols-3">
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '140ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-base">Monthly Recurring Revenue</CardTitle>
                 <CardDescription>Estimated from active contracts in this site.</CardDescription>
@@ -621,7 +621,7 @@ export default async function DashboardPage({
                 <p className="mt-2 text-xs text-[var(--text-muted)]">Annual run rate: {formatMoney(operationsScope.annualRunRate)}</p>
               </CardContent>
             </Card>
-            <Card className="dashboard-rise-up" style={{ animationDelay: '210ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '210ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-base">Weekly Contract Revenue</CardTitle>
                 <CardDescription>Weekly snapshots from active agreements.</CardDescription>
@@ -631,7 +631,7 @@ export default async function DashboardPage({
                 <p className="mt-2 text-xs text-[var(--text-muted)]">Based on explicit weekly rates only.</p>
               </CardContent>
             </Card>
-            <Card className="dashboard-rise-up" style={{ animationDelay: '280ms' }}>
+            <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '280ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
               <CardHeader>
                 <CardTitle className="text-base">Selected Site</CardTitle>
                 <CardDescription>Current operational scope.</CardDescription>
