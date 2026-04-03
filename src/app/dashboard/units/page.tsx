@@ -23,6 +23,45 @@ interface LocationOption {
   name: string;
 }
 
+function isTruthyFlag(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+  return false;
+}
+
+function isMissingValue(value: unknown) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  return false;
+}
+
+function getWordPressUnitField(unit: any, ...keys: string[]) {
+  const meta = unit?.meta && typeof unit.meta === 'object' ? unit.meta : {};
+  const allMeta = unit?.all_meta && typeof unit.all_meta === 'object' ? unit.all_meta : {};
+
+  for (const key of keys) {
+    const topLevelValue = unit?.[key];
+    if (!isMissingValue(topLevelValue)) return topLevelValue;
+
+    const metaValue = meta?.[key];
+    if (!isMissingValue(metaValue)) return metaValue;
+
+    const allMetaValue = allMeta?.[key];
+    if (!isMissingValue(allMetaValue)) return allMetaValue;
+  }
+
+  return null;
+}
+
+function renderWordPressValue(value: unknown) {
+  if (isMissingValue(value)) return '-';
+  return String(value);
+}
+
 interface Unit {
   id: string;
   code: string;
@@ -37,6 +76,8 @@ interface Unit {
     contracts: number;
   };
 }
+
+type WordPressMatchedUnitsMap = Record<string, any>;
 
 interface UnitsApiPaginatedResponse {
   items: Unit[];
@@ -62,6 +103,7 @@ export default function UnitsPage() {
 
   const [units, setUnits] = useState<Unit[]>([]);
   const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [matchedWordPressUnits, setMatchedWordPressUnits] = useState<WordPressMatchedUnitsMap>({});
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [locationFilter, setLocationFilter] = useState('ALL');
@@ -83,6 +125,7 @@ export default function UnitsPage() {
 
   useEffect(() => {
     fetchLocations();
+    fetchWordPressMatches();
   }, []);
 
   useEffect(() => {
@@ -98,6 +141,27 @@ export default function UnitsPage() {
     if (response.ok) {
       const data = await response.json();
       setLocations(data);
+    }
+  }
+
+  async function fetchWordPressMatches() {
+    try {
+      const response = await fetch('/api/wordpress/pull', { cache: 'no-store' });
+      if (!response.ok) return;
+
+      const payload = await response.json();
+      const wordpressUnits = Array.isArray(payload?.cache?.units) ? payload.cache.units : [];
+      const nextMap = wordpressUnits.reduce((accumulator: WordPressMatchedUnitsMap, unit: any) => {
+        const cmsId = unit?.__match?.cmsId;
+        if (typeof cmsId === 'string' && cmsId.length > 0) {
+          accumulator[cmsId] = unit;
+        }
+        return accumulator;
+      }, {});
+
+      setMatchedWordPressUnits(nextMap);
+    } catch (error) {
+      console.error('Failed to load WordPress matches:', error);
     }
   }
 
@@ -243,7 +307,7 @@ export default function UnitsPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              <div className="rounded-xl border border-[var(--border)]">
+              <div className="overflow-x-auto rounded-xl border border-[var(--border)]">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -251,12 +315,19 @@ export default function UnitsPage() {
                       <TableHead>Location</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Weekly</TableHead>
+                      <TableHead>WP On Sale</TableHead>
+                      <TableHead>WP Active</TableHead>
+                      <TableHead>WP _Weekly Rate</TableHead>
+                      <TableHead>WP Prorize ID</TableHead>
                       <TableHead>Contracts</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {units.map((unit) => (
+                    {units.map((unit) => {
+                      const matchedWordPressUnit = matchedWordPressUnits[unit.id] || null;
+
+                      return (
                       <TableRow key={unit.id}>
                         <TableCell>
                           <div className="font-medium">{unit.code}</div>
@@ -267,6 +338,26 @@ export default function UnitsPage() {
                           <Badge variant={statusVariant[unit.status] || 'secondary'}>{unit.status}</Badge>
                         </TableCell>
                         <TableCell>{unit.weeklyRate ? `£${unit.weeklyRate}` : '-'}</TableCell>
+                        <TableCell>
+                          {matchedWordPressUnit ? (
+                            isTruthyFlag(getWordPressUnitField(matchedWordPressUnit, 'prorize_onsale')) ? (
+                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
+                            )
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {matchedWordPressUnit ? (
+                            isTruthyFlag(getWordPressUnitField(matchedWordPressUnit, 'active')) ? (
+                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))', color: 'var(--success)' }}>YES</span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold" style={{ borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))', backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))', color: 'var(--danger)' }}>NO</span>
+                            )
+                          ) : '-'}
+                        </TableCell>
+                        <TableCell>{matchedWordPressUnit ? renderWordPressValue(getWordPressUnitField(matchedWordPressUnit, '_weekly_rate', 'weekly_rate')) : '-'}</TableCell>
+                        <TableCell>{matchedWordPressUnit ? renderWordPressValue(getWordPressUnitField(matchedWordPressUnit, 'prorize_id')) : '-'}</TableCell>
                         <TableCell>{unit._count?.contracts || 0}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-2">
@@ -279,7 +370,7 @@ export default function UnitsPage() {
                           </div>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    )})}
                   </TableBody>
                 </Table>
               </div>
