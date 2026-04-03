@@ -5,6 +5,19 @@ import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig } from '@/lib/status-confi
 
 const SETTINGS_SINGLETON_ID = 'default';
 
+function normalizeWordpressConfig(input: unknown) {
+  const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+
+  return {
+    siteUrl: typeof source.siteUrl === 'string' ? source.siteUrl : '',
+    apiUsername: typeof source.apiUsername === 'string' ? source.apiUsername : '',
+    apiPassword: typeof source.apiPassword === 'string' ? source.apiPassword : '',
+    enabled: Boolean(source.enabled),
+    locationsEndpoint: typeof source.locationsEndpoint === 'string' ? source.locationsEndpoint : 'wp-json/spaceman/v1/locations',
+    unitsEndpoint: typeof source.unitsEndpoint === 'string' ? source.unitsEndpoint : 'wp-json/spaceman/v1/units',
+  };
+}
+
 async function getOrCreateSettings() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: SETTINGS_SINGLETON_ID },
@@ -15,6 +28,7 @@ async function getOrCreateSettings() {
       siteDescription: true,
       primaryColor: true,
       unitStatusConfig: true,
+      wordpressConfig: true,
     },
   });
   if (byDefaultId) return byDefaultId;
@@ -28,6 +42,7 @@ async function getOrCreateSettings() {
       siteDescription: true,
       primaryColor: true,
       unitStatusConfig: true,
+      wordpressConfig: true,
     },
   });
   if (existing) return existing;
@@ -40,6 +55,7 @@ async function getOrCreateSettings() {
       siteDescription: null,
       primaryColor: '#3b82f6',
       unitStatusConfig: DEFAULT_STATUS_CONFIG,
+      wordpressConfig: normalizeWordpressConfig(null),
     },
     select: {
       id: true,
@@ -48,6 +64,7 @@ async function getOrCreateSettings() {
       siteDescription: true,
       primaryColor: true,
       unitStatusConfig: true,
+      wordpressConfig: true,
     },
   });
 }
@@ -63,6 +80,7 @@ export async function GET() {
       siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
       unitStatusConfig: normalizeStatusConfig(settings.unitStatusConfig),
+      wordpressConfig: normalizeWordpressConfig(settings.wordpressConfig),
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -87,7 +105,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig } = body;
+    const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig, wordpressConfig } = body;
 
     const settings = await getOrCreateSettings();
 
@@ -99,6 +117,7 @@ export async function POST(request: NextRequest) {
         ...(siteDescription !== undefined && { siteDescription }),
         ...(primaryColor !== undefined && { primaryColor }),
         ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
+        ...(wordpressConfig !== undefined && { wordpressConfig: normalizeWordpressConfig(wordpressConfig) }),
       },
       select: {
         id: true,
@@ -107,6 +126,7 @@ export async function POST(request: NextRequest) {
         siteDescription: true,
         primaryColor: true,
         unitStatusConfig: true,
+        wordpressConfig: true,
       },
     });
 
@@ -116,6 +136,7 @@ export async function POST(request: NextRequest) {
       siteDescription: updated.siteDescription || null,
       primaryColor: updated.primaryColor,
       unitStatusConfig: normalizeStatusConfig(updated.unitStatusConfig),
+      wordpressConfig: normalizeWordpressConfig(updated.wordpressConfig),
     });
   } catch (error) {
     console.error('Error updating settings:', error);

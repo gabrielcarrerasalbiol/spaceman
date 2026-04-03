@@ -142,7 +142,7 @@ export default function SettingsPage() {
       setWordpressForm({
         siteUrl: wpConfig.siteUrl || '',
         apiUsername: wpConfig.apiUsername || '',
-        apiPassword: '', // Never pre-fill password
+        apiPassword: wpConfig.apiPassword || '',
         enabled: wpConfig.enabled || false,
         locationsEndpoint: wpConfig.locationsEndpoint || 'wp-json/spaceman/v1/locations',
         unitsEndpoint: wpConfig.unitsEndpoint || 'wp-json/spaceman/v1/units',
