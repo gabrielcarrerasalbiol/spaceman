@@ -353,34 +353,34 @@ export default function WordPressDataView() {
                 {cache.lastPullErrors?.units && (
                   <p className="text-sm" style={{ color: 'var(--danger)' }}>{cache.lastPullErrors.units}</p>
                 )}
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Code</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Location ID</TableHead>
-                      <TableHead>Sale Price</TableHead>
-                      <TableHead>Regular Weekly Rate</TableHead>
-                      <TableHead>Prorize Offer</TableHead>
-                      <TableHead>Prorize On Sale</TableHead>
-                      <TableHead>Active</TableHead>
-                      <TableHead>Prorize ID</TableHead>
-                      <TableHead>Match</TableHead>
-                      <TableHead>Details</TableHead>
+                      <TableHead className="w-[14%]">Title</TableHead>
+                      <TableHead className="w-[7%]">Code</TableHead>
+                      <TableHead className="w-[6%]">Status</TableHead>
+                      <TableHead className="w-[6%]">Location ID</TableHead>
+                      <TableHead className="w-[6%]">Sale Price</TableHead>
+                      <TableHead className="w-[8%]">Regular Weekly Rate</TableHead>
+                      <TableHead className="w-[20%]">Prorize Offer</TableHead>
+                      <TableHead className="w-[6%]">Prorize On Sale</TableHead>
+                      <TableHead className="w-[6%]">Active</TableHead>
+                      <TableHead className="w-[9%]">Prorize ID</TableHead>
+                      <TableHead className="w-[9%]">Match</TableHead>
+                      <TableHead className="w-[4%]">Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {paginatedUnits.map((unit: any, index: number) => (
                       <TableRow key={`${String(unit.id ?? 'unit')}-${index}`}>
-                        <TableCell>{unit.title || '-'}</TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, 'code', 'size_code', 'size_display', 'display_name'))}</TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, 'status'))}</TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, 'location_id'))}</TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, 'sale_price'))}</TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, 'regular_weekly_rate', 'weekly_rate'))}</TableCell>
+                        <TableCell className="truncate" title={String(unit.title || '-')}>{unit.title || '-'}</TableCell>
+                        <TableCell className="truncate">{renderValue(getUnitField(unit, 'code', 'size_code', 'size_display', 'display_name'))}</TableCell>
+                        <TableCell className="truncate">{renderValue(getUnitField(unit, 'status'))}</TableCell>
+                        <TableCell className="truncate">{renderValue(getUnitField(unit, 'location_id'))}</TableCell>
+                        <TableCell className="truncate">{renderValue(getUnitField(unit, 'sale_price'))}</TableCell>
+                        <TableCell className="truncate">{renderValue(getUnitField(unit, 'regular_weekly_rate', 'weekly_rate'))}</TableCell>
                         <TableCell
-                          className="max-w-[260px] truncate"
+                          className="truncate"
                           title={String(getUnitField(unit, 'prorize_offer') ?? '')}
                         >
                           {renderValue(getUnitField(unit, 'prorize_offer'))}
@@ -435,7 +435,7 @@ export default function WordPressDataView() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, 'prorize_id'))}</TableCell>
+                        <TableCell className="truncate break-all" title={String(getUnitField(unit, 'prorize_id') ?? '')}>{renderValue(getUnitField(unit, 'prorize_id'))}</TableCell>
                         <TableCell>
                           {unit.__match?.matched ? (
                             <div className="space-y-1">
