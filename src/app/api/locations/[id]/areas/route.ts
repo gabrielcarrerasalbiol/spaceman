@@ -26,6 +26,28 @@ export async function GET(
                 name: true,
                 sizeSqft: true,
                 status: true,
+                contracts: {
+                  where: {
+                    status: 'ACTIVE',
+                  },
+                  orderBy: {
+                    startDate: 'desc',
+                  },
+                  take: 1,
+                  select: {
+                    id: true,
+                    contractNumber: true,
+                    startDate: true,
+                    endDate: true,
+                    client: {
+                      select: {
+                        companyName: true,
+                        firstName: true,
+                        lastName: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },

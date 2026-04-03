@@ -25,6 +25,17 @@ type UnitItem = {
   name: string | null;
   sizeSqft: number | null;
   status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
+  contracts?: Array<{
+    id: string;
+    contractNumber: string;
+    startDate: string;
+    endDate: string | null;
+    client: {
+      companyName: string | null;
+      firstName: string;
+      lastName: string;
+    };
+  }>;
 };
 
 type Placement = {
@@ -101,6 +112,15 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   const [sizeFilter, setSizeFilter] = useState('ALL');
   const [canvasZoom, setCanvasZoom] = useState(1);
   const [legendCollapsed, setLegendCollapsed] = useState(false);
+  const [hoveredContract, setHoveredContract] = useState<{
+    x: number;
+    y: number;
+    unitLabel: string;
+    contractNumber: string;
+    clientLabel: string;
+    startDate: string;
+    endDate: string;
+  } | null>(null);
 
   const [areaMeta, setAreaMeta] = useState({
     name: '',
@@ -211,6 +231,24 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     return getStatusEntries(settings.unitStatusConfig);
   }, [settings.unitStatusConfig]);
 
+  function formatDateLabel(value: string | null | undefined) {
+    if (!value) return '-';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleDateString('en-GB');
+  }
+
+  function contractClientLabel(unit: UnitItem) {
+    const contract = unit.contracts?.[0];
+    if (!contract) return '';
+
+    const companyName = contract.client?.companyName?.trim();
+    if (companyName) return companyName;
+
+    const fullName = `${contract.client?.firstName || ''} ${contract.client?.lastName || ''}`.trim();
+    return fullName || '-';
+  }
+
   useEffect(() => {
     bootstrap();
   }, [locationId]);
@@ -261,6 +299,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
   async function bootstrap() {
     setLoading(true);
     setError(null);
+    setHoveredContract(null);
 
     try {
       const [areasRes, unitsRes] = await Promise.all([
@@ -312,6 +351,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     setSelectedPlacementId(null);
     setUnitSearch('');
     setSizeFilter('ALL');
+    setHoveredContract(null);
   }
 
   async function handleCreateArea() {
@@ -840,6 +880,41 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                               opacity={0.9}
                               onClick={() => setSelectedPlacementId(placement.id)}
                               onTap={() => setSelectedPlacementId(placement.id)}
+                              onMouseEnter={(event) => {
+                                if (mode !== 'view') return;
+                                const activeContract = unit.contracts?.[0];
+                                if (!activeContract) return;
+
+                                const nativeEvent = event.evt as MouseEvent;
+                                setHoveredContract({
+                                  x: nativeEvent.offsetX,
+                                  y: nativeEvent.offsetY,
+                                  unitLabel: formatUnitDisplayName(unit),
+                                  contractNumber: activeContract.contractNumber,
+                                  clientLabel: contractClientLabel(unit),
+                                  startDate: formatDateLabel(activeContract.startDate),
+                                  endDate: formatDateLabel(activeContract.endDate),
+                                });
+                              }}
+                              onMouseMove={(event) => {
+                                if (mode !== 'view') return;
+                                const activeContract = unit.contracts?.[0];
+                                if (!activeContract) return;
+
+                                const nativeEvent = event.evt as MouseEvent;
+                                setHoveredContract((previous) => {
+                                  if (!previous) return previous;
+                                  return {
+                                    ...previous,
+                                    x: nativeEvent.offsetX,
+                                    y: nativeEvent.offsetY,
+                                  };
+                                });
+                              }}
+                              onMouseLeave={() => {
+                                if (mode !== 'view') return;
+                                setHoveredContract(null);
+                              }}
                               onDblClick={() => {
                                 if (mode !== 'edit') return;
                                 removePlacement(placement.id);
@@ -920,6 +995,27 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                     {mode === 'edit' && <Transformer ref={transformerRef} rotateEnabled={true} keepRatio={false} />}
                   </Layer>
                 </Stage>
+
+                {mode === 'view' && hoveredContract && (
+                  <div
+                    className="pointer-events-none absolute z-20 min-w-[260px] rounded-xl border px-3 py-2 text-xs shadow-lg"
+                    style={{
+                      left: hoveredContract.x + 14,
+                      top: hoveredContract.y + 14,
+                      borderColor: 'var(--border)',
+                      backgroundColor: 'color-mix(in srgb, var(--surface-0) 95%, transparent)',
+                      backdropFilter: 'blur(6px)',
+                    }}
+                  >
+                    <p className="font-semibold text-[var(--text-strong)]">{hoveredContract.unitLabel}</p>
+                    <p className="mt-1 text-[var(--text-strong)]">
+                      Contract: <span className="font-medium">{hoveredContract.contractNumber}</span>
+                    </p>
+                    <p className="text-[var(--text-muted)]">Client: {hoveredContract.clientLabel}</p>
+                    <p className="text-[var(--text-muted)]">Start: {hoveredContract.startDate}</p>
+                    <p className="text-[var(--text-muted)]">End: {hoveredContract.endDate}</p>
+                  </div>
+                )}
               </div>
 
               {mode === 'edit' && selectedPlacementId && (
