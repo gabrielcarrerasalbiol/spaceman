@@ -5,6 +5,21 @@ import { DEFAULT_STATUS_CONFIG, normalizeStatusConfig } from '@/lib/status-confi
 
 const SETTINGS_SINGLETON_ID = 'default';
 
+function isMissingWordpressConfigColumn(error: unknown) {
+  const candidate = error as { code?: string; meta?: { column?: string } } | null;
+  return candidate?.code === 'P2022' && candidate?.meta?.column === 'settings.wordpressConfig';
+}
+
+async function ensureWordpressConfigColumn() {
+  try {
+    await prisma.$executeRawUnsafe(
+      'ALTER TABLE settings ADD COLUMN IF NOT EXISTS "wordpressConfig" JSONB NOT NULL DEFAULT \'{}\'::jsonb'
+    );
+  } catch (error) {
+    console.warn('Could not auto-ensure settings.wordpressConfig column:', error);
+  }
+}
+
 function normalizeWordpressConfig(input: unknown) {
   const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
 
@@ -19,54 +34,96 @@ function normalizeWordpressConfig(input: unknown) {
 }
 
 async function getOrCreateSettings() {
-  const byDefaultId = await prisma.settings.findUnique({
-    where: { id: SETTINGS_SINGLETON_ID },
-    select: {
-      id: true,
-      siteName: true,
-      siteLogo: true,
-      siteDescription: true,
-      primaryColor: true,
-      unitStatusConfig: true,
-      wordpressConfig: true,
-    },
-  });
-  if (byDefaultId) return byDefaultId;
+  await ensureWordpressConfigColumn();
 
-  const existing = await prisma.settings.findFirst({
-    orderBy: { updatedAt: 'desc' },
-    select: {
-      id: true,
-      siteName: true,
-      siteLogo: true,
-      siteDescription: true,
-      primaryColor: true,
-      unitStatusConfig: true,
-      wordpressConfig: true,
-    },
-  });
-  if (existing) return existing;
+  const withWordpressSelect = {
+    id: true,
+    siteName: true,
+    siteLogo: true,
+    siteDescription: true,
+    primaryColor: true,
+    unitStatusConfig: true,
+    wordpressConfig: true,
+  };
 
-  return prisma.settings.create({
-    data: {
-      id: SETTINGS_SINGLETON_ID,
-      siteName: 'Skeleton',
-      siteLogo: null,
-      siteDescription: null,
-      primaryColor: '#3b82f6',
-      unitStatusConfig: DEFAULT_STATUS_CONFIG,
+  const fallbackSelect = {
+    id: true,
+    siteName: true,
+    siteLogo: true,
+    siteDescription: true,
+    primaryColor: true,
+    unitStatusConfig: true,
+  };
+
+  try {
+    const byDefaultId = await prisma.settings.findUnique({
+      where: { id: SETTINGS_SINGLETON_ID },
+      select: withWordpressSelect,
+    });
+    if (byDefaultId) return byDefaultId;
+
+    const existing = await prisma.settings.findFirst({
+      orderBy: { updatedAt: 'desc' },
+      select: withWordpressSelect,
+    });
+    if (existing) return existing;
+
+    return prisma.settings.create({
+      data: {
+        id: SETTINGS_SINGLETON_ID,
+        siteName: 'Skeleton',
+        siteLogo: null,
+        siteDescription: null,
+        primaryColor: '#3b82f6',
+        unitStatusConfig: DEFAULT_STATUS_CONFIG,
+        wordpressConfig: normalizeWordpressConfig(null),
+      },
+      select: withWordpressSelect,
+    });
+  } catch (error) {
+    if (!isMissingWordpressConfigColumn(error)) {
+      throw error;
+    }
+
+    const byDefaultId = await prisma.settings.findUnique({
+      where: { id: SETTINGS_SINGLETON_ID },
+      select: fallbackSelect,
+    });
+    if (byDefaultId) {
+      return {
+        ...byDefaultId,
+        wordpressConfig: normalizeWordpressConfig(null),
+      };
+    }
+
+    const existing = await prisma.settings.findFirst({
+      orderBy: { updatedAt: 'desc' },
+      select: fallbackSelect,
+    });
+    if (existing) {
+      return {
+        ...existing,
+        wordpressConfig: normalizeWordpressConfig(null),
+      };
+    }
+
+    const created = await prisma.settings.create({
+      data: {
+        id: SETTINGS_SINGLETON_ID,
+        siteName: 'Skeleton',
+        siteLogo: null,
+        siteDescription: null,
+        primaryColor: '#3b82f6',
+        unitStatusConfig: DEFAULT_STATUS_CONFIG,
+      },
+      select: fallbackSelect,
+    });
+
+    return {
+      ...created,
       wordpressConfig: normalizeWordpressConfig(null),
-    },
-    select: {
-      id: true,
-      siteName: true,
-      siteLogo: true,
-      siteDescription: true,
-      primaryColor: true,
-      unitStatusConfig: true,
-      wordpressConfig: true,
-    },
-  });
+    };
+  }
 }
 
 // GET /api/settings - Get site settings
@@ -106,6 +163,10 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig, wordpressConfig } = body;
+
+    if (wordpressConfig !== undefined) {
+      await ensureWordpressConfigColumn();
+    }
 
     const settings = await getOrCreateSettings();
 
