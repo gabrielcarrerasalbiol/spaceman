@@ -178,7 +178,14 @@ export async function POST(request: NextRequest) {
         ...(siteDescription !== undefined && { siteDescription }),
         ...(primaryColor !== undefined && { primaryColor }),
         ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
-        ...(wordpressConfig !== undefined && { wordpressConfig: normalizeWordpressConfig(wordpressConfig) }),
+        ...(wordpressConfig !== undefined && {
+          wordpressConfig: {
+            ...(settings.wordpressConfig && typeof settings.wordpressConfig === 'object'
+              ? (settings.wordpressConfig as Record<string, unknown>)
+              : {}),
+            ...normalizeWordpressConfig(wordpressConfig),
+          },
+        }),
       },
       select: {
         id: true,
