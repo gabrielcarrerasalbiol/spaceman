@@ -102,6 +102,10 @@ export default function SettingsPage() {
   const [wordpressTestRunning, setWordpressTestRunning] = useState(false);
   const [wordpressTestLogs, setWordpressTestLogs] = useState<string[]>([]);
   const [wordpressTestSummary, setWordpressTestSummary] = useState<{ ok: boolean; text: string } | null>(null);
+  const [wordpressPullOpen, setWordpressPullOpen] = useState(false);
+  const [wordpressPullRunning, setWordpressPullRunning] = useState(false);
+  const [wordpressPullLogs, setWordpressPullLogs] = useState<string[]>([]);
+  const [wordpressPullSummary, setWordpressPullSummary] = useState<{ ok: boolean; text: string } | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -252,6 +256,10 @@ export default function SettingsPage() {
     setWordpressTestLogs((previous) => [...previous, message]);
   }
 
+  function appendWordPressPullLog(message: string) {
+    setWordpressPullLogs((previous) => [...previous, message]);
+  }
+
   async function runWordPressEndpointTest(endpoint: string, label: string) {
     appendWordPressTestLog(`Testing ${label} endpoint: ${endpoint}`);
 
@@ -319,6 +327,50 @@ export default function SettingsPage() {
     } finally {
       setWordpressTestRunning(false);
       appendWordPressTestLog('Test finished.');
+    }
+  }
+
+  async function handleWordPressLocationPullAndFill() {
+    setWordpressPullOpen(true);
+    setWordpressPullRunning(true);
+    setWordpressPullSummary(null);
+    setWordpressPullLogs([]);
+
+    try {
+      appendWordPressPullLog('Starting WordPress locations pull and missing-field sync...');
+
+      if (!wordpressForm.siteUrl || !wordpressForm.apiUsername || !wordpressForm.apiPassword) {
+        throw new Error('Please provide site URL, API username and API password before running this sync.');
+      }
+
+      const response = await fetch('/api/wordpress/pull-locations', {
+        method: 'POST',
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Location pull and sync failed');
+      }
+
+      const logs = Array.isArray(payload?.logs) ? payload.logs : [];
+      if (logs.length > 0) {
+        setWordpressPullLogs((previous) => [...previous, ...logs]);
+      }
+
+      const summary = payload?.summary || {};
+      setWordpressPullSummary({
+        ok: true,
+        text: `Pulled ${summary.pulledLocations ?? 0} locations. Matched ${summary.matchedLocations ?? 0}, updated ${summary.updatedLocations ?? 0}, untouched ${summary.unchangedMatchedLocations ?? 0}.`,
+      });
+      setWordpressMessage({ type: 'success', text: 'WordPress locations pulled and missing fields synced.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected pull and sync error';
+      appendWordPressPullLog(`Error: ${message}`);
+      setWordpressPullSummary({ ok: false, text: message });
+      setWordpressMessage({ type: 'error', text: message });
+    } finally {
+      setWordpressPullRunning(false);
+      appendWordPressPullLog('Sync finished.');
     }
   }
 
@@ -1571,6 +1623,15 @@ export default function SettingsPage() {
                     >
                       Test Connection
                     </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleWordPressLocationPullAndFill}
+                      disabled={wordpressPullRunning}
+                      className="rounded-xl"
+                    >
+                      {wordpressPullRunning ? 'Syncing...' : 'Pull Locations + Fill Missing Fields'}
+                    </Button>
                   </div>
                 </form>
               </CardContent>
@@ -1679,6 +1740,68 @@ export default function SettingsPage() {
                   </Button>
                   <Button type="button" onClick={handleWordPressConnectionTest} disabled={wordpressTestRunning}>
                     {wordpressTestRunning ? 'Testing...' : 'Run Again'}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+
+            <Modal
+              open={wordpressPullOpen}
+              onClose={() => {
+                if (!wordpressPullRunning) setWordpressPullOpen(false);
+              }}
+              title="WordPress Location Pull & Fill"
+              description="Pull locations from WordPress and fill only missing CMS location fields"
+              className="max-w-2xl"
+            >
+              <div className="space-y-4">
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Site: {wordpressForm.siteUrl || 'Not set'}
+                  </p>
+                </div>
+
+                {wordpressPullSummary && (
+                  <div
+                    className="rounded-xl border p-3"
+                    style={{
+                      borderColor: wordpressPullSummary.ok
+                        ? 'color-mix(in srgb, var(--success) 45%, var(--border))'
+                        : 'color-mix(in srgb, var(--danger) 45%, var(--border))',
+                      backgroundColor: wordpressPullSummary.ok
+                        ? 'color-mix(in srgb, var(--success) 12%, var(--surface-0))'
+                        : 'color-mix(in srgb, var(--danger) 12%, var(--surface-0))',
+                    }}
+                  >
+                    <p className="text-sm font-medium" style={{ color: wordpressPullSummary.ok ? 'var(--success)' : 'var(--danger)' }}>
+                      {wordpressPullSummary.text}
+                    </p>
+                  </div>
+                )}
+
+                <div className="rounded-xl border p-3 h-64 overflow-y-auto text-sm space-y-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+                  {wordpressPullLogs.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)' }}>No logs yet.</p>
+                  ) : (
+                    wordpressPullLogs.map((log, index) => (
+                      <p key={index} style={{ color: 'var(--text-strong)' }}>
+                        {log}
+                      </p>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWordpressPullOpen(false)}
+                    disabled={wordpressPullRunning}
+                  >
+                    Close
+                  </Button>
+                  <Button type="button" onClick={handleWordPressLocationPullAndFill} disabled={wordpressPullRunning}>
+                    {wordpressPullRunning ? 'Syncing...' : 'Run Again'}
                   </Button>
                 </div>
               </div>
