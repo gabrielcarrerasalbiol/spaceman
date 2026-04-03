@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature } from 'lucide-react';
+import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -79,6 +79,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const canSeeUnits = hasPermission('menus.units');
   const canSeeClients = hasPermission('menus.clients');
   const canSeeContracts = hasPermission('menus.contracts');
+  const canSeeWordPress = hasPermission('menus.wordpress', true);
   const canSeeSettings = hasPermission('menus.settings', true);
 
   useEffect(() => {
@@ -236,6 +237,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               >
                 <FileSignature className="h-5 w-5" />
                 <span className="sidebar-nav-label">Contracts</span>
+              </Link>
+            )}
+            {canSeeWordPress && (
+              <Link
+                href="/dashboard/wordpress"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/wordpress';
+                }}
+              >
+                <Globe className="h-5 w-5" />
+                <span className="sidebar-nav-label">WordPress</span>
               </Link>
             )}
             {canSeeSettings && (
@@ -397,6 +412,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             >
               <FileSignature className="h-5 w-5" />
               <span>Contracts</span>
+            </Link>
+          )}
+          {canSeeWordPress && (
+            <Link
+              href="/dashboard/wordpress"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/wordpress';
+              }}
+            >
+              <Globe className="h-5 w-5" />
+              <span>WordPress</span>
             </Link>
           )}
           {canSeeSettings && (
