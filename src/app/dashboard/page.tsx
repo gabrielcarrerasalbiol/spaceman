@@ -280,13 +280,13 @@ export default async function DashboardPage({
           <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
             <p className="text-xs text-gray-700">Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', backgroundColor: '#b32b39' }}>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
                 All-Site Occupancy {formatPercent(allScope.occupancyRate)}
               </span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', backgroundColor: '#b32b39' }}>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
                 All-Site Utilization {formatPercent(allScope.utilizationRate)}
               </span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', backgroundColor: '#b32b39' }}>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
                 Role {(session?.user as any)?.role || 'USER'}
               </span>
             </div>
@@ -456,13 +456,13 @@ export default async function DashboardPage({
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
-                  <Link href="/dashboard/locations" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
+                  <Link href="/dashboard/locations" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
                     Locations
                   </Link>
-                  <Link href="/dashboard/units" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
+                  <Link href="/dashboard/units" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
                     Units
                   </Link>
-                  <Link href="/dashboard/contracts" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
+                  <Link href="/dashboard/contracts" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
                     Contracts
                   </Link>
                 </div>
@@ -500,7 +500,7 @@ export default async function DashboardPage({
                 <button
                   type="submit"
                   className="h-9 rounded-xl border px-3 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
-                  style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}
+                  style={{ borderColor: 'rgba(255, 255, 255, 0.2)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}
                 >
                   Apply Site
                 </button>
