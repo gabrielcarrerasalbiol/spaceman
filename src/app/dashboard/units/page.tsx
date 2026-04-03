@@ -74,6 +74,11 @@ interface UnitGroup {
   units: Unit[];
 }
 
+function hasVariantSuffix(code: string): boolean {
+  if (!code) return false;
+  return /\s+\d+$/.test(code.trim());
+}
+
 function getUnitLocationGroupKey(unit: Unit): string {
   const locationKey = unit.location?.id || unit.location?.name || 'unknown-location';
   return String(locationKey).trim().toLowerCase();
@@ -82,9 +87,12 @@ function getUnitLocationGroupKey(unit: Unit): string {
 function groupUnitsByLocationAndBaseCode(units: Unit[]): UnitGroup[] {
   const grouped = new Map<string, UnitGroup>();
   for (const unit of units) {
-    const baseCode = extractBaseCode(unit.code);
+    const shouldGroupWithVariants = hasVariantSuffix(unit.code);
+    const baseCode = shouldGroupWithVariants ? extractBaseCode(unit.code) : unit.code;
     const locationKey = getUnitLocationGroupKey(unit);
-    const groupKey = `${locationKey}::${baseCode.toLowerCase()}`;
+    const groupKey = shouldGroupWithVariants
+      ? `${locationKey}::family::${baseCode.toLowerCase()}`
+      : `${locationKey}::single::${unit.id}`;
 
     if (!grouped.has(groupKey)) {
       grouped.set(groupKey, { groupKey, baseCode, units: [] });
