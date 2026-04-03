@@ -1,7 +1,8 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { Globe, MapPin, Package } from 'lucide-react';
+import { Globe, MapPin, Package, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -74,7 +75,13 @@ async function fetchWordPressJson<T>(url: string, username: string, password: st
   return response.json() as Promise<T>;
 }
 
-export default async function WordPressPage() {
+type WordPressPageProps = {
+  searchParams?: {
+    refresh?: string;
+  };
+};
+
+export default async function WordPressPage({ searchParams }: WordPressPageProps) {
   await auth();
 
   const settings = await prisma.settings.findFirst({
@@ -93,6 +100,9 @@ export default async function WordPressPage() {
   let units: WordPressUnit[] = [];
   let locationsError = '';
   let unitsError = '';
+  const lastPullAt = searchParams?.refresh
+    ? new Date(Number(searchParams.refresh) || Date.now()).toLocaleString()
+    : new Date().toLocaleString();
 
   if (isConfigured) {
     const locationsUrl = buildWordPressUrl(config.siteUrl, config.locationsEndpoint);
@@ -130,6 +140,18 @@ export default async function WordPressPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+              Last pull attempt: {lastPullAt}
+            </p>
+            <Button variant="outline" asChild>
+              <Link href={`/dashboard/wordpress?refresh=${Date.now()}`}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Force Pull Now
+              </Link>
+            </Button>
+          </div>
+
           {!isConfigured && (
             <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
               Configure and enable WordPress credentials in{' '}
@@ -157,6 +179,10 @@ export default async function WordPressPage() {
                 {locationsError ? (
                   <p className="text-sm" style={{ color: 'var(--danger)' }}>{locationsError}</p>
                 ) : (
+                  <>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Pulled {locations.length} locations from {buildWordPressUrl(config.siteUrl, config.locationsEndpoint)}
+                  </p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -182,6 +208,7 @@ export default async function WordPressPage() {
                       )}
                     </TableBody>
                   </Table>
+                  </>
                 )}
               </TabsContent>
 
@@ -189,6 +216,10 @@ export default async function WordPressPage() {
                 {unitsError ? (
                   <p className="text-sm" style={{ color: 'var(--danger)' }}>{unitsError}</p>
                 ) : (
+                  <>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    Pulled {units.length} units from {buildWordPressUrl(config.siteUrl, config.unitsEndpoint)}
+                  </p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -214,6 +245,7 @@ export default async function WordPressPage() {
                       )}
                     </TableBody>
                   </Table>
+                  </>
                 )}
               </TabsContent>
             </Tabs>
