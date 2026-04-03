@@ -1,122 +1,228 @@
 import { auth } from '@/lib/auth';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { Settings, RefreshCw } from 'lucide-react';
+import { Globe, MapPin, Package } from 'lucide-react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+type WordPressConfig = {
+  siteUrl: string;
+  apiUsername: string;
+  apiPassword: string;
+  enabled: boolean;
+  locationsEndpoint: string;
+  unitsEndpoint: string;
+};
+
+type WordPressLocation = {
+  id: number | string;
+  title?: string;
+  slug?: string;
+  meta?: {
+    town_city?: string;
+    postcode?: string;
+    phone?: string;
+  };
+};
+
+type WordPressUnit = {
+  id: number | string;
+  title?: string;
+  slug?: string;
+  meta?: {
+    code?: string;
+    status?: string;
+    location_id?: string | number;
+  };
+};
+
+function normalizeWordPressConfig(input: unknown): WordPressConfig {
+  const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+
+  return {
+    siteUrl: typeof source.siteUrl === 'string' ? source.siteUrl : '',
+    apiUsername: typeof source.apiUsername === 'string' ? source.apiUsername : '',
+    apiPassword: typeof source.apiPassword === 'string' ? source.apiPassword : '',
+    enabled: Boolean(source.enabled),
+    locationsEndpoint: typeof source.locationsEndpoint === 'string' ? source.locationsEndpoint : 'wp-json/spaceman/v1/locations',
+    unitsEndpoint: typeof source.unitsEndpoint === 'string' ? source.unitsEndpoint : 'wp-json/spaceman/v1/units',
+  };
+}
+
+function buildWordPressUrl(siteUrl: string, endpoint: string) {
+  if (/^https?:\/\//i.test(endpoint)) {
+    return endpoint;
+  }
+
+  return `${siteUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
+}
+
+async function fetchWordPressJson<T>(url: string, username: string, password: string): Promise<T> {
+  const authHeader = Buffer.from(`${username}:${password}`).toString('base64');
+  const response = await fetch(url, {
+    cache: 'no-store',
+    headers: {
+      Authorization: `Basic ${authHeader}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`WordPress request failed (${response.status})`);
+  }
+
+  return response.json() as Promise<T>;
+}
 
 export default async function WordPressPage() {
-  const session = await auth();
+  await auth();
+
+  const settings = await prisma.settings.findFirst({
+    orderBy: { updatedAt: 'desc' },
+    select: { wordpressConfig: true },
+  });
+
+  const config = normalizeWordPressConfig(settings?.wordpressConfig);
+  const isConfigured =
+    config.enabled &&
+    config.siteUrl.trim().length > 0 &&
+    config.apiUsername.trim().length > 0 &&
+    config.apiPassword.trim().length > 0;
+
+  let locations: WordPressLocation[] = [];
+  let units: WordPressUnit[] = [];
+  let locationsError = '';
+  let unitsError = '';
+
+  if (isConfigured) {
+    const locationsUrl = buildWordPressUrl(config.siteUrl, config.locationsEndpoint);
+    const unitsUrl = buildWordPressUrl(config.siteUrl, config.unitsEndpoint);
+
+    try {
+      const payload = await fetchWordPressJson<unknown>(locationsUrl, config.apiUsername, config.apiPassword);
+      locations = Array.isArray(payload) ? (payload as WordPressLocation[]) : [];
+    } catch (error) {
+      locationsError = error instanceof Error ? error.message : 'Unable to fetch locations';
+    }
+
+    try {
+      const payload = await fetchWordPressJson<unknown>(unitsUrl, config.apiUsername, config.apiPassword);
+      units = Array.isArray(payload) ? (payload as WordPressUnit[]) : [];
+    } catch (error) {
+      unitsError = error instanceof Error ? error.message : 'Unable to fetch units';
+    }
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">WordPress Integration</h1>
         <p className="text-muted-foreground">
-          Sync locations and units with WordPress
+          Read-only view of locations and units pulled from WordPress
         </p>
       </div>
 
-      {/* Coming Soon Notice */}
-      <Card style={{
-        backgroundColor: 'var(--surface-1)',
-        border: '1px solid var(--border)'
-      }}>
-        <CardContent className="pt-6">
-          <p className="text-sm" style={{ color: 'var(--text-strong)' }}>
-            WordPress integration is coming soon! Configure the API credentials in{' '}
-            <Link href="/dashboard/settings" className="underline font-medium" style={{ color: 'var(--accent)' }}>
-              Settings
-            </Link>{' '}
-            to enable the integration.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Setup Instructions */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Setup Required</CardTitle>
-            <CardDescription>
-              Follow these steps to enable WordPress integration
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <ol className="list-decimal list-inside space-y-2 text-sm">
-              <li>Install the Spaceman plugin on your WordPress site</li>
-              <li>Configure API credentials in WordPress</li>
-              <li>Go to{' '}
-                <Link href="/dashboard/settings" className="underline font-medium">
-                  Settings
-                </Link>{' '}
-                and add your WordPress site URL
-              </li>
-              <li>Enable the integration</li>
-              <li>Start syncing locations and units</li>
-            </ol>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Features</CardTitle>
-            <CardDescription>
-              What you'll be able to do once configured
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-start gap-3">
-              <RefreshCw className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Bi-directional Sync</p>
-                <p className="text-sm text-muted-foreground">
-                  Pull locations and units from WordPress or push changes back
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <RefreshCw className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Real-time Status</p>
-                <p className="text-sm text-muted-foreground">
-                  View sync status and last sync times for all locations
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-3">
-              <RefreshCw className="h-5 w-5 text-muted-foreground mt-0.5" />
-              <div>
-                <p className="font-medium">Quick Actions</p>
-                <p className="text-sm text-muted-foreground">
-                  Sync individual locations or bulk sync all data
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Quick Actions */}
       <Card>
         <CardHeader>
-          <CardTitle>Quick Start</CardTitle>
+          <CardTitle>WordPress Data</CardTitle>
           <CardDescription>
-            Get started with WordPress integration
+            View locations and units currently available in WordPress
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex gap-4">
-          <Button asChild>
-            <Link href="/dashboard/settings">
-              <Settings className="mr-2 h-4 w-4" />
-              Configure Settings
-            </Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <a href="/wordpress-plugin-instructions.md" target="_blank" rel="noopener noreferrer">
-              View Plugin Instructions
-            </a>
-          </Button>
+        <CardContent className="space-y-4">
+          {!isConfigured && (
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              Configure and enable WordPress credentials in{' '}
+              <Link href="/dashboard/settings" className="underline font-medium" style={{ color: 'var(--accent)' }}>
+                Settings
+              </Link>{' '}
+              to load locations and units.
+            </p>
+          )}
+
+          {isConfigured && (
+            <Tabs defaultValue="locations" className="space-y-4">
+              <TabsList>
+                <TabsTrigger value="locations">
+                  <MapPin className="mr-2 h-4 w-4" />
+                  Locations
+                </TabsTrigger>
+                <TabsTrigger value="units">
+                  <Package className="mr-2 h-4 w-4" />
+                  Units
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="locations" className="space-y-3">
+                {locationsError ? (
+                  <p className="text-sm" style={{ color: 'var(--danger)' }}>{locationsError}</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>City</TableHead>
+                        <TableHead>Postcode</TableHead>
+                        <TableHead>Phone</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {locations.map((location) => (
+                        <TableRow key={String(location.id)}>
+                          <TableCell>{location.title || '-'}</TableCell>
+                          <TableCell>{location.meta?.town_city || '-'}</TableCell>
+                          <TableCell>{location.meta?.postcode || '-'}</TableCell>
+                          <TableCell>{location.meta?.phone || '-'}</TableCell>
+                        </TableRow>
+                      ))}
+                      {locations.length === 0 && (
+                        <TableRow>
+                          <TableCell className="text-sm" colSpan={4}>No locations found.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+
+              <TabsContent value="units" className="space-y-3">
+                {unitsError ? (
+                  <p className="text-sm" style={{ color: 'var(--danger)' }}>{unitsError}</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Code</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Location ID</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {units.map((unit) => (
+                        <TableRow key={String(unit.id)}>
+                          <TableCell>{unit.title || '-'}</TableCell>
+                          <TableCell>{unit.meta?.code || '-'}</TableCell>
+                          <TableCell>{unit.meta?.status || '-'}</TableCell>
+                          <TableCell>{String(unit.meta?.location_id ?? '-')}</TableCell>
+                        </TableRow>
+                      ))}
+                      {units.length === 0 && (
+                        <TableRow>
+                          <TableCell className="text-sm" colSpan={4}>No units found.</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
+
+          <div className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-muted)' }}>
+            <Globe className="h-3.5 w-3.5" />
+            Read-only mode enabled. Push sync from Spaceman to WordPress will be added later with restrictions.
+          </div>
         </CardContent>
       </Card>
     </div>

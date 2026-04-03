@@ -31,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Modal } from '@/components/ui/modal';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -97,6 +98,10 @@ export default function SettingsPage() {
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [wordpressMessage, setWordpressMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [wordpressTestOpen, setWordpressTestOpen] = useState(false);
+  const [wordpressTestRunning, setWordpressTestRunning] = useState(false);
+  const [wordpressTestLogs, setWordpressTestLogs] = useState<string[]>([]);
+  const [wordpressTestSummary, setWordpressTestSummary] = useState<{ ok: boolean; text: string } | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -240,6 +245,80 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
+    }
+  }
+
+  function appendWordPressTestLog(message: string) {
+    setWordpressTestLogs((previous) => [...previous, message]);
+  }
+
+  async function runWordPressEndpointTest(endpoint: string, label: string) {
+    appendWordPressTestLog(`Testing ${label} endpoint: ${endpoint}`);
+
+    const response = await fetch('/api/wordpress/test-connection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        siteUrl: wordpressForm.siteUrl,
+        apiUsername: wordpressForm.apiUsername,
+        apiPassword: wordpressForm.apiPassword,
+        endpoint,
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(payload?.error || `Unable to test ${label} endpoint`);
+    }
+
+    if (!payload?.ok) {
+      appendWordPressTestLog(`${label} failed with status ${payload?.status ?? 'unknown'}`);
+      return false;
+    }
+
+    const countText = payload.itemsCount !== null && payload.itemsCount !== undefined
+      ? ` (${payload.itemsCount} records)`
+      : '';
+    appendWordPressTestLog(`${label} OK in ${payload.elapsedMs}ms${countText}`);
+    return true;
+  }
+
+  async function handleWordPressConnectionTest() {
+    setWordpressTestOpen(true);
+    setWordpressTestRunning(true);
+    setWordpressTestSummary(null);
+    setWordpressTestLogs([]);
+
+    try {
+      appendWordPressTestLog('Starting WordPress connection test...');
+
+      if (!wordpressForm.siteUrl || !wordpressForm.apiUsername || !wordpressForm.apiPassword) {
+        throw new Error('Please provide site URL, API username and API password before testing.');
+      }
+
+      appendWordPressTestLog('Credentials and URL are present.');
+
+      const locationsOk = await runWordPressEndpointTest(wordpressForm.locationsEndpoint, 'Locations');
+      const unitsOk = await runWordPressEndpointTest(wordpressForm.unitsEndpoint, 'Units');
+
+      if (locationsOk && unitsOk) {
+        setWordpressTestSummary({
+          ok: true,
+          text: 'Connection successful. Both locations and units endpoints responded correctly.',
+        });
+      } else {
+        setWordpressTestSummary({
+          ok: false,
+          text: 'Connection completed with errors. One or more endpoints failed.',
+        });
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unexpected connection test error';
+      appendWordPressTestLog(`Error: ${message}`);
+      setWordpressTestSummary({ ok: false, text: message });
+    } finally {
+      setWordpressTestRunning(false);
+      appendWordPressTestLog('Test finished.');
     }
   }
 
@@ -1475,7 +1554,7 @@ export default function SettingsPage() {
                         Enable WordPress Integration
                       </label>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        Allow bi-directional sync between Spaceman and WordPress
+                        Enable read-only pull from WordPress (push sync will be added later)
                       </p>
                     </div>
                   </div>
@@ -1487,10 +1566,7 @@ export default function SettingsPage() {
                     <Button
                       type="button"
                       variant="outline"
-                      onClick={async () => {
-                        // Test connection logic here
-                        alert('Connection test will be implemented');
-                      }}
+                      onClick={handleWordPressConnectionTest}
                       className="rounded-xl"
                     >
                       Test Connection
@@ -1539,12 +1615,74 @@ export default function SettingsPage() {
                     <span className="font-semibold">5.</span>
                     <div>
                       <p className="font-medium">Enable the integration</p>
-                      <p className="text-muted-foreground">Toggle the switch to enable bi-directional sync</p>
+                      <p className="text-muted-foreground">Toggle the switch to enable read-only pull mode</p>
                     </div>
                   </li>
                 </ol>
               </CardContent>
             </Card>
+
+            <Modal
+              open={wordpressTestOpen}
+              onClose={() => {
+                if (!wordpressTestRunning) setWordpressTestOpen(false);
+              }}
+              title="WordPress Connection Test"
+              description="Live status for endpoint connectivity checks"
+              className="max-w-2xl"
+            >
+              <div className="space-y-4">
+                <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Site: {wordpressForm.siteUrl || 'Not set'}
+                  </p>
+                </div>
+
+                {wordpressTestSummary && (
+                  <div
+                    className="rounded-xl border p-3"
+                    style={{
+                      borderColor: wordpressTestSummary.ok
+                        ? 'color-mix(in srgb, var(--success) 45%, var(--border))'
+                        : 'color-mix(in srgb, var(--danger) 45%, var(--border))',
+                      backgroundColor: wordpressTestSummary.ok
+                        ? 'color-mix(in srgb, var(--success) 12%, var(--surface-0))'
+                        : 'color-mix(in srgb, var(--danger) 12%, var(--surface-0))',
+                    }}
+                  >
+                    <p className="text-sm font-medium" style={{ color: wordpressTestSummary.ok ? 'var(--success)' : 'var(--danger)' }}>
+                      {wordpressTestSummary.text}
+                    </p>
+                  </div>
+                )}
+
+                <div className="rounded-xl border p-3 h-64 overflow-y-auto text-sm space-y-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+                  {wordpressTestLogs.length === 0 ? (
+                    <p style={{ color: 'var(--text-muted)' }}>No logs yet.</p>
+                  ) : (
+                    wordpressTestLogs.map((log, index) => (
+                      <p key={index} style={{ color: 'var(--text-strong)' }}>
+                        {log}
+                      </p>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setWordpressTestOpen(false)}
+                    disabled={wordpressTestRunning}
+                  >
+                    Close
+                  </Button>
+                  <Button type="button" onClick={handleWordPressConnectionTest} disabled={wordpressTestRunning}>
+                    {wordpressTestRunning ? 'Testing...' : 'Run Again'}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
           </TabsContent>
         )}
       </Tabs>
