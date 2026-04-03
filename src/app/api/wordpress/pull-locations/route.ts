@@ -119,12 +119,16 @@ function isMissingValue(value: unknown): boolean {
 }
 
 function readWordPressField(row: Record<string, unknown>, ...keys: string[]) {
+  const acf = asRecord(row.acf);
   const meta = asRecord(row.meta);
   const allMeta = asRecord(row.all_meta);
 
   for (const key of keys) {
     const topLevelValue = row[key];
     if (!isMissingValue(topLevelValue)) return topLevelValue;
+
+    const acfValue = acf[key];
+    if (!isMissingValue(acfValue)) return acfValue;
 
     const metaValue = meta[key];
     if (!isMissingValue(metaValue)) return metaValue;
@@ -134,6 +138,89 @@ function readWordPressField(row: Record<string, unknown>, ...keys: string[]) {
   }
 
   return null;
+}
+
+function decodeHtmlEntities(input: string): string {
+  return input
+    .replace(/&#8217;/g, "'")
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function stripHtmlToLines(input: string): string[] {
+  const normalized = decodeHtmlEntities(input)
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter(Boolean);
+
+  return normalized;
+}
+
+function normalizePostcode(value: string | null): string | null {
+  if (!value) return null;
+  const cleaned = value.trim().toUpperCase();
+  const compact = cleaned.replace(/\s+/g, '');
+  if (compact.length < 5) return cleaned;
+
+  const spaced = `${compact.slice(0, -3)} ${compact.slice(-3)}`;
+  return spaced;
+}
+
+function parseAddressBlock(addressHtmlOrText: string | null): {
+  addressLine1: string | null;
+  addressLine2: string | null;
+  townCity: string | null;
+  county: string | null;
+  postcode: string | null;
+} {
+  if (!addressHtmlOrText) {
+    return { addressLine1: null, addressLine2: null, townCity: null, county: null, postcode: null };
+  }
+
+  const lines = stripHtmlToLines(addressHtmlOrText);
+  if (lines.length === 0) {
+    return { addressLine1: null, addressLine2: null, townCity: null, county: null, postcode: null };
+  }
+
+  const companyPrefix = /^sentry\s+self\s+storage/i;
+  const filteredLines = lines.filter((line) => !companyPrefix.test(line));
+  const candidateLines = filteredLines.length > 0 ? filteredLines : lines;
+
+  let postcode: string | null = null;
+  const postcodeRegex = /\b([A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2})\b/i;
+  for (let i = candidateLines.length - 1; i >= 0; i -= 1) {
+    const match = candidateLines[i].match(postcodeRegex);
+    if (match) {
+      postcode = normalizePostcode(match[1]);
+      candidateLines[i] = candidateLines[i].replace(postcodeRegex, '').replace(/[\s,]+$/g, '').trim();
+      break;
+    }
+  }
+
+  const cleaned = candidateLines.filter(Boolean);
+  const lineCount = cleaned.length;
+
+  const townCity = lineCount >= 2 ? cleaned[lineCount - 2] : null;
+  const county = lineCount >= 1 ? cleaned[lineCount - 1] : null;
+  const addressParts = lineCount > 2 ? cleaned.slice(0, lineCount - 2) : cleaned.slice(0, Math.max(0, lineCount - 1));
+  const addressLine1 = addressParts[0] || null;
+  const addressLine2 = addressParts.length > 1 ? addressParts.slice(1).join(', ') : null;
+
+  return {
+    addressLine1,
+    addressLine2,
+    townCity,
+    county,
+    postcode,
+  };
 }
 
 function toNullableString(value: unknown): string | null {
@@ -233,6 +320,7 @@ export async function POST() {
 
     for (const entry of pulledLocations) {
       const row = asRecord(entry);
+      const acf = asRecord(row.acf);
       const wpId = Number(row.id);
       const wpSlug = normalizeText(row.slug);
       const wpTitle = normalizeText(row.title);
@@ -262,16 +350,23 @@ export async function POST() {
 
       matchedLocations += 1;
 
-      const nextAddressLine1 = toNullableString(readWordPressField(row, '_address_line_1', 'address_line_1', 'address1', 'address_line1'));
-      const nextAddressLine2 = toNullableString(readWordPressField(row, '_address_line_2', 'address_line_2', 'address2', 'address_line2'));
-      const nextTownCity = toNullableString(readWordPressField(row, '_towncity', 'towncity', 'town_city', 'city'));
-      const nextCounty = toNullableString(readWordPressField(row, '_county', 'county'));
-      const nextPostcode = toNullableString(readWordPressField(row, '_postcode', 'postcode', 'post_code'));
-      const nextEmail = toNullableString(readWordPressField(row, 'email', 'Email Address', 'contact_email'));
-      const nextPhone = toNullableString(readWordPressField(row, 'phone', 'Telephone Number', 'telephone', 'contact_phone'));
-      const nextOpeningHours = toNullableString(readWordPressField(row, 'opening_hours', 'Opening Hours', 'openingHours'));
-      const nextLatitude = toNullableNumber(readWordPressField(row, 'Location Map_lat', 'location_map_lat', 'latitude', 'lat'));
-      const nextLongitude = toNullableNumber(readWordPressField(row, 'Location Map_lng', 'location_map_lng', 'longitude', 'lng', 'lon'));
+      const mapData = asRecord(readWordPressField(row, 'location_map'));
+      const parsedAddress = parseAddressBlock(toNullableString(readWordPressField(row, 'address')));
+
+      const nextAddressLine1 = toNullableString(readWordPressField(row, '_address_line_1', 'address_line_1', 'address1', 'address_line1')) || parsedAddress.addressLine1;
+      const nextAddressLine2 = toNullableString(readWordPressField(row, '_address_line_2', 'address_line_2', 'address2', 'address_line2')) || parsedAddress.addressLine2 || toNullableString(readWordPressField(row, 'short_address'));
+      const nextTownCity = toNullableString(readWordPressField(row, '_towncity', 'towncity', 'town_city', 'city')) || toNullableString(mapData.city) || parsedAddress.townCity;
+      const nextCounty = toNullableString(readWordPressField(row, '_county', 'county')) || toNullableString(mapData.state) || parsedAddress.county;
+      const nextPostcode = normalizePostcode(toNullableString(readWordPressField(row, '_postcode', 'postcode', 'post_code')) || toNullableString(mapData.post_code) || parsedAddress.postcode);
+      const nextEmail = toNullableString(readWordPressField(row, 'email', 'Email Address', 'contact_email', 'email_address'));
+      const nextPhone = toNullableString(readWordPressField(row, 'phone', 'Telephone Number', 'telephone', 'contact_phone', 'telephone_number'));
+      const nextOpeningHours = toNullableString(readWordPressField(row, 'opening_hours', 'Opening Hours', 'openingHours', 'opening-hours'));
+      const nextLatitude = toNullableNumber(readWordPressField(row, 'Location Map_lat', 'location_map_lat', 'latitude', 'lat')) ?? toNullableNumber(mapData.lat);
+      const nextLongitude = toNullableNumber(readWordPressField(row, 'Location Map_lng', 'location_map_lng', 'longitude', 'lng', 'lon')) ?? toNullableNumber(mapData.lng);
+
+      if (Object.keys(acf).length > 0) {
+        logs.push(`Matched ${matchedLocation.name} (${matchedBy}) with ACF payload.`);
+      }
 
       const updateData: Record<string, unknown> = {};
 
