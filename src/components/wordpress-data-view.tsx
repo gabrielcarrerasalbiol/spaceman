@@ -44,6 +44,35 @@ function isTruthyFlag(value: unknown) {
   return false;
 }
 
+function isMissingValue(value: unknown) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  return false;
+}
+
+function getUnitField(unit: any, ...keys: string[]) {
+  const meta = unit?.meta && typeof unit.meta === 'object' ? unit.meta : {};
+  const allMeta = unit?.all_meta && typeof unit.all_meta === 'object' ? unit.all_meta : {};
+
+  for (const key of keys) {
+    const topLevelValue = unit?.[key];
+    if (!isMissingValue(topLevelValue)) return topLevelValue;
+
+    const metaValue = meta?.[key];
+    if (!isMissingValue(metaValue)) return metaValue;
+
+    const allMetaValue = allMeta?.[key];
+    if (!isMissingValue(allMetaValue)) return allMetaValue;
+  }
+
+  return null;
+}
+
+function renderValue(value: unknown) {
+  if (isMissingValue(value)) return '-';
+  return String(value);
+}
+
 function buildWordPressUrl(siteUrl: string, endpoint: string) {
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
   return `${siteUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
@@ -284,15 +313,25 @@ export default function WordPressDataView() {
                     {cache.units.map((unit: any, index: number) => (
                       <TableRow key={`${String(unit.id ?? 'unit')}-${index}`}>
                         <TableCell>{unit.title || '-'}</TableCell>
-                        <TableCell>{unit.meta?.code || '-'}</TableCell>
-                        <TableCell>{unit.meta?.status || '-'}</TableCell>
-                        <TableCell>{String(unit.meta?.location_id ?? '-')}</TableCell>
-                        <TableCell>{unit.meta?.sale_price ?? '-'}</TableCell>
-                        <TableCell>{unit.meta?.regular_weekly_rate ?? '-'}</TableCell>
-                        <TableCell className="max-w-[260px] truncate" title={unit.meta?.offer_message || ''}>{unit.meta?.offer_message || '-'}</TableCell>
-                        <TableCell className="max-w-[260px] truncate" title={unit.meta?.prorize_offer || ''}>{unit.meta?.prorize_offer || '-'}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, 'code', 'size_code', 'size_display', 'display_name'))}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, 'status'))}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, 'location_id'))}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, 'sale_price'))}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, 'regular_weekly_rate', 'weekly_rate'))}</TableCell>
+                        <TableCell
+                          className="max-w-[260px] truncate"
+                          title={String(getUnitField(unit, 'offer_message', 'offer') ?? '')}
+                        >
+                          {renderValue(getUnitField(unit, 'offer_message', 'offer'))}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[260px] truncate"
+                          title={String(getUnitField(unit, 'prorize_offer') ?? '')}
+                        >
+                          {renderValue(getUnitField(unit, 'prorize_offer'))}
+                        </TableCell>
                         <TableCell>
-                          {isTruthyFlag(unit.meta?.prorize_onsale) ? (
+                          {isTruthyFlag(getUnitField(unit, 'prorize_onsale')) ? (
                             <span
                               className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
                               style={{
@@ -317,7 +356,7 @@ export default function WordPressDataView() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {isTruthyFlag(unit.active) ? (
+                          {isTruthyFlag(getUnitField(unit, 'active')) ? (
                             <span
                               className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
                               style={{
@@ -341,8 +380,8 @@ export default function WordPressDataView() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell>{unit.meta?._weekly_rate ?? '-'}</TableCell>
-                        <TableCell>{unit.meta?.prorize_id ?? '-'}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, '_weekly_rate', 'weekly_rate'))}</TableCell>
+                        <TableCell>{renderValue(getUnitField(unit, 'prorize_id'))}</TableCell>
                         <TableCell>
                           {unit.__match?.matched ? (
                             <div className="space-y-1">
