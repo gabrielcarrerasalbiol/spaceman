@@ -28,6 +28,12 @@ type PullCache = {
   };
 };
 
+type DetailModalState = {
+  open: boolean;
+  title: string;
+  payload: unknown;
+};
+
 function buildWordPressUrl(siteUrl: string, endpoint: string) {
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
   return `${siteUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
@@ -47,6 +53,11 @@ export default function WordPressDataView() {
   const [pullRunning, setPullRunning] = useState(false);
   const [pullLogs, setPullLogs] = useState<string[]>([]);
   const [pullSummary, setPullSummary] = useState<{ ok: boolean; text: string } | null>(null);
+  const [detailModal, setDetailModal] = useState<DetailModalState>({
+    open: false,
+    title: '',
+    payload: null,
+  });
 
   const isConfigured = useMemo(() => {
     if (!config) return false;
@@ -179,6 +190,8 @@ export default function WordPressDataView() {
                       <TableHead>City</TableHead>
                       <TableHead>Postcode</TableHead>
                       <TableHead>Phone</TableHead>
+                      <TableHead>Match</TableHead>
+                      <TableHead>Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -188,11 +201,43 @@ export default function WordPressDataView() {
                         <TableCell>{location.meta?.town_city || '-'}</TableCell>
                         <TableCell>{location.meta?.postcode || '-'}</TableCell>
                         <TableCell>{location.meta?.phone || '-'}</TableCell>
+                        <TableCell>
+                          {location.__match?.matched ? (
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium" style={{ color: 'var(--success)' }}>Matched</p>
+                              <Link
+                                href={`/dashboard/locations/${location.__match.cmsId}/edit`}
+                                className="text-xs underline"
+                                style={{ color: 'var(--accent)' }}
+                              >
+                                Open CMS location
+                              </Link>
+                            </div>
+                          ) : (
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>No match</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDetailModal({
+                                open: true,
+                                title: `Location: ${location.title || location.id || 'Unknown'}`,
+                                payload: location,
+                              })
+                            }
+                            className="text-xs underline"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            View details
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {cache.locations.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-sm">No locations found.</TableCell>
+                        <TableCell colSpan={6} className="text-sm">No locations found.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -213,6 +258,8 @@ export default function WordPressDataView() {
                       <TableHead>Code</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Location ID</TableHead>
+                      <TableHead>Match</TableHead>
+                      <TableHead>Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -222,11 +269,43 @@ export default function WordPressDataView() {
                         <TableCell>{unit.meta?.code || '-'}</TableCell>
                         <TableCell>{unit.meta?.status || '-'}</TableCell>
                         <TableCell>{String(unit.meta?.location_id ?? '-')}</TableCell>
+                        <TableCell>
+                          {unit.__match?.matched ? (
+                            <div className="space-y-1">
+                              <p className="text-xs font-medium" style={{ color: 'var(--success)' }}>Matched</p>
+                              <Link
+                                href={`/dashboard/units/${unit.__match.cmsId}/edit`}
+                                className="text-xs underline"
+                                style={{ color: 'var(--accent)' }}
+                              >
+                                Open CMS unit
+                              </Link>
+                            </div>
+                          ) : (
+                            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>No match</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setDetailModal({
+                                open: true,
+                                title: `Unit: ${unit.title || unit.id || 'Unknown'}`,
+                                payload: unit,
+                              })
+                            }
+                            className="text-xs underline"
+                            style={{ color: 'var(--accent)' }}
+                          >
+                            View details
+                          </button>
+                        </TableCell>
                       </TableRow>
                     ))}
                     {cache.units.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={4} className="text-sm">No units found.</TableCell>
+                        <TableCell colSpan={6} className="text-sm">No units found.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -288,6 +367,28 @@ export default function WordPressDataView() {
             </Button>
             <Button type="button" onClick={handleForcePull} disabled={pullRunning || !isConfigured}>
               {pullRunning ? 'Pulling...' : 'Pull Again'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={detailModal.open}
+        onClose={() => setDetailModal({ open: false, title: '', payload: null })}
+        title={detailModal.title || 'WordPress Item Details'}
+        description="All recovered fields from WordPress payload"
+        className="max-w-3xl"
+      >
+        <div className="space-y-3">
+          <pre
+            className="rounded-xl border p-4 text-xs overflow-auto max-h-[60vh]"
+            style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}
+          >
+{JSON.stringify(detailModal.payload, null, 2)}
+          </pre>
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" onClick={() => setDetailModal({ open: false, title: '', payload: null })}>
+              Close
             </Button>
           </div>
         </div>
