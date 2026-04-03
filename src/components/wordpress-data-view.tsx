@@ -78,6 +78,8 @@ function buildWordPressUrl(siteUrl: string, endpoint: string) {
   return `${siteUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
 }
 
+const WORDPRESS_PAGE_SIZE = 25;
+
 export default function WordPressDataView() {
   const [loading, setLoading] = useState(true);
   const [config, setConfig] = useState<WordPressConfig | null>(null);
@@ -97,6 +99,8 @@ export default function WordPressDataView() {
     title: '',
     payload: null,
   });
+  const [locationsPage, setLocationsPage] = useState(1);
+  const [unitsPage, setUnitsPage] = useState(1);
 
   const isConfigured = useMemo(() => {
     if (!config) return false;
@@ -111,6 +115,34 @@ export default function WordPressDataView() {
   const lastPullText = cache.lastPulledAt
     ? new Date(cache.lastPulledAt).toLocaleString()
     : 'Never';
+
+  const locationsTotalPages = Math.max(1, Math.ceil(cache.locations.length / WORDPRESS_PAGE_SIZE));
+  const unitsTotalPages = Math.max(1, Math.ceil(cache.units.length / WORDPRESS_PAGE_SIZE));
+
+  const safeLocationsPage = Math.min(locationsPage, locationsTotalPages);
+  const safeUnitsPage = Math.min(unitsPage, unitsTotalPages);
+
+  const paginatedLocations = useMemo(() => {
+    const start = (safeLocationsPage - 1) * WORDPRESS_PAGE_SIZE;
+    return cache.locations.slice(start, start + WORDPRESS_PAGE_SIZE);
+  }, [cache.locations, safeLocationsPage]);
+
+  const paginatedUnits = useMemo(() => {
+    const start = (safeUnitsPage - 1) * WORDPRESS_PAGE_SIZE;
+    return cache.units.slice(start, start + WORDPRESS_PAGE_SIZE);
+  }, [cache.units, safeUnitsPage]);
+
+  useEffect(() => {
+    if (locationsPage > locationsTotalPages) {
+      setLocationsPage(locationsTotalPages);
+    }
+  }, [locationsPage, locationsTotalPages]);
+
+  useEffect(() => {
+    if (unitsPage > unitsTotalPages) {
+      setUnitsPage(unitsTotalPages);
+    }
+  }, [unitsPage, unitsTotalPages]);
 
   async function loadState() {
     setLoading(true);
@@ -234,7 +266,7 @@ export default function WordPressDataView() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cache.locations.map((location: any, index: number) => (
+                    {paginatedLocations.map((location: any, index: number) => (
                       <TableRow key={`${String(location.id ?? 'location')}-${index}`}>
                         <TableCell>{location.title || '-'}</TableCell>
                         <TableCell>{location.meta?.town_city || '-'}</TableCell>
@@ -281,6 +313,37 @@ export default function WordPressDataView() {
                     )}
                   </TableBody>
                 </Table>
+
+                {cache.locations.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Showing {(safeLocationsPage - 1) * WORDPRESS_PAGE_SIZE + 1} to {Math.min(safeLocationsPage * WORDPRESS_PAGE_SIZE, cache.locations.length)} of {cache.locations.length} locations
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocationsPage((page) => Math.max(1, page - 1))}
+                        disabled={safeLocationsPage <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="min-w-[110px] text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Page {safeLocationsPage} of {locationsTotalPages}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLocationsPage((page) => Math.min(locationsTotalPages, page + 1))}
+                        disabled={safeLocationsPage >= locationsTotalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="units" className="space-y-3">
@@ -299,18 +362,16 @@ export default function WordPressDataView() {
                       <TableHead>Location ID</TableHead>
                       <TableHead>Sale Price</TableHead>
                       <TableHead>Regular Weekly Rate</TableHead>
-                      <TableHead>Offer Message</TableHead>
                       <TableHead>Prorize Offer</TableHead>
                       <TableHead>Prorize On Sale</TableHead>
                       <TableHead>Active</TableHead>
-                      <TableHead>_Weekly Rate</TableHead>
                       <TableHead>Prorize ID</TableHead>
                       <TableHead>Match</TableHead>
                       <TableHead>Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {cache.units.map((unit: any, index: number) => (
+                    {paginatedUnits.map((unit: any, index: number) => (
                       <TableRow key={`${String(unit.id ?? 'unit')}-${index}`}>
                         <TableCell>{unit.title || '-'}</TableCell>
                         <TableCell>{renderValue(getUnitField(unit, 'code', 'size_code', 'size_display', 'display_name'))}</TableCell>
@@ -318,12 +379,6 @@ export default function WordPressDataView() {
                         <TableCell>{renderValue(getUnitField(unit, 'location_id'))}</TableCell>
                         <TableCell>{renderValue(getUnitField(unit, 'sale_price'))}</TableCell>
                         <TableCell>{renderValue(getUnitField(unit, 'regular_weekly_rate', 'weekly_rate'))}</TableCell>
-                        <TableCell
-                          className="max-w-[260px] truncate"
-                          title={String(getUnitField(unit, 'offer_message', 'offer') ?? '')}
-                        >
-                          {renderValue(getUnitField(unit, 'offer_message', 'offer'))}
-                        </TableCell>
                         <TableCell
                           className="max-w-[260px] truncate"
                           title={String(getUnitField(unit, 'prorize_offer') ?? '')}
@@ -380,7 +435,6 @@ export default function WordPressDataView() {
                             </span>
                           )}
                         </TableCell>
-                        <TableCell>{renderValue(getUnitField(unit, '_weekly_rate', 'weekly_rate'))}</TableCell>
                         <TableCell>{renderValue(getUnitField(unit, 'prorize_id'))}</TableCell>
                         <TableCell>
                           {unit.__match?.matched ? (
@@ -418,11 +472,42 @@ export default function WordPressDataView() {
                     ))}
                     {cache.units.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={15} className="text-sm">No units found.</TableCell>
+                        <TableCell colSpan={12} className="text-sm">No units found.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>
                 </Table>
+
+                {cache.units.length > 0 && (
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Showing {(safeUnitsPage - 1) * WORDPRESS_PAGE_SIZE + 1} to {Math.min(safeUnitsPage * WORDPRESS_PAGE_SIZE, cache.units.length)} of {cache.units.length} units
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setUnitsPage((page) => Math.max(1, page - 1))}
+                        disabled={safeUnitsPage <= 1}
+                      >
+                        Previous
+                      </Button>
+                      <span className="min-w-[110px] text-center text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Page {safeUnitsPage} of {unitsTotalPages}
+                      </span>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setUnitsPage((page) => Math.min(unitsTotalPages, page + 1))}
+                        disabled={safeUnitsPage >= unitsTotalPages}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           )}
