@@ -68,16 +68,39 @@ function extractBaseCode(code: string): string {
   return parts[0];
 }
 
-function groupUnitsByBaseCode(units: Unit[]): Map<string, Unit[]> {
-  const grouped = new Map<string, Unit[]>();
+interface UnitGroup {
+  groupKey: string;
+  baseCode: string;
+  units: Unit[];
+}
+
+function getUnitLocationGroupKey(unit: Unit): string {
+  const locationKey = unit.location?.id || unit.location?.name || 'unknown-location';
+  return String(locationKey).trim().toLowerCase();
+}
+
+function groupUnitsByLocationAndBaseCode(units: Unit[]): UnitGroup[] {
+  const grouped = new Map<string, UnitGroup>();
   for (const unit of units) {
     const baseCode = extractBaseCode(unit.code);
-    if (!grouped.has(baseCode)) {
-      grouped.set(baseCode, []);
+    const locationKey = getUnitLocationGroupKey(unit);
+    const groupKey = `${locationKey}::${baseCode.toLowerCase()}`;
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, { groupKey, baseCode, units: [] });
     }
-    grouped.get(baseCode)!.push(unit);
+    grouped.get(groupKey)!.units.push(unit);
   }
-  return grouped;
+
+  return Array.from(grouped.values()).map((group) => ({
+    ...group,
+    units: [...group.units].sort((a, b) => {
+      const aUnitNumber = a.unitNumber ?? Number.POSITIVE_INFINITY;
+      const bUnitNumber = b.unitNumber ?? Number.POSITIVE_INFINITY;
+      if (aUnitNumber !== bUnitNumber) return aUnitNumber - bUnitNumber;
+      return a.code.localeCompare(b.code);
+    }),
+  }));
 }
 
 interface Unit {
@@ -88,6 +111,7 @@ interface Unit {
   status: 'AVAILABLE' | 'RESERVED' | 'OCCUPIED' | 'MAINTENANCE' | 'INACTIVE';
   weeklyRate: string | null;
   location: {
+    id?: string;
     name: string;
   };
   _count: {
@@ -249,13 +273,13 @@ export default function UnitsPage() {
     }
   }
 
-  function toggleBaseCode(baseCode: string) {
+  function toggleBaseCode(groupKey: string) {
     setExpandedBaseCodes((prev) => {
       const next = new Set(prev);
-      if (next.has(baseCode)) {
-        next.delete(baseCode);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
       } else {
-        next.add(baseCode);
+        next.add(groupKey);
       }
       return next;
     });
@@ -367,22 +391,22 @@ export default function UnitsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {Array.from(groupUnitsByBaseCode(units).entries()).map(([baseCode, groupUnits]) => {
+                    {groupUnitsByLocationAndBaseCode(units).map(({ groupKey, baseCode, units: groupUnits }) => {
                       const baseUnit = getBaseUnit(groupUnits);
                       if (!baseUnit) return null;
 
                       const childUnits = getChildUnits(groupUnits);
                       const hasChildren = childUnits.length > 0;
-                      const isExpanded = expandedBaseCodes.has(baseCode);
+                      const isExpanded = expandedBaseCodes.has(groupKey);
 
                       return (
-                        <React.Fragment key={baseCode}>
+                        <React.Fragment key={groupKey}>
                           {/* Base/Parent Row */}
                           <TableRow className={hasChildren ? 'bg-[var(--surface-1)]' : ''}>
                             <TableCell>
                               {hasChildren ? (
                                 <button
-                                  onClick={() => toggleBaseCode(baseCode)}
+                                  onClick={() => toggleBaseCode(groupKey)}
                                   className="flex h-6 w-6 items-center justify-center rounded hover:bg-[var(--surface-2)] transition-colors"
                                 >
                                   {isExpanded ? (
