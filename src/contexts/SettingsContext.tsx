@@ -9,6 +9,14 @@ interface SiteSettings {
   siteDescription: string | null;
   primaryColor: string;
   unitStatusConfig: StatusConfig;
+  wordpressConfig?: {
+    siteUrl: string;
+    apiUsername?: string;
+    apiPassword?: string;
+    enabled: boolean;
+    locationsEndpoint?: string;
+    unitsEndpoint?: string;
+  };
 }
 
 interface SettingsContextType {
@@ -24,6 +32,12 @@ const defaultSettings: SiteSettings = {
   siteDescription: null,
   primaryColor: '#3b82f6',
   unitStatusConfig: DEFAULT_STATUS_CONFIG,
+  wordpressConfig: {
+    siteUrl: '',
+    enabled: false,
+    locationsEndpoint: 'wp-json/spaceman/v1/locations',
+    unitsEndpoint: 'wp-json/spaceman/v1/units',
+  },
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -43,6 +57,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           siteDescription: data.siteDescription || null,
           primaryColor: data.primaryColor || defaultSettings.primaryColor,
           unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
+          wordpressConfig: data.wordpressConfig || defaultSettings.wordpressConfig,
         });
       }
     } catch (error) {
@@ -79,6 +94,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         siteDescription: data.siteDescription || null,
         primaryColor: data.primaryColor || defaultSettings.primaryColor,
         unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
+        wordpressConfig: data.wordpressConfig || defaultSettings.wordpressConfig,
       });
     } catch (error) {
       console.error('Failed to update settings:', error);
