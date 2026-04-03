@@ -34,6 +34,16 @@ type DetailModalState = {
   payload: unknown;
 };
 
+function isTruthyFlag(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+  return false;
+}
+
 function buildWordPressUrl(siteUrl: string, endpoint: string) {
   if (/^https?:\/\//i.test(endpoint)) return endpoint;
   return `${siteUrl.replace(/\/+$/, '')}/${endpoint.replace(/^\/+/, '')}`;
@@ -258,6 +268,14 @@ export default function WordPressDataView() {
                       <TableHead>Code</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Location ID</TableHead>
+                      <TableHead>Sale Price</TableHead>
+                      <TableHead>Regular Weekly Rate</TableHead>
+                      <TableHead>Offer Message</TableHead>
+                      <TableHead>Prorize Offer</TableHead>
+                      <TableHead>Prorize On Sale</TableHead>
+                      <TableHead>Active</TableHead>
+                      <TableHead>_Weekly Rate</TableHead>
+                      <TableHead>Prorize ID</TableHead>
                       <TableHead>Match</TableHead>
                       <TableHead>Details</TableHead>
                     </TableRow>
@@ -269,6 +287,62 @@ export default function WordPressDataView() {
                         <TableCell>{unit.meta?.code || '-'}</TableCell>
                         <TableCell>{unit.meta?.status || '-'}</TableCell>
                         <TableCell>{String(unit.meta?.location_id ?? '-')}</TableCell>
+                        <TableCell>{unit.meta?.sale_price ?? '-'}</TableCell>
+                        <TableCell>{unit.meta?.regular_weekly_rate ?? '-'}</TableCell>
+                        <TableCell className="max-w-[260px] truncate" title={unit.meta?.offer_message || ''}>{unit.meta?.offer_message || '-'}</TableCell>
+                        <TableCell className="max-w-[260px] truncate" title={unit.meta?.prorize_offer || ''}>{unit.meta?.prorize_offer || '-'}</TableCell>
+                        <TableCell>
+                          {isTruthyFlag(unit.meta?.prorize_onsale) ? (
+                            <span
+                              className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))',
+                                backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))',
+                                color: 'var(--success)',
+                              }}
+                            >
+                              YES
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))',
+                                backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))',
+                                color: 'var(--danger)',
+                              }}
+                            >
+                              NO
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {isTruthyFlag(unit.active) ? (
+                            <span
+                              className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))',
+                                backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))',
+                                color: 'var(--success)',
+                              }}
+                            >
+                              YES
+                            </span>
+                          ) : (
+                            <span
+                              className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                              style={{
+                                borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))',
+                                backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))',
+                                color: 'var(--danger)',
+                              }}
+                            >
+                              NO
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell>{unit.meta?._weekly_rate ?? '-'}</TableCell>
+                        <TableCell>{unit.meta?.prorize_id ?? '-'}</TableCell>
                         <TableCell>
                           {unit.__match?.matched ? (
                             <div className="space-y-1">
@@ -305,7 +379,7 @@ export default function WordPressDataView() {
                     ))}
                     {cache.units.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-sm">No units found.</TableCell>
+                        <TableCell colSpan={15} className="text-sm">No units found.</TableCell>
                       </TableRow>
                     )}
                   </TableBody>

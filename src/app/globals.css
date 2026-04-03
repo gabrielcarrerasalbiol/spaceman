@@ -20,6 +20,8 @@
     --success: #17876a;
     --warning: #a3721f;
     --danger: #dc2626;
+    --dashboard-chip-start: #e85a70;
+    --dashboard-chip-end: #f07cab;
     --radius: 0.5rem;
   }
 
@@ -37,6 +39,8 @@
     --success: #46c2a2;
     --warning: #e1b86d;
     --danger: #f87171;
+    --dashboard-chip-start: #3b82f6;
+    --dashboard-chip-end: #60a5fa;
   }
 }
 
