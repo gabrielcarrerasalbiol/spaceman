@@ -22,7 +22,9 @@ import {
   Image as ImageIcon,
   CheckCircle2,
   XCircle,
-  Zap
+  Zap,
+  Globe,
+  MapPin
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -76,15 +78,25 @@ export default function SettingsPage() {
     primaryColor: '#3b82f6',
   });
   const [statusForm, setStatusForm] = useState<StatusConfig>(settings.unitStatusConfig);
+  const [wordpressForm, setWordpressForm] = useState({
+    siteUrl: '',
+    apiUsername: '',
+    apiPassword: '',
+    enabled: false,
+    locationsEndpoint: 'wp-json/spaceman/v1/locations',
+    unitsEndpoint: 'wp-json/spaceman/v1/units',
+  });
 
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [siteLoading, setSiteLoading] = useState(false);
   const [statusLoading, setStatusLoading] = useState(false);
+  const [wordpressLoading, setWordpressLoading] = useState(false);
   const [profileMessage, setProfileMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [wordpressMessage, setWordpressMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -124,6 +136,17 @@ export default function SettingsPage() {
         primaryColor: settings.primaryColor,
       });
       setStatusForm(settings.unitStatusConfig);
+
+      // Initialize WordPress form from settings
+      const wpConfig = (settings as any).wordpressConfig || {};
+      setWordpressForm({
+        siteUrl: wpConfig.siteUrl || '',
+        apiUsername: wpConfig.apiUsername || '',
+        apiPassword: '', // Never pre-fill password
+        enabled: wpConfig.enabled || false,
+        locationsEndpoint: wpConfig.locationsEndpoint || 'wp-json/spaceman/v1/locations',
+        unitsEndpoint: wpConfig.unitsEndpoint || 'wp-json/spaceman/v1/units',
+      });
     }
   }, [settings, settingsLoading]);
 
@@ -534,6 +557,12 @@ export default function SettingsPage() {
             <TabsTrigger value="roles" className="flex items-center gap-2 rounded-lg">
               <Shield className="h-4 w-4" />
               <span>Roles</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="wordpress" className="flex items-center gap-2 rounded-lg">
+              <Globe className="h-4 w-4" />
+              <span>WordPress</span>
             </TabsTrigger>
           )}
         </TabsList>
@@ -1265,6 +1294,257 @@ export default function SettingsPage() {
         {(isAdmin || canManageRoles) && (
           <TabsContent value="roles">
             <RoleDesigner />
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="wordpress" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg"
+                       style={{ backgroundColor: `color-mix(in srgb, #3b82f6 16%, var(--surface-0))` }}>
+                    <Globe className="h-4 w-4" style={{ color: '#3b82f6' }} />
+                  </div>
+                  <div>
+                    <CardTitle>WordPress API Configuration</CardTitle>
+                    <CardDescription>Configure connection to your WordPress site with the Spaceman plugin</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  setWordpressLoading(true);
+                  setWordpressMessage(null);
+
+                  try {
+                    const wordpressConfig = {
+                      siteUrl: wordpressForm.siteUrl,
+                      apiUsername: wordpressForm.apiUsername,
+                      apiPassword: wordpressForm.apiPassword,
+                      enabled: wordpressForm.enabled,
+                      locationsEndpoint: wordpressForm.locationsEndpoint,
+                      unitsEndpoint: wordpressForm.unitsEndpoint,
+                    };
+
+                    await updateSettings({
+                      wordpressConfig
+                    });
+
+                    setWordpressMessage({ type: 'success', text: 'WordPress configuration saved successfully!' });
+                  } catch (error) {
+                    setWordpressMessage({ type: 'error', text: 'Failed to save WordPress configuration.' });
+                  } finally {
+                    setWordpressLoading(false);
+                  }
+                }} className="space-y-6">
+                  {wordpressMessage && (
+                    <div className="flex items-start gap-3 p-4 rounded-xl border"
+                         style={{
+                           backgroundColor: wordpressMessage.type === 'success'
+                             ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
+                             : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
+                           borderColor: wordpressMessage.type === 'success'
+                             ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                             : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                         }}>
+                      {wordpressMessage.type === 'success' ? (
+                        <CheckCircle2 className="h-5 w-5 mt-0.5" style={{ color: 'var(--success)' }} />
+                      ) : (
+                        <XCircle className="h-5 w-5 mt-0.5" style={{ color: 'var(--danger)' }} />
+                      )}
+                      <div>
+                        <p className="font-medium" style={{
+                          color: wordpressMessage.type === 'success' ? 'var(--success)' : 'var(--danger)'
+                        }}>
+                          {wordpressMessage.type === 'success' ? 'Success' : 'Error'}
+                        </p>
+                        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                          {wordpressMessage.text}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor="siteUrl" className="flex items-center gap-2 text-sm font-medium">
+                        <Globe className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                        WordPress Site URL
+                      </label>
+                      <Input
+                        id="siteUrl"
+                        type="url"
+                        value={wordpressForm.siteUrl}
+                        onChange={(e) => setWordpressForm({ ...wordpressForm, siteUrl: e.target.value })}
+                        placeholder="https://mysite.com"
+                        className="rounded-xl"
+                      />
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Enter your WordPress site URL without trailing slash
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="apiUsername" className="flex items-center gap-2 text-sm font-medium">
+                        <User className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                        API Username
+                      </label>
+                      <Input
+                        id="apiUsername"
+                        type="text"
+                        value={wordpressForm.apiUsername}
+                        onChange={(e) => setWordpressForm({ ...wordpressForm, apiUsername: e.target.value })}
+                        placeholder="wp_api_user"
+                        className="rounded-xl"
+                      />
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        WordPress username for Basic Authentication
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="apiPassword" className="flex items-center gap-2 text-sm font-medium">
+                      <Key className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                      API Password / Application Password
+                    </label>
+                    <Input
+                      id="apiPassword"
+                      type="password"
+                      value={wordpressForm.apiPassword}
+                      onChange={(e) => setWordpressForm({ ...wordpressForm, apiPassword: e.target.value })}
+                      placeholder="••••••••"
+                      className="rounded-xl"
+                    />
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      Use WordPress Application Passwords for better security
+                    </p>
+                  </div>
+
+                  <div className="grid gap-6 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <label htmlFor="locationsEndpoint" className="flex items-center gap-2 text-sm font-medium">
+                        <MapPin className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                        Locations Endpoint
+                      </label>
+                      <Input
+                        id="locationsEndpoint"
+                        type="text"
+                        value={wordpressForm.locationsEndpoint}
+                        onChange={(e) => setWordpressForm({ ...wordpressForm, locationsEndpoint: e.target.value })}
+                        placeholder="wp-json/spaceman/v1/locations"
+                        className="rounded-xl"
+                      />
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Custom endpoint path for locations post type
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="unitsEndpoint" className="flex items-center gap-2 text-sm font-medium">
+                        <Shield className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                        Units Endpoint
+                      </label>
+                      <Input
+                        id="unitsEndpoint"
+                        type="text"
+                        value={wordpressForm.unitsEndpoint}
+                        onChange={(e) => setWordpressForm({ ...wordpressForm, unitsEndpoint: e.target.value })}
+                        placeholder="wp-json/spaceman/v1/units"
+                        className="rounded-xl"
+                      />
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Custom endpoint path for units post type
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 rounded-xl border"
+                       style={{ backgroundColor: 'var(--surface-1)', borderColor: 'var(--border)' }}>
+                    <input
+                      type="checkbox"
+                      id="enabled"
+                      checked={wordpressForm.enabled}
+                      onChange={(e) => setWordpressForm({ ...wordpressForm, enabled: e.target.checked })}
+                      className="h-4 w-4 rounded"
+                    />
+                    <div>
+                      <label htmlFor="enabled" className="text-sm font-medium cursor-pointer">
+                        Enable WordPress Integration
+                      </label>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Allow bi-directional sync between Spaceman and WordPress
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                    <Button type="submit" disabled={wordpressLoading} className="rounded-xl px-6">
+                      {wordpressLoading ? 'Saving...' : 'Save Configuration'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={async () => {
+                        // Test connection logic here
+                        alert('Connection test will be implemented');
+                      }}
+                      className="rounded-xl"
+                    >
+                      Test Connection
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Setup Instructions</CardTitle>
+                <CardDescription>Follow these steps to configure WordPress integration</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ol className="list-decimal list-inside space-y-3 text-sm">
+                  <li className="flex gap-3">
+                    <span className="font-semibold">1.</span>
+                    <div>
+                      <p className="font-medium">Install the Spaceman plugin on your WordPress site</p>
+                      <p className="text-muted-foreground">Upload and activate the plugin through WordPress admin</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="font-semibold">2.</span>
+                    <div>
+                      <p className="font-medium">Create API credentials in WordPress</p>
+                      <p className="text-muted-foreground">Go to Users → Profile → Application Passwords and create a new password</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="font-semibold">3.</span>
+                    <div>
+                      <p className="font-medium">Enter your WordPress site URL above</p>
+                      <p className="text-muted-foreground">Add the URL without trailing slash (e.g., https://mysite.com)</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="font-semibold">4.</span>
+                    <div>
+                      <p className="font-medium">Configure custom endpoints for your post types</p>
+                      <p className="text-muted-foreground">If using custom post types, update the endpoint paths accordingly</p>
+                    </div>
+                  </li>
+                  <li className="flex gap-3">
+                    <span className="font-semibold">5.</span>
+                    <div>
+                      <p className="font-medium">Enable the integration</p>
+                      <p className="text-muted-foreground">Toggle the switch to enable bi-directional sync</p>
+                    </div>
+                  </li>
+                </ol>
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>

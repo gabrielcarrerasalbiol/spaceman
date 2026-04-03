@@ -269,15 +269,15 @@ export default async function DashboardPage({
 
   return (
     <div className="space-y-2">
-      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-2" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#b32b39' }}>
-        <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255, 255, 255, 0.15), transparent 65%)' }} />
+      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-2" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: '#ffffff' }}>
+        <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, rgba(179, 43, 57, 0.08), transparent 65%)' }} />
         <div className="relative grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
-            <h1 className="text-xl font-bold text-white leading-tight">Dashboard</h1>
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/80">Operations Overview</p>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">Dashboard</h1>
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-gray-600">Operations Overview</p>
           </div>
 
-          <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'rgba(255, 255, 255, 0.2)', backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
+          <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'rgba(0, 0, 0, 0.1)', backgroundColor: 'rgba(255, 255, 255, 0.95)' }}>
             <p className="text-xs text-gray-700">Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
               <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'rgba(255, 255, 255, 0.3)', background: 'linear-gradient(90deg, #FF758C 0%, #FF7EB3 100%)' }}>
