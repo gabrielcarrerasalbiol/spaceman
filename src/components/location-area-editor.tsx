@@ -164,6 +164,16 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     return map;
   }, [units]);
 
+  const areaUnitMap = useMemo(() => {
+    const map = new Map<string, UnitItem>();
+    for (const placement of selectedArea?.placements || []) {
+      if (placement.unit) {
+        map.set(placement.unit.id, placement.unit);
+      }
+    }
+    return map;
+  }, [selectedArea]);
+
   function clampZoom(value: number) {
     return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
   }
@@ -842,7 +852,15 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                     {[...placements]
                       .sort((a, b) => a.zIndex - b.zIndex)
                       .map((placement) => {
-                        const unit = unitMap.get(placement.unitId);
+                        const baseUnit = unitMap.get(placement.unitId);
+                        const areaUnit = areaUnitMap.get(placement.unitId);
+                        const unit = baseUnit
+                          ? {
+                              ...baseUnit,
+                              contracts: areaUnit?.contracts || baseUnit.contracts,
+                            }
+                          : areaUnit;
+
                         if (!unit) return null;
 
                         const fill = statusFill(settings.unitStatusConfig, unit.status);
