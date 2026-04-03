@@ -1,7 +1,6 @@
 import { auth } from '@/lib/auth';
 import { DashboardShell } from '@/components/dashboard-shell';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Settings, RefreshCw } from 'lucide-react';
@@ -20,16 +19,21 @@ export default async function WordPressPage() {
           </p>
         </div>
 
-        {/* Coming Soon Alert */}
-        <Alert>
-          <AlertDescription>
-            WordPress integration is coming soon! Configure the API credentials in{' '}
-            <Link href="/dashboard/settings" className="underline font-medium">
-              Settings
-            </Link>{' '}
-            to enable the integration.
-          </AlertDescription>
-        </Alert>
+        {/* Coming Soon Notice */}
+        <Card style={{
+          backgroundColor: 'var(--surface-1)',
+          border: '1px solid var(--border)'
+        }}>
+          <CardContent className="pt-6">
+            <p className="text-sm" style={{ color: 'var(--text-strong)' }}>
+              WordPress integration is coming soon! Configure the API credentials in{' '}
+              <Link href="/dashboard/settings" className="underline font-medium" style={{ color: 'var(--accent)' }}>
+                Settings
+              </Link>{' '}
+              to enable the integration.
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Setup Instructions */}
         <div className="grid gap-6 md:grid-cols-2">
