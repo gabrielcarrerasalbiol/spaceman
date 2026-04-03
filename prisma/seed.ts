@@ -19,6 +19,14 @@ async function main() {
       siteDescription: 'A Next.js authentication starter template',
       primaryColor: '#3b82f6',
       unitStatusConfig: DEFAULT_STATUS_CONFIG,
+      wordpressConfig: {
+        siteUrl: '',
+        apiUsername: '',
+        apiPassword: '',
+        enabled: false,
+        locationsEndpoint: 'wp-json/spaceman/v1/locations',
+        unitsEndpoint: 'wp-json/spaceman/v1/units',
+      },
     },
   });
   console.log('✅ Settings created:', settings);

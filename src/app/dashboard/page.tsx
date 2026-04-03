@@ -242,51 +242,51 @@ export default async function DashboardPage({
       value: locations.length,
       subtitle: `${locations.filter((location) => location.active).length} active`,
       icon: MapPin,
-      color: '#3b82f6',
+      color: 'var(--accent)',
     },
     {
       label: 'Units',
       value: allScope.totalUnits,
       subtitle: `${allScope.occupiedUnits} ${occupiedLabel.toLowerCase()}`,
       icon: Building2,
-      color: '#22c55e',
+      color: 'var(--success)',
     },
     {
       label: 'Clients',
       value: clients,
       subtitle: `${allScope.activeContracts} active contracts`,
       icon: UserRound,
-      color: '#f59e0b',
+      color: 'var(--warning)',
     },
     {
       label: 'Contracts',
       value: contracts.length,
       subtitle: `${allScope.pendingContracts} pending signature`,
       icon: FileSignature,
-      color: '#ef4444',
+      color: 'var(--danger)',
     },
   ];
 
   return (
     <div className="space-y-2">
-      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-2" style={{ borderColor: 'var(--border)', background: 'linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--surface-0)), var(--surface-0) 58%)' }}>
-        <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 65%)' }} />
+      <section className="dashboard-fade-in relative overflow-hidden rounded-2xl border px-4 py-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+        <div className="absolute -right-16 -top-16 h-52 w-52 rounded-full" style={{ background: 'radial-gradient(circle, color-mix(in srgb, var(--accent-soft) 55%, transparent), transparent 65%)' }} />
         <div className="relative grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
-            <h1 className="text-xl font-bold text-[var(--text-strong)] leading-tight">Dashboard</h1>
-            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--text-muted)]">Operations Overview</p>
+            <h1 className="text-xl font-bold leading-tight" style={{ color: 'var(--text-strong)' }}>Dashboard</h1>
+            <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: 'var(--text-muted)' }}>Operations Overview</p>
           </div>
 
-          <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
-            <p className="text-xs text-[var(--text-muted)]">Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!</p>
+          <div className="rounded-xl border px-3 py-2 md:min-w-[290px]" style={{ borderColor: 'var(--border)', backgroundColor: 'color-mix(in srgb, var(--surface-0) 86%, var(--surface-1))' }}>
+            <p className="text-xs" style={{ color: 'var(--text-strong)' }}>Welcome back{session?.user?.name ? `, ${session.user.name}` : ''}!</p>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="rounded-full border px-2.5 py-0.5 text-[11px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
                 All-Site Occupancy {formatPercent(allScope.occupancyRate)}
               </span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[11px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
                 All-Site Utilization {formatPercent(allScope.utilizationRate)}
               </span>
-              <span className="rounded-full border px-2.5 py-0.5 text-[11px]" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+              <span className="rounded-full border px-2.5 py-0.5 text-[11px] font-semibold text-white shadow-sm" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
                 Role {(session?.user as any)?.role || 'USER'}
               </span>
             </div>
@@ -414,7 +414,7 @@ export default async function DashboardPage({
                         className="dashboard-grow-x h-full rounded-full"
                         style={{
                           width: `${(item.total / maxLocationUnits) * 100}%`,
-                          background: 'linear-gradient(90deg, var(--accent), color-mix(in srgb, var(--accent) 60%, #0ea5e9))',
+                          background: 'linear-gradient(90deg, var(--accent), var(--accent-strong))',
                           animationDelay: '220ms',
                         }}
                       />
@@ -456,13 +456,13 @@ export default async function DashboardPage({
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-3 gap-2">
-                  <Link href="/dashboard/locations" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition hover:opacity-90" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}>
+                  <Link href="/dashboard/locations" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
                     Locations
                   </Link>
-                  <Link href="/dashboard/units" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition hover:opacity-90" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}>
+                  <Link href="/dashboard/units" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
                     Units
                   </Link>
-                  <Link href="/dashboard/contracts" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold transition hover:opacity-90" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)', color: 'var(--text-strong)' }}>
+                  <Link href="/dashboard/contracts" className="rounded-xl border px-3 py-2 text-center text-xs font-semibold text-white shadow-sm transition hover:opacity-90" style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}>
                     Contracts
                   </Link>
                 </div>
@@ -499,8 +499,8 @@ export default async function DashboardPage({
                 </select>
                 <button
                   type="submit"
-                  className="h-9 rounded-xl border px-3 text-sm font-medium"
-                  style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                  className="h-9 rounded-xl border px-3 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+                  style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}
                 >
                   Apply Site
                 </button>
@@ -509,10 +509,10 @@ export default async function DashboardPage({
 
           <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              { label: 'Units', value: operationsScope.totalUnits, subtitle: `${operationsScope.occupiedUnits} ${occupiedLabel.toLowerCase()}`, icon: Building2, color: '#22c55e' },
-              { label: 'Contracts', value: operationsContracts.length, subtitle: `${operationsScope.pendingContracts} pending`, icon: FileSignature, color: '#ef4444' },
-              { label: 'Occupancy', value: formatPercent(operationsScope.occupancyRate), subtitle: selectedLocation?.name || 'No site', icon: MapPin, color: '#3b82f6' },
-              { label: 'Utilization', value: formatPercent(operationsScope.utilizationRate), subtitle: `${operationsScope.maintenanceUnits} ${maintenanceLabel.toLowerCase()}`, icon: Activity, color: '#f59e0b' },
+              { label: 'Units', value: operationsScope.totalUnits, subtitle: `${operationsScope.occupiedUnits} ${occupiedLabel.toLowerCase()}`, icon: Building2, color: 'var(--success)' },
+              { label: 'Contracts', value: operationsContracts.length, subtitle: `${operationsScope.pendingContracts} pending`, icon: FileSignature, color: 'var(--danger)' },
+              { label: 'Occupancy', value: formatPercent(operationsScope.occupancyRate), subtitle: selectedLocation?.name || 'No site', icon: MapPin, color: 'var(--accent)' },
+              { label: 'Utilization', value: formatPercent(operationsScope.utilizationRate), subtitle: `${operationsScope.maintenanceUnits} ${maintenanceLabel.toLowerCase()}`, icon: Activity, color: 'var(--warning)' },
             ].map((item, index) => {
               const Icon = item.icon;
               return (
@@ -595,7 +595,7 @@ export default async function DashboardPage({
                           className="dashboard-grow-y w-9 rounded-lg"
                           style={{
                             height: `${Math.max(8, (item.count / operationsScope.maxMonthlyContracts) * 100)}%`,
-                            background: 'linear-gradient(180deg, #22c55e, #15803d)',
+                            background: 'linear-gradient(180deg, var(--success), color-mix(in srgb, var(--success) 70%, #0f766e))',
                             animationDelay: `${280 + Number(item.count) * 35}ms`,
                           }}
                           title={`${item.count} contracts`}

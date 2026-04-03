@@ -14,6 +14,45 @@ interface LocationOption {
   name: string;
 }
 
+function isTruthyFlag(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+  return false;
+}
+
+function isMissingValue(value: unknown) {
+  if (value === null || value === undefined) return true;
+  if (typeof value === 'string') return value.trim() === '';
+  return false;
+}
+
+function getWordPressUnitField(unit: any, ...keys: string[]) {
+  const meta = unit?.meta && typeof unit.meta === 'object' ? unit.meta : {};
+  const allMeta = unit?.all_meta && typeof unit.all_meta === 'object' ? unit.all_meta : {};
+
+  for (const key of keys) {
+    const topLevelValue = unit?.[key];
+    if (!isMissingValue(topLevelValue)) return topLevelValue;
+
+    const metaValue = meta?.[key];
+    if (!isMissingValue(metaValue)) return metaValue;
+
+    const allMetaValue = allMeta?.[key];
+    if (!isMissingValue(allMetaValue)) return allMetaValue;
+  }
+
+  return null;
+}
+
+function renderWordPressValue(value: unknown) {
+  if (isMissingValue(value)) return '-';
+  return String(value);
+}
+
 export default function EditUnitPage() {
   const params = useParams();
   const router = useRouter();
@@ -24,6 +63,7 @@ export default function EditUnitPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [locations, setLocations] = useState<LocationOption[]>([]);
+  const [matchedWordPressUnit, setMatchedWordPressUnit] = useState<any | null>(null);
   const [form, setForm] = useState({
     locationId: '',
     code: '',
@@ -54,9 +94,10 @@ export default function EditUnitPage() {
 
   async function bootstrap() {
     try {
-      const [locationsRes, unitRes] = await Promise.all([
+      const [locationsRes, unitRes, wordpressPullRes] = await Promise.all([
         fetch('/api/locations'),
         fetch(`/api/units/${params.id as string}`),
+        fetch('/api/wordpress/pull', { cache: 'no-store' }),
       ]);
 
       if (locationsRes.ok) {
@@ -86,6 +127,15 @@ export default function EditUnitPage() {
         is24hDriveUp: Boolean(unit.is24hDriveUp),
         isIndoor: Boolean(unit.isIndoor),
       });
+
+      if (wordpressPullRes.ok) {
+        const wordpressPullPayload = await wordpressPullRes.json();
+        const wordpressUnits = Array.isArray(wordpressPullPayload?.cache?.units)
+          ? wordpressPullPayload.cache.units
+          : [];
+        const matched = wordpressUnits.find((wpUnit: any) => wpUnit?.__match?.cmsId === String(params.id));
+        setMatchedWordPressUnit(matched || null);
+      }
     } catch (e) {
       setError('Failed to load unit');
     } finally {
@@ -215,6 +265,94 @@ export default function EditUnitPage() {
               </Link>
             </div>
           </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Matched WordPress Data</CardTitle>
+          <CardDescription>Read-only fields pulled from the linked WordPress unit.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {matchedWordPressUnit ? (
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Prorize On Sale</p>
+                <div className="mt-2">
+                  {isTruthyFlag(getWordPressUnitField(matchedWordPressUnit, 'prorize_onsale')) ? (
+                    <span
+                      className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))',
+                        backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))',
+                        color: 'var(--success)',
+                      }}
+                    >
+                      YES
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))',
+                        backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))',
+                        color: 'var(--danger)',
+                      }}
+                    >
+                      NO
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Active</p>
+                <div className="mt-2">
+                  {isTruthyFlag(getWordPressUnitField(matchedWordPressUnit, 'active')) ? (
+                    <span
+                      className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--success) 50%, var(--border))',
+                        backgroundColor: 'color-mix(in srgb, var(--success) 14%, var(--surface-0))',
+                        color: 'var(--success)',
+                      }}
+                    >
+                      YES
+                    </span>
+                  ) : (
+                    <span
+                      className="inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold"
+                      style={{
+                        borderColor: 'color-mix(in srgb, var(--danger) 50%, var(--border))',
+                        backgroundColor: 'color-mix(in srgb, var(--danger) 14%, var(--surface-0))',
+                        color: 'var(--danger)',
+                      }}
+                    >
+                      NO
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>_Weekly Rate</p>
+                <p className="mt-2 text-sm font-semibold" style={{ color: 'var(--text-strong)' }}>
+                  {renderWordPressValue(getWordPressUnitField(matchedWordPressUnit, '_weekly_rate', 'weekly_rate'))}
+                </p>
+              </div>
+
+              <div className="rounded-xl border p-3" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Prorize ID</p>
+                <p className="mt-2 text-sm font-semibold" style={{ color: 'var(--text-strong)' }}>
+                  {renderWordPressValue(getWordPressUnitField(matchedWordPressUnit, 'prorize_id'))}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+              No matched WordPress unit found for this CMS unit.
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
