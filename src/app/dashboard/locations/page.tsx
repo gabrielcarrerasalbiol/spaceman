@@ -331,7 +331,6 @@ export default function LocationsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>Area</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Units</TableHead>
                         <TableHead>Contracts</TableHead>
@@ -344,8 +343,12 @@ export default function LocationsPage() {
                           <TableCell>
                             <div className="font-medium">{location.name}</div>
                             {location.code && <div className="text-xs text-[var(--text-muted)]">{location.code}</div>}
+                            {([location.addressLine1, location.townCity, location.postcode].filter(Boolean).length > 0) && (
+                              <div className="text-xs text-[var(--text-muted)]">
+                                {[location.addressLine1, location.townCity, location.postcode].filter(Boolean).join(', ')}
+                              </div>
+                            )}
                           </TableCell>
-                          <TableCell>{location.townCity || location.postcode || '-'}</TableCell>
                           <TableCell>
                             <Badge variant={location.active ? 'success' : 'danger'}>
                               {location.active ? 'Active' : 'Inactive'}
