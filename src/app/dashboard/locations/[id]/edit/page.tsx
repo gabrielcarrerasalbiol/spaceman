@@ -89,22 +89,33 @@ export default function EditLocationPage() {
 
   async function handleGeocode() {
     const query = [form.addressLine1, form.townCity, form.postcode].filter(Boolean).join(', ');
-    if (!query) return;
+    if (!query) {
+      setError('Enter address details before geocoding.');
+      return;
+    }
 
     try {
       setGeocoding(true);
-      const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`);
-      if (!response.ok) return;
+      setError(null);
+      setSuccess(null);
+
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
       const data = await response.json();
-      if (!Array.isArray(data) || data.length === 0) return;
+
+      if (!response.ok) {
+        setError(data?.error || 'Failed to geocode address');
+        return;
+      }
 
       setForm((prev) => ({
         ...prev,
-        latitude: String(data[0].lat),
-        longitude: String(data[0].lon),
+        latitude: String(data.lat),
+        longitude: String(data.lon),
       }));
+      setSuccess('Coordinates updated from address. Save changes to persist.');
     } catch (e) {
       console.error('Geocode failed:', e);
+      setError('Failed to geocode address');
     } finally {
       setGeocoding(false);
     }
