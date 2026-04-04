@@ -288,7 +288,7 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
               No units configured for this location.
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {groupedInventory.map((group) => {
                 const total = group.items.length;
                 const available = group.items.filter((item) => item.status === 'AVAILABLE').length;
@@ -296,35 +296,35 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                 const occupied = group.items.filter((item) => item.status === 'OCCUPIED').length;
 
                 return (
-                  <div key={group.label} className="rounded-xl border border-[var(--border)] p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div key={group.label} className="rounded-xl border border-[var(--border)] p-3.5">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-[var(--text-strong)]">{group.label}</p>
-                        <p className="text-sm text-[var(--text-muted)]">
+                        <p className="text-[15px] font-semibold leading-tight text-[var(--text-strong)]">{group.label}</p>
+                        <p className="text-xs text-[var(--text-muted)] sm:text-sm">
                           Total {total} · {getStatusLabel(settings.unitStatusConfig, 'AVAILABLE')} {available} · {getStatusLabel(settings.unitStatusConfig, 'RESERVED')} {reserved} · {getStatusLabel(settings.unitStatusConfig, 'OCCUPIED')} {occupied}
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    <div className="mt-2.5 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {group.items.map((item) => (
                         <div
                           key={item.id}
-                          className="flex items-start justify-between gap-3 rounded-xl border p-3"
+                          className="flex items-start justify-between gap-2.5 rounded-xl border px-3 py-2.5"
                           style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}
                         >
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="font-semibold text-[var(--text-strong)]">
+                                <p className="text-[15px] font-semibold leading-tight text-[var(--text-strong)]">
                                   {item.unitNumber !== null ? group.label : formatUnitDisplayName(item)}
                                 </p>
                                 {item.unitNumber === null && item.code && item.code !== formatUnitDisplayName(item) && (
-                                  <p className="text-xs text-[var(--text-muted)]">{item.code}</p>
+                                  <p className="mt-0.5 text-[11px] leading-tight text-[var(--text-muted)]">{item.code}</p>
                                 )}
                               </div>
                               {item.unitNumber !== null && (
                                 <span
-                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
                                   style={{
                                     color: 'var(--text-strong)',
                                     backgroundColor: 'var(--surface-1)',
@@ -336,9 +336,9 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                               )}
                             </div>
 
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                               <span
-                                className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                className="rounded-full px-2 py-0.5 text-[10px] font-medium leading-none"
                                 style={{
                                   color: getStatusColor(settings.unitStatusConfig, item.status),
                                   backgroundColor: `color-mix(in srgb, ${getStatusColor(settings.unitStatusConfig, item.status)} 16%, var(--surface-0))`,
@@ -348,7 +348,7 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                               </span>
 
                               {item._count?.contracts ? (
-                                <span className="text-xs text-[var(--text-muted)]">linked ({item._count.contracts})</span>
+                                <span className="text-[11px] text-[var(--text-muted)]">linked ({item._count.contracts})</span>
                               ) : (
                                 <button
                                   type="button"
