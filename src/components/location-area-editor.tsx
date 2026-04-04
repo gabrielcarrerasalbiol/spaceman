@@ -1052,7 +1052,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                                   onMouseLeave={(event) => {
                                     const stage = event.target.getStage();
                                     if (!stage) return;
-                                    stage.container().style.cursor = mode === 'edit' ? 'move' : 'default';
+                                    stage.container().style.cursor = 'default';
                                     setHoveredContract(null);
                                   }}
                                 />
