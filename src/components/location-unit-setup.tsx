@@ -305,33 +305,63 @@ export function LocationUnitSetup({ locationId }: { locationId: string }) {
                         </p>
                       </div>
                     </div>
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                       {group.items.map((item) => (
-                        <span key={item.id} className="inline-flex items-center gap-2 rounded-lg border px-2.5 py-1 text-sm"
-                          style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}>
-                          {formatUnitDisplayName(item)}
-                          <span
-                            className="rounded-full px-2 py-0.5 text-[11px] font-medium"
-                            style={{
-                              color: getStatusColor(settings.unitStatusConfig, item.status),
-                              backgroundColor: `color-mix(in srgb, ${getStatusColor(settings.unitStatusConfig, item.status)} 16%, var(--surface-0))`,
-                            }}
-                          >
-                            {getStatusLabel(settings.unitStatusConfig, item.status)}
-                          </span>
-                          {item._count?.contracts ? (
-                            <span className="text-xs text-[var(--text-muted)]">linked ({item._count.contracts})</span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="rounded p-0.5 text-[var(--danger)] transition hover:bg-[var(--surface-1)]"
-                              onClick={() => handleRemoveUnit(item.id, formatUnitDisplayName(item), item._count?.contracts || 0)}
-                              aria-label={`Remove ${formatUnitDisplayName(item)}`}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </span>
+                        <div
+                          key={item.id}
+                          className="flex items-start justify-between gap-3 rounded-xl border p-3"
+                          style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-strong)' }}
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-[var(--text-strong)]">
+                                  {item.unitNumber !== null ? group.label : formatUnitDisplayName(item)}
+                                </p>
+                                {item.unitNumber === null && item.code && item.code !== formatUnitDisplayName(item) && (
+                                  <p className="text-xs text-[var(--text-muted)]">{item.code}</p>
+                                )}
+                              </div>
+                              {item.unitNumber !== null && (
+                                <span
+                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold"
+                                  style={{
+                                    color: 'var(--text-strong)',
+                                    backgroundColor: 'var(--surface-1)',
+                                    border: '1px solid var(--border)',
+                                  }}
+                                >
+                                  {item.unitNumber}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              <span
+                                className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                                style={{
+                                  color: getStatusColor(settings.unitStatusConfig, item.status),
+                                  backgroundColor: `color-mix(in srgb, ${getStatusColor(settings.unitStatusConfig, item.status)} 16%, var(--surface-0))`,
+                                }}
+                              >
+                                {getStatusLabel(settings.unitStatusConfig, item.status)}
+                              </span>
+
+                              {item._count?.contracts ? (
+                                <span className="text-xs text-[var(--text-muted)]">linked ({item._count.contracts})</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="rounded p-0.5 text-[var(--danger)] transition hover:bg-[var(--surface-1)]"
+                                  onClick={() => handleRemoveUnit(item.id, formatUnitDisplayName(item), item._count?.contracts || 0)}
+                                  aria-label={`Remove ${formatUnitDisplayName(item)}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
