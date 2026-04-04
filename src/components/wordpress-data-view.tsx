@@ -81,13 +81,28 @@ function extractFeaturedImageUrl(payload: unknown): string | null {
   const source = asRecord(payload);
   const acf = asRecord(source.acf);
   const meta = asRecord(source.meta);
+  const embedded = asRecord(source._embedded);
+  const wpFeaturedMedia = Array.isArray(embedded['wp:featuredmedia']) ? embedded['wp:featuredmedia'] : [];
+  const firstFeaturedMedia = wpFeaturedMedia.length > 0 ? asRecord(wpFeaturedMedia[0]) : {};
 
   const candidates: unknown[] = [
+    source.featured_image_url,
+    meta.featured_image_url,
+    acf.featured_image_url,
+    source.featured_image,
+    asRecord(source.featured_image).url,
+    asRecord(source.featured_image).source_url,
+    source.image,
+    asRecord(source.image).url,
+    asRecord(source.image).source_url,
+    source.unit_image,
+    acf.unit_image,
+    meta.unit_image,
     asRecord(acf.main_image).url,
     asRecord(meta.main_image).url,
     asRecord(source.main_image).url,
-    source.featured_image,
-    source.image,
+    firstFeaturedMedia.source_url,
+    asRecord(firstFeaturedMedia.media_details).sizes?.full && asRecord(asRecord(firstFeaturedMedia.media_details).sizes?.full).source_url,
   ];
 
   for (const candidate of candidates) {
