@@ -270,6 +270,40 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     return unit.status === 'RESERVED' || unit.status === 'OCCUPIED';
   }
 
+  function getTooltipPosition(anchorX: number, anchorY: number) {
+    const viewport = canvasViewportRef.current;
+    const gap = 12;
+    const padding = 8;
+    const tooltipWidth = 290;
+    const tooltipHeight = 210;
+
+    if (!viewport) {
+      return { left: anchorX + gap, top: anchorY + gap };
+    }
+
+    const minLeft = viewport.scrollLeft + padding;
+    const maxLeft = viewport.scrollLeft + viewport.clientWidth - tooltipWidth - padding;
+    const minTop = viewport.scrollTop + padding;
+    const maxTop = viewport.scrollTop + viewport.clientHeight - tooltipHeight - padding;
+
+    let left = anchorX + gap;
+    if (left > maxLeft) {
+      left = anchorX - tooltipWidth - gap;
+    }
+    left = Math.max(minLeft, Math.min(left, maxLeft));
+
+    let top = anchorY + gap;
+    if (top > maxTop) {
+      top = anchorY - tooltipHeight - gap;
+    }
+    top = Math.max(minTop, Math.min(top, maxTop));
+
+    return {
+      left,
+      top,
+    };
+  }
+
   useEffect(() => {
     bootstrap();
   }, [locationId]);
@@ -1080,11 +1114,14 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                 </Stage>
 
                 {mode === 'view' && hoveredContract && (
+                  (() => {
+                    const tooltipPosition = getTooltipPosition(hoveredContract.x, hoveredContract.y);
+                    return (
                   <div
-                    className="pointer-events-none absolute z-20 min-w-[270px] rounded-xl border px-3 py-2 text-xs shadow-lg"
+                    className="pointer-events-none absolute z-20 w-[290px] rounded-xl border px-3 py-2 text-xs shadow-lg"
                     style={{
-                      left: hoveredContract.x + 14,
-                      top: hoveredContract.y + 14,
+                      left: tooltipPosition.left,
+                      top: tooltipPosition.top,
                       borderColor: 'var(--border)',
                       backgroundColor: 'color-mix(in srgb, var(--surface-0) 95%, transparent)',
                       backdropFilter: 'blur(6px)',
@@ -1104,6 +1141,8 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                       <p className="mt-1 text-[var(--warning)]">Marked as booked but no active contract found.</p>
                     )}
                   </div>
+                    );
+                  })()
                 )}
               </div>
 
