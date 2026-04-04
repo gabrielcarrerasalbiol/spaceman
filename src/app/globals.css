@@ -6,7 +6,7 @@
 
 @layer base {
   :root {
-    --sidebar-width: 20rem;
+    --sidebar-width: 16rem;
     --app-bg: #f8fafc;
     --surface-0: #ffffff;
     --surface-1: #f1f5f9;
@@ -49,7 +49,7 @@ body.sidebar-collapsed {
 }
 
 body.sidebar-expanded {
-  --sidebar-width: 20rem;
+  --sidebar-width: 16rem;
 }
 
 .sidebar-toggle-fab {
