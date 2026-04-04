@@ -44,6 +44,8 @@ export async function GET(
                         companyName: true,
                         firstName: true,
                         lastName: true,
+                        email: true,
+                        phone: true,
                       },
                     },
                   },

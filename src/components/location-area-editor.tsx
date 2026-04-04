@@ -34,6 +34,8 @@ type UnitItem = {
       companyName: string | null;
       firstName: string;
       lastName: string;
+      email?: string | null;
+      phone?: string | null;
     };
   }>;
 };
@@ -116,10 +118,14 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
     x: number;
     y: number;
     unitLabel: string;
+    statusLabel: string;
     contractNumber: string;
     clientLabel: string;
+    clientEmail: string;
+    clientPhone: string;
     startDate: string;
     endDate: string;
+    hasActiveContract: boolean;
   } | null>(null);
 
   const [areaMeta, setAreaMeta] = useState({
@@ -257,6 +263,11 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
 
     const fullName = `${contract.client?.firstName || ''} ${contract.client?.lastName || ''}`.trim();
     return fullName || '-';
+  }
+
+  function hasBooking(unit: UnitItem) {
+    if (unit.contracts?.length) return true;
+    return unit.status === 'RESERVED' || unit.status === 'OCCUPIED';
   }
 
   useEffect(() => {
@@ -881,6 +892,12 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                         const badgeInset = 4;
                         const badgeX = placement.x + placement.width - badgeRadius * 2 - badgeInset;
                         const badgeY = placement.y + placement.height - badgeRadius * 2 - badgeInset;
+                        const activeContract = unit.contracts?.[0];
+                        const tooltipEnabled = mode === 'view' && hasBooking(unit);
+                        const infoRadius = veryCompact ? 6 : 7;
+                        const infoInset = 4;
+                        const infoX = placement.x + placement.width - infoRadius * 2 - infoInset;
+                        const infoY = placement.y + infoInset;
 
                         return (
                           <Fragment key={placement.id}>
@@ -895,43 +912,27 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                               stroke={selectedPlacementId === placement.id ? '#111827' : '#e5e7eb'}
                               strokeWidth={selectedPlacementId === placement.id ? 2 : 1}
                               draggable={mode === 'edit'}
+                              listening={mode === 'edit'}
                               opacity={0.9}
-                              onClick={() => setSelectedPlacementId(placement.id)}
-                              onTap={() => setSelectedPlacementId(placement.id)}
+                              onClick={() => {
+                                if (mode === 'edit') {
+                                  setSelectedPlacementId(placement.id);
+                                }
+                              }}
+                              onTap={() => {
+                                if (mode === 'edit') {
+                                  setSelectedPlacementId(placement.id);
+                                }
+                              }}
                               onMouseEnter={(event) => {
-                                if (mode !== 'view') return;
-                                const activeContract = unit.contracts?.[0];
-                                if (!activeContract) return;
-
-                                const nativeEvent = event.evt as MouseEvent;
-                                setHoveredContract({
-                                  x: nativeEvent.offsetX,
-                                  y: nativeEvent.offsetY,
-                                  unitLabel: formatUnitDisplayName(unit),
-                                  contractNumber: activeContract.contractNumber,
-                                  clientLabel: contractClientLabel(unit),
-                                  startDate: formatDateLabel(activeContract.startDate),
-                                  endDate: formatDateLabel(activeContract.endDate),
-                                });
+                                const stage = event.target.getStage();
+                                if (!stage) return;
+                                stage.container().style.cursor = mode === 'edit' ? 'move' : 'default';
                               }}
-                              onMouseMove={(event) => {
-                                if (mode !== 'view') return;
-                                const activeContract = unit.contracts?.[0];
-                                if (!activeContract) return;
-
-                                const nativeEvent = event.evt as MouseEvent;
-                                setHoveredContract((previous) => {
-                                  if (!previous) return previous;
-                                  return {
-                                    ...previous,
-                                    x: nativeEvent.offsetX,
-                                    y: nativeEvent.offsetY,
-                                  };
-                                });
-                              }}
-                              onMouseLeave={() => {
-                                if (mode !== 'view') return;
-                                setHoveredContract(null);
+                              onMouseLeave={(event) => {
+                                const stage = event.target.getStage();
+                                if (!stage) return;
+                                stage.container().style.cursor = mode === 'edit' ? 'move' : 'default';
                               }}
                               onDblClick={() => {
                                 if (mode !== 'edit') return;
@@ -1006,6 +1007,70 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                                 />
                               </>
                             )}
+
+                            {tooltipEnabled && (
+                              <>
+                                <Rect
+                                  x={infoX}
+                                  y={infoY}
+                                  width={infoRadius * 2}
+                                  height={infoRadius * 2}
+                                  cornerRadius={infoRadius}
+                                  fill="#0f172a"
+                                  opacity={0.86}
+                                  onMouseEnter={(event) => {
+                                    const stage = event.target.getStage();
+                                    if (!stage) return;
+                                    stage.container().style.cursor = 'help';
+
+                                    const nativeEvent = event.evt as MouseEvent;
+                                    setHoveredContract({
+                                      x: nativeEvent.offsetX,
+                                      y: nativeEvent.offsetY,
+                                      unitLabel: formatUnitDisplayName(unit),
+                                      statusLabel: getStatusLabel(settings.unitStatusConfig, unit.status),
+                                      contractNumber: activeContract?.contractNumber || '-',
+                                      clientLabel: contractClientLabel(unit),
+                                      clientEmail: activeContract?.client?.email?.trim() || '-',
+                                      clientPhone: activeContract?.client?.phone?.trim() || '-',
+                                      startDate: formatDateLabel(activeContract?.startDate),
+                                      endDate: formatDateLabel(activeContract?.endDate),
+                                      hasActiveContract: Boolean(activeContract),
+                                    });
+                                  }}
+                                  onMouseMove={(event) => {
+                                    const nativeEvent = event.evt as MouseEvent;
+                                    setHoveredContract((previous) => {
+                                      if (!previous) return previous;
+                                      return {
+                                        ...previous,
+                                        x: nativeEvent.offsetX,
+                                        y: nativeEvent.offsetY,
+                                      };
+                                    });
+                                  }}
+                                  onMouseLeave={(event) => {
+                                    const stage = event.target.getStage();
+                                    if (!stage) return;
+                                    stage.container().style.cursor = mode === 'edit' ? 'move' : 'default';
+                                    setHoveredContract(null);
+                                  }}
+                                />
+                                <Text
+                                  x={infoX}
+                                  y={infoY}
+                                  width={infoRadius * 2}
+                                  height={infoRadius * 2}
+                                  align="center"
+                                  verticalAlign="middle"
+                                  text="i"
+                                  fill="#ffffff"
+                                  fontSize={veryCompact ? 8 : 9}
+                                  fontStyle="bold"
+                                  listening={false}
+                                />
+                              </>
+                            )}
                           </Fragment>
                         );
                       })}
@@ -1016,7 +1081,7 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
 
                 {mode === 'view' && hoveredContract && (
                   <div
-                    className="pointer-events-none absolute z-20 min-w-[260px] rounded-xl border px-3 py-2 text-xs shadow-lg"
+                    className="pointer-events-none absolute z-20 min-w-[270px] rounded-xl border px-3 py-2 text-xs shadow-lg"
                     style={{
                       left: hoveredContract.x + 14,
                       top: hoveredContract.y + 14,
@@ -1026,12 +1091,18 @@ export default function LocationAreaEditor({ locationId }: { locationId: string 
                     }}
                   >
                     <p className="font-semibold text-[var(--text-strong)]">{hoveredContract.unitLabel}</p>
+                    <p className="mt-1 text-[var(--text-muted)]">Status: {hoveredContract.statusLabel}</p>
                     <p className="mt-1 text-[var(--text-strong)]">
                       Contract: <span className="font-medium">{hoveredContract.contractNumber}</span>
                     </p>
-                    <p className="text-[var(--text-muted)]">Client: {hoveredContract.clientLabel}</p>
+                    <p className="text-[var(--text-muted)]">Customer: {hoveredContract.clientLabel || '-'}</p>
+                    <p className="text-[var(--text-muted)]">Email: {hoveredContract.clientEmail}</p>
+                    <p className="text-[var(--text-muted)]">Phone: {hoveredContract.clientPhone}</p>
                     <p className="text-[var(--text-muted)]">Start: {hoveredContract.startDate}</p>
                     <p className="text-[var(--text-muted)]">End: {hoveredContract.endDate}</p>
+                    {!hoveredContract.hasActiveContract && (
+                      <p className="mt-1 text-[var(--warning)]">Marked as booked but no active contract found.</p>
+                    )}
                   </div>
                 )}
               </div>
