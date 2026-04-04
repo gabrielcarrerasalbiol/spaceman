@@ -93,6 +93,10 @@ body.sidebar-collapsed .sidebar-nav-link {
   background: var(--surface-2);
 }
 
+html:not([data-theme='dark']) .sidebar-nav-icon-red svg {
+  color: var(--accent);
+}
+
 @keyframes dashboardFadeIn {
   from {
     opacity: 0;

@@ -156,7 +156,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           </button>
 
           {/* Navigation */}
-          <nav className="space-y-2">
+          <nav className="sidebar-nav-icon-red space-y-2">
             <Link
               href="/dashboard"
               className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
@@ -331,7 +331,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
           </button>
         </div>
 
-        <nav className="space-y-2 p-4">
+        <nav className="sidebar-nav-icon-red space-y-2 p-4">
           <Link
             href="/dashboard"
             className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
