@@ -67,9 +67,38 @@ export default function LoginPage() {
             backgroundColor: theme === 'dark-standard' ? 'var(--surface-0)' : 'transparent',
             color: theme === 'dark-standard' ? 'var(--text-strong)' : 'var(--text-muted)',
           }}
-          aria-label="Dark mode"
+          aria-label="Dark standard"
+          title="Dark (standard)"
         >
           <Moon className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setTheme('dark-red')}
+          className="rounded-lg p-2 transition relative"
+          style={{
+            backgroundColor: theme === 'dark-red' ? 'var(--surface-0)' : 'transparent',
+            color: theme === 'dark-red' ? 'var(--text-strong)' : 'var(--text-muted)',
+          }}
+          aria-label="Dark red"
+          title="Dark (red accent)"
+        >
+          <Moon className="h-4 w-4" />
+          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#ef4444' }} />
+        </button>
+        <button
+          type="button"
+          onClick={() => setTheme('dark-emerald')}
+          className="rounded-lg p-2 transition relative"
+          style={{
+            backgroundColor: theme === 'dark-emerald' ? 'var(--surface-0)' : 'transparent',
+            color: theme === 'dark-emerald' ? 'var(--text-strong)' : 'var(--text-muted)',
+          }}
+          aria-label="Dark emerald"
+          title="Dark (emerald accent)"
+        >
+          <Moon className="h-4 w-4" />
+          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#10b981' }} />
         </button>
         <button
           type="button"
