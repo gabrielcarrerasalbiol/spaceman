@@ -134,7 +134,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       case 'dark-standard':
         return '#3b82f6';
       case 'light':
-        return '#3b82f6';
+        return '#dc2626';
       case 'system':
         return '#3b82f6';
       default:
