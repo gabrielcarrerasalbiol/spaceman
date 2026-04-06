@@ -256,11 +256,8 @@ export default function ClientsPage() {
                 return (
                   <div className="space-y-6">
                     {/* Header */}
-                    <div className="flex items-start gap-6">
-                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-2xl font-semibold text-white shadow-lg">
-                        {initials || <UserRound className="h-10 w-10" />}
-                      </div>
-                      <div className="flex-1">
+                    <div className="flex items-start justify-between">
+                      <div>
                         <h2 className="text-2xl font-bold text-[var(--text-strong)]">
                           {client.firstName} {client.lastName}
                         </h2>

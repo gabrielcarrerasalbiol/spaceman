@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Lock, Sun, Moon, Monitor } from 'lucide-react';
+import { Lock, Sun, Moon, Monitor, ChevronDown } from 'lucide-react';
 import { useSettings } from '@/contexts/SettingsContext';
 import { useTheme } from '@/contexts/ThemeContext';
 
@@ -11,9 +11,18 @@ export default function LoginPage() {
   const router = useRouter();
   const { settings } = useSettings();
   const { theme, setTheme, resolvedTheme } = useTheme();
-  
+
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [darkDropdownOpen, setDarkDropdownOpen] = useState(false);
+
+  const darkThemes = [
+    { value: 'dark-standard', label: 'Dark (standard)', color: undefined },
+    { value: 'dark-red', label: 'Dark (red)', color: '#ef4444' },
+    { value: 'dark-emerald', label: 'Dark (emerald)', color: '#10b981' },
+  ] as const;
+
+  const currentDarkTheme = darkThemes.find(t => t.value === theme) || darkThemes[0];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -59,47 +68,46 @@ export default function LoginPage() {
         >
           <Sun className="h-4 w-4" />
         </button>
-        <button
-          type="button"
-          onClick={() => setTheme('dark-standard')}
-          className="rounded-lg p-2 transition"
-          style={{
-            backgroundColor: theme === 'dark-standard' ? 'var(--surface-0)' : 'transparent',
-            color: theme === 'dark-standard' ? 'var(--text-strong)' : 'var(--text-muted)',
-          }}
-          aria-label="Dark standard"
-          title="Dark (standard)"
-        >
-          <Moon className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setTheme('dark-red')}
-          className="rounded-lg p-2 transition relative"
-          style={{
-            backgroundColor: theme === 'dark-red' ? 'var(--surface-0)' : 'transparent',
-            color: theme === 'dark-red' ? 'var(--text-strong)' : 'var(--text-muted)',
-          }}
-          aria-label="Dark red"
-          title="Dark (red accent)"
-        >
-          <Moon className="h-4 w-4" />
-          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#ef4444' }} />
-        </button>
-        <button
-          type="button"
-          onClick={() => setTheme('dark-emerald')}
-          className="rounded-lg p-2 transition relative"
-          style={{
-            backgroundColor: theme === 'dark-emerald' ? 'var(--surface-0)' : 'transparent',
-            color: theme === 'dark-emerald' ? 'var(--text-strong)' : 'var(--text-muted)',
-          }}
-          aria-label="Dark emerald"
-          title="Dark (emerald accent)"
-        >
-          <Moon className="h-4 w-4" />
-          <span className="absolute bottom-1 right-1 h-1.5 w-1.5 rounded-full" style={{ backgroundColor: '#10b981' }} />
-        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setDarkDropdownOpen(!darkDropdownOpen)}
+            className="rounded-lg p-2 transition flex items-center gap-0.5"
+            style={{
+              backgroundColor: theme.startsWith('dark-') ? 'var(--surface-0)' : 'transparent',
+              color: theme.startsWith('dark-') ? 'var(--text-strong)' : 'var(--text-muted)',
+            }}
+            aria-label="Dark mode"
+          >
+            <Moon className="h-4 w-4" />
+            <ChevronDown className="h-3 w-3" />
+          </button>
+          {darkDropdownOpen && (
+            <div className="absolute top-full right-0 mt-1 rounded-lg shadow-lg overflow-hidden z-50 min-w-[140px]" style={{ backgroundColor: 'var(--surface-0)', border: '1px solid var(--border)' }}>
+              {darkThemes.map((darkTheme) => (
+                <button
+                  key={darkTheme.value}
+                  type="button"
+                  onClick={() => {
+                    setTheme(darkTheme.value);
+                    setDarkDropdownOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-sm flex items-center gap-2 hover:bg-opacity-80 transition"
+                  style={{
+                    backgroundColor: theme === darkTheme.value ? 'var(--surface-1)' : 'transparent',
+                    color: theme === darkTheme.value ? 'var(--text-strong)' : 'var(--text-muted)',
+                  }}
+                >
+                  <Moon className="h-4 w-4" />
+                  <span>{darkTheme.label}</span>
+                  {darkTheme.color && (
+                    <span className="ml-auto h-2 w-2 rounded-full" style={{ backgroundColor: darkTheme.color }} />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <button
           type="button"
           onClick={() => setTheme('system')}
