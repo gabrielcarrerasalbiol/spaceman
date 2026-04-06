@@ -328,6 +328,54 @@ export default async function DashboardPage({
       {activeTab === 'main' && (
         <Card className="dashboard-rise-up border-2" style={{ borderColor: 'color-mix(in srgb, var(--border) 40%, transparent)' }}>
           <CardContent className="space-y-4 p-4 pt-3 md:p-5 md:pt-4">
+            <div className="grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+              {/* Operations Overview by Location - Compact Card */}
+              <Card className="dashboard-rise-up border shadow-sm" style={{ animationDelay: '60ms', borderColor: 'color-mix(in srgb, var(--border) 50%, transparent)' }}>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Operations by Location</CardTitle>
+                  <CardDescription className="text-xs">Choose a site to view its operational metrics.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <form method="get">
+                    <input type="hidden" name="tab" value="operations" />
+                    <select
+                      name="locationId"
+                      defaultValue={selectedLocationId}
+                      className="w-full h-9 rounded-xl border px-3 text-sm"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                    >
+                      {locations.map((location) => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="mt-2 w-full h-9 rounded-xl border px-3 text-sm font-medium text-white shadow-sm transition-opacity hover:opacity-90"
+                      style={{ borderColor: 'color-mix(in srgb, var(--dashboard-chip-end) 35%, transparent)', background: 'linear-gradient(90deg, var(--dashboard-chip-start) 0%, var(--dashboard-chip-end) 100%)' }}
+                    >
+                      View Operations
+                    </button>
+                  </form>
+                  {selectedLocation && (
+                    <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-muted)]">Units</span>
+                        <span className="font-semibold text-[var(--text-strong)]">{operationsScope.totalUnits}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-muted)]">Occupancy</span>
+                        <span className="font-semibold text-[var(--text-strong)]">{formatPercent(operationsScope.occupancyRate)}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-[var(--text-muted)]">Utilization</span>
+                        <span className="font-semibold text-[var(--text-strong)]">{formatPercent(operationsScope.utilizationRate)}</span>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="space-y-4">
           <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map((item, index) => {
               const Icon = item.icon;
@@ -475,6 +523,8 @@ export default async function DashboardPage({
               </CardContent>
             </Card>
           </section>
+              </div>
+            </div>
           </CardContent>
         </Card>
       )}
