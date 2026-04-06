@@ -36,12 +36,19 @@ export default function NotificationsPage() {
       return true;
     })
     .sort((a, b) => {
+      // Always show unread first, then apply sort order
+      if (a.read !== b.read) {
+        return a.read ? 1 : -1;
+      }
       if (sortOrder === 'newest') {
         return b.createdAt.getTime() - a.createdAt.getTime();
       } else {
         return a.createdAt.getTime() - b.createdAt.getTime();
       }
     });
+
+  const unreadNotifications = filteredNotifications.filter(n => !n.read);
+  const readNotifications = filteredNotifications.filter(n => n.read);
 
   return (
     <div className="space-y-6 pt-6">
@@ -164,73 +171,137 @@ export default function NotificationsPage() {
               <p className="text-sm text-[var(--text-muted)]">You're all caught up!</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              {filteredNotifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`group flex items-start gap-4 rounded-xl border p-4 transition-all hover:shadow-md ${
-                    !notification.read ? 'bg-opacity-50' : ''
-                  }`}
-                  style={{
-                    borderColor: 'var(--border)',
-                    backgroundColor: !notification.read ? 'var(--surface-1)' : 'var(--surface-0)',
-                  }}
-                >
-                  <div className={`mt-1 flex h-3 w-3 flex-shrink-0 rounded-full ${
-                    notification.type === 'warning' ? 'bg-amber-500' :
-                    notification.type === 'danger' ? 'bg-red-500' :
-                    notification.type === 'success' ? 'bg-green-500' :
-                    'bg-blue-500'
-                  }`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        <h4 className={`text-sm font-semibold ${
-                          !notification.read ? 'text-[var(--text-strong)]' : 'text-[var(--text-muted)]'
-                        }`}>
-                          {notification.title}
-                        </h4>
-                        <p className="text-sm mt-1 text-[var(--text-muted)]">
-                          {notification.message}
-                        </p>
-                        <p className="text-xs mt-2 text-[var(--text-muted)]">
-                          {formatRelativeTime(notification.createdAt)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {!notification.read && (
-                          <button
-                            onClick={() => handleMarkAsRead(notification.id)}
-                            className="rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-800"
-                            style={{ color: 'var(--text-muted)' }}
-                            title="Mark as read"
-                          >
-                            <Check className="h-4 w-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleDelete(notification.id)}
-                          className="rounded-lg p-2 transition hover:bg-red-50 dark:hover:bg-red-900/20"
-                          style={{ color: 'var(--danger)' }}
-                          title="Delete notification"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                    {notification.actionUrl && (
-                      <Link
-                        href={notification.actionUrl}
-                        onClick={() => !notification.read && handleMarkAsRead(notification.id)}
-                        className="mt-3 inline-flex items-center text-sm font-medium transition hover:underline"
-                        style={{ color: 'var(--primary)' }}
+            <div className="space-y-6">
+              {unreadNotifications.length > 0 && (
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-[var(--text-strong)]">
+                    Unread ({unreadNotifications.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {unreadNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className="group flex items-start gap-4 rounded-xl border p-4 transition-all hover:shadow-md"
+                        style={{
+                          borderColor: 'var(--border)',
+                          backgroundColor: 'var(--surface-1)',
+                        }}
                       >
-                        View →
-                      </Link>
-                    )}
+                        <div className={`mt-1 flex h-3 w-3 flex-shrink-0 rounded-full ${
+                          notification.type === 'warning' ? 'bg-amber-500' :
+                          notification.type === 'danger' ? 'bg-red-500' :
+                          notification.type === 'success' ? 'bg-green-500' :
+                          'bg-blue-500'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-[var(--text-strong)]">
+                                {notification.title}
+                              </h4>
+                              <p className="text-sm mt-1 text-[var(--text-muted)]">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs mt-2 text-[var(--text-muted)]">
+                                {formatRelativeTime(notification.createdAt)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleMarkAsRead(notification.id)}
+                                className="rounded-lg p-2 transition hover:bg-gray-100 dark:hover:bg-gray-800"
+                                style={{ color: 'var(--text-muted)' }}
+                                title="Mark as read"
+                              >
+                                <Check className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(notification.id)}
+                                className="rounded-lg p-2 transition hover:bg-red-50 dark:hover:bg-red-900/20"
+                                style={{ color: 'var(--danger)' }}
+                                title="Delete notification"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          {notification.actionUrl && (
+                            <Link
+                              href={notification.actionUrl}
+                              onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                              className="mt-3 inline-flex items-center text-sm font-medium transition hover:underline"
+                              style={{ color: 'var(--primary)' }}
+                            >
+                              View →
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
+              )}
+
+              {readNotifications.length > 0 && (
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-[var(--text-muted)]">
+                    Read ({readNotifications.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {readNotifications.map((notification) => (
+                      <div
+                        key={notification.id}
+                        className="group flex items-start gap-4 rounded-xl border p-4 transition-all hover:shadow-md"
+                        style={{
+                          borderColor: 'var(--border)',
+                          backgroundColor: 'var(--surface-0)',
+                        }}
+                      >
+                        <div className={`mt-1 flex h-3 w-3 flex-shrink-0 rounded-full opacity-40 ${
+                          notification.type === 'warning' ? 'bg-amber-500' :
+                          notification.type === 'danger' ? 'bg-red-500' :
+                          notification.type === 'success' ? 'bg-green-500' :
+                          'bg-blue-500'
+                        }`} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <h4 className="text-sm font-semibold text-[var(--text-muted)]">
+                                {notification.title}
+                              </h4>
+                              <p className="text-sm mt-1 text-[var(--text-muted)]">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs mt-2 text-[var(--text-muted)]">
+                                {formatRelativeTime(notification.createdAt)}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => handleDelete(notification.id)}
+                                className="rounded-lg p-2 transition hover:bg-red-50 dark:hover:bg-red-900/20"
+                                style={{ color: 'var(--danger)' }}
+                                title="Delete notification"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                          {notification.actionUrl && (
+                            <Link
+                              href={notification.actionUrl}
+                              className="mt-3 inline-flex items-center text-sm font-medium transition hover:underline"
+                              style={{ color: 'var(--text-muted)' }}
+                            >
+                              View →
+                            </Link>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
