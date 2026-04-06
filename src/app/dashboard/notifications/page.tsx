@@ -1,15 +1,22 @@
 'use client';
 
-import { Bell, Trash2, Check, CheckCheck } from 'lucide-react';
+import { Bell, Trash2, Check, CheckCheck, Filter, ArrowUpDown } from 'lucide-react';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { formatRelativeTime } from '@/components/dashboard-shell';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+
+type NotificationFilter = 'all' | 'unread' | 'read';
+type NotificationType = 'all' | 'warning' | 'info' | 'success' | 'danger';
+type SortOrder = 'newest' | 'oldest';
 
 export default function NotificationsPage() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
+  const [filterType, setFilterType] = useState<NotificationType>('all');
+  const [filterRead, setFilterRead] = useState<NotificationFilter>('all');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('newest');
 
   function handleMarkAsRead(id: string) {
     markAsRead(id);
@@ -20,6 +27,21 @@ export default function NotificationsPage() {
       deleteNotification(id);
     }
   }
+
+  const filteredNotifications = notifications
+    .filter((n) => {
+      if (filterType !== 'all' && n.type !== filterType) return false;
+      if (filterRead === 'unread' && n.read) return false;
+      if (filterRead === 'read' && !n.read) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortOrder === 'newest') {
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      } else {
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      }
+    });
 
   return (
     <div className="space-y-6 pt-6">
@@ -40,15 +62,102 @@ export default function NotificationsPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      <Card className="border-dashed">
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-[var(--text-muted)]" />
+              <span className="text-sm font-medium text-[var(--text-strong)]">Type:</span>
+              <div className="flex gap-1">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'warning', label: 'Warning' },
+                  { value: 'danger', label: 'Alert' },
+                  { value: 'success', label: 'Success' },
+                  { value: 'info', label: 'Info' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setFilterType(option.value as NotificationType)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium transition"
+                    style={{
+                      backgroundColor: filterType === option.value ? 'var(--primary)' : 'var(--surface-1)',
+                      color: filterType === option.value ? 'white' : 'var(--text-strong)',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-[var(--border)]" />
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-[var(--text-strong)]">Status:</span>
+              <div className="flex gap-1">
+                {[
+                  { value: 'all', label: 'All' },
+                  { value: 'unread', label: 'Unread' },
+                  { value: 'read', label: 'Read' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setFilterRead(option.value as NotificationFilter)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium transition"
+                    style={{
+                      backgroundColor: filterRead === option.value ? 'var(--primary)' : 'var(--surface-1)',
+                      color: filterRead === option.value ? 'white' : 'var(--text-strong)',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="h-6 w-px bg-[var(--border)]" />
+
+            <div className="flex items-center gap-2">
+              <ArrowUpDown className="h-4 w-4 text-[var(--text-muted)]" />
+              <span className="text-sm font-medium text-[var(--text-strong)]">Sort:</span>
+              <div className="flex gap-1">
+                {[
+                  { value: 'newest', label: 'Newest' },
+                  { value: 'oldest', label: 'Oldest' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setSortOrder(option.value as SortOrder)}
+                    className="rounded-lg px-3 py-1.5 text-xs font-medium transition"
+                    style={{
+                      backgroundColor: sortOrder === option.value ? 'var(--primary)' : 'var(--surface-1)',
+                      color: sortOrder === option.value ? 'white' : 'var(--text-strong)',
+                    }}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="ml-auto text-xs text-[var(--text-muted)]">
+              {filteredNotifications.length} of {notifications.length}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>All Notifications</CardTitle>
           <CardDescription>
-            {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
+            {filteredNotifications.length} of {notifications.length} notification{notifications.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {notifications.length === 0 ? (
+          {filteredNotifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Bell className="mb-4 h-16 w-16 opacity-20" style={{ color: 'var(--text-muted)' }} />
               <h3 className="text-lg font-semibold text-[var(--text-strong)]">No notifications</h3>
@@ -56,7 +165,7 @@ export default function NotificationsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {notifications.map((notification) => (
+              {filteredNotifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`group flex items-start gap-4 rounded-xl border p-4 transition-all hover:shadow-md ${
