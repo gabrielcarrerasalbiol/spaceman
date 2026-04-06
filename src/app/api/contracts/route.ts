@@ -11,15 +11,23 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search') || '';
+    const clientId = searchParams.get('clientId') || '';
 
     const contracts = await prisma.contract.findMany({
-      where: search
+      where: search || clientId
         ? {
-            OR: [
-              { contractNumber: { contains: search, mode: 'insensitive' } },
-              { client: { firstName: { contains: search, mode: 'insensitive' } } },
-              { client: { lastName: { contains: search, mode: 'insensitive' } } },
-              { unit: { code: { contains: search, mode: 'insensitive' } } },
+            AND: [
+              search
+                ? {
+                    OR: [
+                      { contractNumber: { contains: search, mode: 'insensitive' } },
+                      { client: { firstName: { contains: search, mode: 'insensitive' } } },
+                      { client: { lastName: { contains: search, mode: 'insensitive' } } },
+                      { unit: { code: { contains: search, mode: 'insensitive' } } },
+                    ],
+                  }
+                : {},
+              clientId ? { clientId } : {},
             ],
           }
         : undefined,

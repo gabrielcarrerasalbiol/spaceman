@@ -10,6 +10,23 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
 
+interface Contract {
+  id: string;
+  contractNumber: string;
+  status: string;
+  startDate: string;
+  endDate: string | null;
+  unit: {
+    code: string;
+    location: {
+      name: string;
+    };
+  };
+  location: {
+    name: string;
+  };
+}
+
 interface Client {
   id: string;
   firstName: string;
@@ -43,6 +60,8 @@ export default function ClientsPage() {
   const { isAdmin, loading: permissionsLoading } = usePermissions();
 
   const [clients, setClients] = useState<Client[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [contractsLoading, setContractsLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
@@ -60,6 +79,29 @@ export default function ClientsPage() {
   useEffect(() => {
     fetchClients();
   }, [search]);
+
+  useEffect(() => {
+    if (selectedClientId) {
+      fetchContracts(selectedClientId);
+    } else {
+      setContracts([]);
+    }
+  }, [selectedClientId]);
+
+  async function fetchContracts(clientId: string) {
+    try {
+      setContractsLoading(true);
+      const response = await fetch(`/api/contracts?clientId=${clientId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setContracts(data);
+      }
+    } catch (error) {
+      console.error('Failed to load contracts:', error);
+    } finally {
+      setContractsLoading(false);
+    }
+  }
 
   async function fetchClients() {
     try {
@@ -160,8 +202,8 @@ export default function ClientsPage() {
                     <div
                       key={client.id}
                       onClick={() => setSelectedClientId(client.id)}
-                      className={`flex cursor-pointer items-center gap-3 border-b border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-1)] ${
-                        isSelected ? 'bg-[var(--surface-1)] border-l-4 border-l-[var(--primary)]' : ''
+                      className={`flex cursor-pointer items-center gap-3 border-b border-[var(--border)] p-4 transition-all hover:bg-gray-50 ${
+                        isSelected ? 'bg-red-50 border-l-4 border-l-red-200' : ''
                       }`}
                     >
                       <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-sm font-semibold text-white">
@@ -193,8 +235,8 @@ export default function ClientsPage() {
         </Card>
 
         {/* Client Detail Panel */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
+        <Card className="lg:col-span-2 bg-gray-50 border-gray-200">
+          <CardHeader className="border-b border-gray-200">
             <CardTitle>Client Details</CardTitle>
             <CardDescription>View and manage selected client information.</CardDescription>
           </CardHeader>
@@ -249,7 +291,7 @@ export default function ClientsPage() {
                     </div>
 
                     {/* Contact Information */}
-                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-0)] p-6">
+                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                       <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Contact Information</h3>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <div>
@@ -263,8 +305,70 @@ export default function ClientsPage() {
                       </div>
                     </div>
 
+                    {/* Contracts */}
+                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Contracts</h3>
+                      {contractsLoading ? (
+                        <p className="text-center text-[var(--text-muted)]">Loading contracts...</p>
+                      ) : contracts.length === 0 ? (
+                        <p className="text-center text-[var(--text-muted)]">No contracts found</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {contracts.map((contract) => (
+                            <div
+                              key={contract.id}
+                              className="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 p-4 transition-colors hover:bg-gray-100"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <a
+                                    href={`/dashboard/contracts/${contract.id}/edit`}
+                                    className="text-sm font-semibold text-[var(--primary)] hover:underline"
+                                  >
+                                    {contract.contractNumber}
+                                  </a>
+                                  <Badge
+                                    variant={
+                                      contract.status === 'ACTIVE'
+                                        ? 'success'
+                                        : contract.status === 'PENDING'
+                                          ? 'warning'
+                                          : contract.status === 'EXPIRED'
+                                            ? 'danger'
+                                            : 'secondary'
+                                    }
+                                    className="text-xs"
+                                  >
+                                    {contract.status}
+                                  </Badge>
+                                </div>
+                                <div className="mt-1 text-xs text-[var(--text-muted)]">
+                                  <span>{contract.unit?.code}</span>
+                                  <span className="mx-2">•</span>
+                                  <span>{contract.location?.name}</span>
+                                  <span className="mx-2">•</span>
+                                  <span>
+                                    {new Date(contract.startDate).toLocaleDateString()}
+                                    {contract.endDate && ` - ${new Date(contract.endDate).toLocaleDateString()}`}
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => (window.location.href = `/dashboard/contracts/${contract.id}/edit`)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Actions */}
-                    <div className="flex justify-end gap-3 border-t border-[var(--border)] pt-6">
+                    <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
                       <Button variant="outline" onClick={() => setSelectedClientId(null)}>
                         Close
                       </Button>
