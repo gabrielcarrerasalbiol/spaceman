@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
 
@@ -150,48 +149,66 @@ export default function ClientsPage() {
               No clients found.
             </div>
           ) : (
-            <div className="rounded-xl border border-[var(--border)]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Email / Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Contracts</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {clients.map((client) => (
-                    <TableRow key={client.id}>
-                      <TableCell>
-                        <div className="font-medium">{client.firstName} {client.lastName}</div>
-                        {client.companyName && <div className="text-xs text-[var(--text-muted)]">{client.companyName}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <div>{client.email || '-'}</div>
-                        {client.phone && <div className="text-xs text-[var(--text-muted)]">{client.phone}</div>}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={client.status === 'ACTIVE' ? 'success' : client.status === 'LEAD' ? 'warning' : 'secondary'}>
-                          {client.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{client._count?.contracts || 0}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/clients/${client.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => deleteClient(client.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {clients.map((client) => {
+                const initials = `${client.firstName?.[0] || ''}${client.lastName?.[0] || ''}`.toUpperCase();
+                return (
+                  <div
+                    key={client.id}
+                    className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-0)] p-6 transition-all hover:shadow-lg hover:border-[var(--primary)]"
+                  >
+                    <div className="mb-4 flex items-center justify-between">
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-xl font-semibold text-white shadow-md">
+                        {initials || <UserRound className="h-8 w-8" />}
+                      </div>
+                      <Badge
+                        variant={client.status === 'ACTIVE' ? 'success' : client.status === 'LEAD' ? 'warning' : 'secondary'}
+                        className="text-xs"
+                      >
+                        {client.status}
+                      </Badge>
+                    </div>
+
+                    <div className="mb-1">
+                      <h3 className="text-lg font-semibold text-[var(--text-strong)]">
+                        {client.firstName} {client.lastName}
+                      </h3>
+                      {client.companyName && (
+                        <p className="text-sm text-[var(--text-muted)]">{client.companyName}</p>
+                      )}
+                    </div>
+
+                    <div className="mb-4 space-y-1 text-sm text-[var(--text-secondary)]">
+                      {client.email && <p className="truncate">{client.email}</p>}
+                      {client.phone && <p className="truncate">{client.phone}</p>}
+                    </div>
+
+                    <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
+                      <div className="text-sm text-[var(--text-muted)]">
+                        <span className="font-semibold text-[var(--text-strong)]">{client._count?.contracts || 0}</span> contracts
+                      </div>
+                      <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          onClick={() => (window.location.href = `/dashboard/clients/${client.id}/edit`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-[var(--danger)] hover:text-[var(--danger)]"
+                          onClick={() => deleteClient(client.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
