@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe, ChevronDown } from 'lucide-react';
+import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe, ChevronDown, Bell } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -10,6 +10,16 @@ import { useSettings } from '@/contexts/SettingsContext';
 type DashboardShellProps = {
   children: React.ReactNode;
 };
+
+interface Notification {
+  id: string;
+  type: 'warning' | 'info' | 'success' | 'danger';
+  title: string;
+  message: string;
+  createdAt: Date;
+  read: boolean;
+  actionUrl?: string;
+}
 
 const SIDEBAR_COLLAPSED_KEY = 'skeleton_sidebar_collapsed';
 
@@ -21,6 +31,27 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [permissionFlags, setPermissionFlags] = useState<Record<string, boolean> | null>(null);
   const [darkDropdownOpen, setDarkDropdownOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([
+    {
+      id: '1',
+      type: 'warning',
+      title: 'Contract Expiring Soon',
+      message: 'Contract CTR-20260403-4982 expires in 7 days',
+      createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 mins ago
+      read: false,
+      actionUrl: '/dashboard/contracts',
+    },
+    {
+      id: '2',
+      type: 'info',
+      title: 'New Client Added',
+      message: 'Steve Swoffer was added as a new client',
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+      read: false,
+      actionUrl: '/dashboard/clients',
+    },
+  ]);
 
   const darkThemes = [
     { value: 'dark-standard', label: 'Dark (standard)', color: undefined },
@@ -79,6 +110,19 @@ export default function DashboardShell({ children }: DashboardShellProps) {
     if (!permissionFlags) return defaultValue;
     if (key in permissionFlags) return Boolean(permissionFlags[key]);
     return defaultValue;
+  }
+
+  function formatRelativeTime(date: Date): string {
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return `${diffDays}d ago`;
   }
 
   const canSeeUsers = hasPermission('menus.users');
@@ -462,8 +506,103 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       {/* Main Content */}
       <main className="flex-1 lg:ml-[var(--sidebar-width)] min-h-screen overflow-x-hidden">
         {/* Desktop Header */}
-        <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center justify-end border-b px-6" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
-          <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--surface-2)' }}>
+        <header className="hidden lg:flex sticky top-0 z-30 h-16 items-center justify-between border-b px-6" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}>
+          <div className="flex-1"></div>
+          <div className="flex items-center gap-4">
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative rounded-lg p-2 transition"
+                style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-strong)' }}
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: 'var(--primary)' }}>
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-lg shadow-lg z-50" style={{ backgroundColor: 'var(--surface-0)', border: '1px solid var(--border)' }}>
+                  <div className="flex items-center justify-between border-b p-4" style={{ borderColor: 'var(--border)' }}>
+                    <h3 className="font-semibold" style={{ color: 'var(--text-strong)' }}>Notifications</h3>
+                    <button
+                      onClick={() => {
+                        setNotifications(notifications.map(n => ({ ...n, read: true })));
+                      }}
+                      className="text-xs transition hover:underline"
+                      style={{ color: 'var(--primary)' }}
+                    >
+                      Mark all read
+                    </button>
+                  </div>
+                  <div className="max-h-96 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-8 text-center" style={{ color: 'var(--text-muted)' }}>
+                        <Bell className="mx-auto mb-2 h-8 w-8 opacity-50" />
+                        <p>No notifications</p>
+                      </div>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={`border-b p-4 transition hover:bg-opacity-50 ${
+                            notification.read ? 'opacity-60' : ''
+                          }`}
+                          style={{ borderColor: 'var(--border)' }}
+                        >
+                          <div className="flex gap-3">
+                            <div className={`mt-0.5 flex h-2 w-2 flex-shrink-0 rounded-full ${
+                              notification.type === 'warning' ? 'bg-amber-500' :
+                              notification.type === 'danger' ? 'bg-red-500' :
+                              notification.type === 'success' ? 'bg-green-500' :
+                              'bg-blue-500'
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate" style={{ color: 'var(--text-strong)' }}>
+                                {notification.title}
+                              </p>
+                              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                                {notification.message}
+                              </p>
+                              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                                {formatRelativeTime(notification.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                          {notification.actionUrl && (
+                            <button
+                              onClick={() => {
+                                window.location.href = notification.actionUrl!;
+                              }}
+                              className="mt-2 text-xs font-medium transition hover:underline"
+                              style={{ color: 'var(--primary)' }}
+                            >
+                              View →
+                            </button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="border-t p-3 text-center" style={{ borderColor: 'var(--border)' }}>
+                    <button
+                      onClick={() => setNotificationsOpen(false)}
+                      className="text-xs transition hover:underline"
+                      style={{ color: 'var(--text-muted)' }}
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Theme Switcher */}
+            <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--surface-2)' }}>
             <button
               type="button"
               onClick={() => setTheme('light')}
@@ -528,6 +667,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             >
               <Monitor className="h-4 w-4" />
             </button>
+            </div>
           </div>
         </header>
 
@@ -563,7 +703,27 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             </Link>
           </div>
 
-          <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--surface-2)' }}>
+          <div className="flex items-center gap-2">
+            {/* Notifications */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative rounded-lg p-2 transition"
+                style={{ backgroundColor: 'var(--surface-2)', color: 'var(--text-strong)' }}
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: 'var(--primary)' }}>
+                    {notifications.filter(n => !n.read).length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {/* Theme Switcher */}
+            <div className="flex items-center gap-1 rounded-xl p-1" style={{ backgroundColor: 'var(--surface-2)' }}>
             <button
               type="button"
               onClick={() => setTheme('light')}
@@ -628,9 +788,10 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             >
               <Monitor className="h-4 w-4" />
             </button>
+            </div>
           </div>
         </header>
-        
+
         <div className="px-4 py-6 lg:px-8">
           {children}
         </div>
