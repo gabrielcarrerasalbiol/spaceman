@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Modal } from '@/components/ui/modal';
 import { usePermissions } from '@/hooks/usePermissions';
 import { formatUnitDisplayName, formatUnitSizeLabel } from '@/lib/unit-display';
@@ -17,14 +16,28 @@ interface Contract {
   contractNumber: string;
   status: 'DRAFT' | 'PENDING_SIGNATURE' | 'ACTIVE' | 'TERMINATED' | 'EXPIRED' | 'CANCELLED';
   startDate: string;
+  endDate: string | null;
+  weeklyRate: number | null;
+  monthlyRate: number | null;
+  depositAmount: number | null;
+  paymentMethod: string | null;
+  notes: string | null;
+  signedAt: string | null;
   client: {
+    id: string;
     firstName: string;
     lastName: string;
+    email: string | null;
+    phone: string | null;
   };
   unit: {
+    id: string;
     code: string;
+    sizeSqft: number | null;
+    unitNumber: number | null;
   };
   location: {
+    id: string;
     name: string;
   };
 }
@@ -73,6 +86,7 @@ export default function ContractsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
 
   const [clientId, setClientId] = useState('');
   const [unitId, setUnitId] = useState('');
@@ -204,72 +218,234 @@ export default function ContractsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Contracts</CardTitle>
-          <CardDescription>Track status and linked records.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 max-w-sm">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contracts..." className="pl-10" />
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Contract List */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>All Contracts</CardTitle>
+            <CardDescription>Search and select a contract to view details.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="p-6 pb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search contracts..." className="pl-10" />
+              </div>
             </div>
-          </div>
 
-          {loading ? (
-            <p className="py-8 text-center text-[var(--text-muted)]">Loading contracts...</p>
-          ) : contracts.length === 0 ? (
-            <div className="py-8 text-center text-[var(--text-muted)]">
-              <FileSignature className="mx-auto mb-3 h-10 w-10 opacity-50" />
-              No contracts found.
-            </div>
-          ) : (
-            <div className="rounded-xl border border-[var(--border)]">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Contract</TableHead>
-                    <TableHead>Client</TableHead>
-                    <TableHead>Unit</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contracts.map((contract) => (
-                    <TableRow key={contract.id}>
-                      <TableCell>
-                        <div className="font-medium">{contract.contractNumber}</div>
-                        <div className="text-xs text-[var(--text-muted)]">
-                          {new Date(contract.startDate).toLocaleDateString()}
+            {loading ? (
+              <p className="py-8 px-6 text-center text-[var(--text-muted)]">Loading contracts...</p>
+            ) : contracts.length === 0 ? (
+              <div className="py-8 px-6 text-center text-[var(--text-muted)]">
+                <FileSignature className="mx-auto mb-3 h-10 w-10 opacity-50" />
+                No contracts found.
+              </div>
+            ) : (
+              <div className="max-h-[600px] overflow-y-auto">
+                {contracts.map((contract) => {
+                  const isSelected = selectedContractId === contract.id;
+                  return (
+                    <div
+                      key={contract.id}
+                      onClick={() => setSelectedContractId(contract.id)}
+                      className={`flex cursor-pointer items-center gap-3 border-b border-[var(--border)] p-4 transition-all hover:bg-gray-50 ${
+                        isSelected ? 'bg-red-50 border-l-4 border-l-red-200' : ''
+                      }`}
+                    >
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-sm font-semibold text-white">
+                        <FileSignature className="h-6 w-6" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-[var(--text-strong)] truncate">
+                          {contract.contractNumber}
                         </div>
-                      </TableCell>
-                      <TableCell>{contract.client?.firstName} {contract.client?.lastName}</TableCell>
-                      <TableCell>{contract.unit?.code || '-'}</TableCell>
-                      <TableCell>{contract.location?.name || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={statusVariant[contract.status] || 'secondary'}>{contract.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" onClick={() => window.location.href = `/dashboard/contracts/${contract.id}/edit`}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="outline" size="sm" onClick={() => deleteContract(contract.id)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="text-xs text-[var(--text-muted)] truncate">
+                          {contract.client?.firstName} {contract.client?.lastName}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        <div className="mt-1 flex items-center gap-2">
+                          <Badge
+                            variant={statusVariant[contract.status] || 'secondary'}
+                            className="text-xs"
+                          >
+                            {contract.status}
+                          </Badge>
+                          <span className="text-xs text-[var(--text-muted)]">{contract.unit?.code}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Contract Detail Panel */}
+        <Card className="lg:col-span-2 bg-gray-50 border-gray-200">
+          <CardHeader className="border-b border-gray-200">
+            <CardTitle>Contract Details</CardTitle>
+            <CardDescription>View and manage selected contract information.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!selectedContractId ? (
+              <div className="flex h-[400px] items-center justify-center text-[var(--text-muted)]">
+                <div className="text-center">
+                  <FileSignature className="mx-auto mb-3 h-12 w-12 opacity-50" />
+                  <p>Select a contract from the list to view their details</p>
+                </div>
+              </div>
+            ) : (
+              (() => {
+                const contract = contracts.find((c) => c.id === selectedContractId);
+                if (!contract) return null;
+                return (
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h2 className="text-2xl font-bold text-[var(--text-strong)]">
+                          {contract.contractNumber}
+                        </h2>
+                        <div className="mt-2 flex items-center gap-3">
+                          <Badge variant={statusVariant[contract.status] || 'secondary'}>
+                            {contract.status}
+                          </Badge>
+                          <span className="text-sm text-[var(--text-muted)]">
+                            Created: {new Date(contract.startDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => (window.location.href = `/dashboard/contracts/${contract.id}/edit`)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button variant="outline" className="text-[var(--danger)]" onClick={() => deleteContract(contract.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Client Information */}
+                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Client Information</h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Name</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {contract.client?.firstName} {contract.client?.lastName}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Email</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{contract.client?.email || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Phone</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{contract.client?.phone || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Unit & Location Information */}
+                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Unit & Location</h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Unit</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{contract.unit?.code || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Location</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{contract.location?.name || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Size</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {contract.unit?.sizeSqft ? `${contract.unit.sizeSqft} sq ft` : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Unit Number</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{contract.unit?.unitNumber || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contract Dates */}
+                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Contract Dates</h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Start Date</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {new Date(contract.startDate).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">End Date</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {contract.endDate ? new Date(contract.endDate).toLocaleDateString() : 'Ongoing'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Financial Information */}
+                    <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                      <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Financial Information</h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Weekly Rate</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {contract.weeklyRate ? `£${contract.weeklyRate}` : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Monthly Rate</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {contract.monthlyRate ? `£${contract.monthlyRate}` : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Deposit</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">
+                            {contract.depositAmount ? `£${contract.depositAmount}` : '-'}
+                          </p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Payment Method</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{contract.paymentMethod || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notes */}
+                    {contract.notes && (
+                      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                        <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Notes</h3>
+                        <p className="text-sm text-[var(--text-secondary)]">{contract.notes}</p>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
+                      <Button variant="outline" onClick={() => setSelectedContractId(null)}>
+                        Close
+                      </Button>
+                      <Button onClick={() => (window.location.href = `/dashboard/contracts/${contract.id}/edit`)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Contract
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })()
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Create Contract" description="Link a client and unit to start a new contract." className="max-w-xl">
         <form onSubmit={handleCreate} className="space-y-4">
