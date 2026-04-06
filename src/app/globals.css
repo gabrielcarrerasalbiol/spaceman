@@ -42,6 +42,63 @@
     --dashboard-chip-start: #3b82f6;
     --dashboard-chip-end: #60a5fa;
   }
+
+  /* Standard Dark Theme (Blue-based) - Default */
+  html[data-theme='dark-standard'] {
+    --app-bg: #0f172a;
+    --surface-0: #1e293b;
+    --surface-1: #334155;
+    --surface-2: #475569;
+    --text-strong: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: #64748b;
+    --accent: #3b82f6;
+    --accent-strong: #60a5fa;
+    --accent-soft: #1e3a5f;
+    --success: #46c2a2;
+    --warning: #e1b86d;
+    --danger: #f87171;
+    --dashboard-chip-start: #3b82f6;
+    --dashboard-chip-end: #60a5fa;
+  }
+
+  /* Red Dark Theme */
+  html[data-theme='dark-red'] {
+    --app-bg: #1a0a0a;
+    --surface-0: #2d1515;
+    --surface-1: #3d1f1f;
+    --surface-2: #4d2a2a;
+    --text-strong: #faf5f5;
+    --text-muted: #a88a8a;
+    --border: #6b3a3a;
+    --accent: #dc2626;
+    --accent-strong: #f87171;
+    --accent-soft: #450a0a;
+    --success: #46c2a2;
+    --warning: #e1b86d;
+    --danger: #fca5a5;
+    --dashboard-chip-start: #dc2626;
+    --dashboard-chip-end: #f87171;
+  }
+
+  /* Emerald Dark Theme */
+  html[data-theme='dark-emerald'] {
+    --app-bg: #0a1a14;
+    --surface-0: #152d20;
+    --surface-1: #1f3d2a;
+    --surface-2: #2a4d35;
+    --text-strong: #f5faf7;
+    --text-muted: #8aa894;
+    --border: #3a6b4a;
+    --accent: #10b981;
+    --accent-strong: #34d399;
+    --accent-soft: #064e3b;
+    --success: #46c2a2;
+    --warning: #e1b86d;
+    --danger: #f87171;
+    --dashboard-chip-start: #10b981;
+    --dashboard-chip-end: #34d399;
+  }
 }
 
 body.sidebar-collapsed {
