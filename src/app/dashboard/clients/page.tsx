@@ -49,6 +49,7 @@ export default function ClientsPage() {
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!permissionsLoading && !isAdmin) {
@@ -128,91 +129,157 @@ export default function ClientsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>All Clients</CardTitle>
-          <CardDescription>Search and manage active customer accounts.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 max-w-sm">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
-              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clients..." className="pl-10" />
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Client List */}
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>All Clients</CardTitle>
+            <CardDescription>Search and select a client to view details.</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="p-6 pb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]" />
+                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search clients..." className="pl-10" />
+              </div>
             </div>
-          </div>
 
-          {loading ? (
-            <p className="py-8 text-center text-[var(--text-muted)]">Loading clients...</p>
-          ) : clients.length === 0 ? (
-            <div className="py-8 text-center text-[var(--text-muted)]">
-              <UserRound className="mx-auto mb-3 h-10 w-10 opacity-50" />
-              No clients found.
-            </div>
-          ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {clients.map((client) => {
+            {loading ? (
+              <p className="py-8 px-6 text-center text-[var(--text-muted)]">Loading clients...</p>
+            ) : clients.length === 0 ? (
+              <div className="py-8 px-6 text-center text-[var(--text-muted)]">
+                <UserRound className="mx-auto mb-3 h-10 w-10 opacity-50" />
+                No clients found.
+              </div>
+            ) : (
+              <div className="max-h-[600px] overflow-y-auto">
+                {clients.map((client) => {
+                  const initials = `${client.firstName?.[0] || ''}${client.lastName?.[0] || ''}`.toUpperCase();
+                  const isSelected = selectedClientId === client.id;
+                  return (
+                    <div
+                      key={client.id}
+                      onClick={() => setSelectedClientId(client.id)}
+                      className={`flex cursor-pointer items-center gap-3 border-b border-[var(--border)] p-4 transition-colors hover:bg-[var(--surface-1)] ${
+                        isSelected ? 'bg-[var(--surface-1)] border-l-4 border-l-[var(--primary)]' : ''
+                      }`}
+                    >
+                      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-sm font-semibold text-white">
+                        {initials || <UserRound className="h-6 w-6" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-[var(--text-strong)] truncate">
+                          {client.firstName} {client.lastName}
+                        </div>
+                        {client.companyName && (
+                          <div className="text-xs text-[var(--text-muted)] truncate">{client.companyName}</div>
+                        )}
+                        <div className="mt-1 flex items-center gap-2">
+                          <Badge
+                            variant={client.status === 'ACTIVE' ? 'success' : client.status === 'LEAD' ? 'warning' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {client.status}
+                          </Badge>
+                          <span className="text-xs text-[var(--text-muted)]">{client._count?.contracts || 0} contracts</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Client Detail Panel */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Client Details</CardTitle>
+            <CardDescription>View and manage selected client information.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!selectedClientId ? (
+              <div className="flex h-[400px] items-center justify-center text-[var(--text-muted)]">
+                <div className="text-center">
+                  <UserRound className="mx-auto mb-3 h-12 w-12 opacity-50" />
+                  <p>Select a client from the list to view their details</p>
+                </div>
+              </div>
+            ) : (
+              (() => {
+                const client = clients.find((c) => c.id === selectedClientId);
+                if (!client) return null;
                 const initials = `${client.firstName?.[0] || ''}${client.lastName?.[0] || ''}`.toUpperCase();
                 return (
-                  <div
-                    key={client.id}
-                    className="group relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--surface-0)] p-6 transition-all hover:shadow-lg hover:border-[var(--primary)]"
-                  >
-                    <div className="mb-4 flex items-center justify-between">
-                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-xl font-semibold text-white shadow-md">
-                        {initials || <UserRound className="h-8 w-8" />}
+                  <div className="space-y-6">
+                    {/* Header */}
+                    <div className="flex items-start gap-6">
+                      <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-[var(--primary)] to-[var(--primary-dark)] text-2xl font-semibold text-white shadow-lg">
+                        {initials || <UserRound className="h-10 w-10" />}
                       </div>
-                      <Badge
-                        variant={client.status === 'ACTIVE' ? 'success' : client.status === 'LEAD' ? 'warning' : 'secondary'}
-                        className="text-xs"
-                      >
-                        {client.status}
-                      </Badge>
-                    </div>
-
-                    <div className="mb-1">
-                      <h3 className="text-lg font-semibold text-[var(--text-strong)]">
-                        {client.firstName} {client.lastName}
-                      </h3>
-                      {client.companyName && (
-                        <p className="text-sm text-[var(--text-muted)]">{client.companyName}</p>
-                      )}
-                    </div>
-
-                    <div className="mb-4 space-y-1 text-sm text-[var(--text-secondary)]">
-                      {client.email && <p className="truncate">{client.email}</p>}
-                      {client.phone && <p className="truncate">{client.phone}</p>}
-                    </div>
-
-                    <div className="flex items-center justify-between border-t border-[var(--border)] pt-4">
-                      <div className="text-sm text-[var(--text-muted)]">
-                        <span className="font-semibold text-[var(--text-strong)]">{client._count?.contracts || 0}</span> contracts
+                      <div className="flex-1">
+                        <h2 className="text-2xl font-bold text-[var(--text-strong)]">
+                          {client.firstName} {client.lastName}
+                        </h2>
+                        {client.companyName && (
+                          <p className="text-lg text-[var(--text-muted)]">{client.companyName}</p>
+                        )}
+                        <div className="mt-2 flex items-center gap-3">
+                          <Badge
+                            variant={client.status === 'ACTIVE' ? 'success' : client.status === 'LEAD' ? 'warning' : 'secondary'}
+                          >
+                            {client.status}
+                          </Badge>
+                          <span className="text-sm text-[var(--text-muted)]">
+                            {client._count?.contracts || 0} contracts
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex gap-2 opacity-0 transition-opacity group-hover:opacity-100">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => (window.location.href = `/dashboard/clients/${client.id}/edit`)}
-                        >
-                          <Edit className="h-4 w-4" />
+                      <div className="flex gap-2">
+                        <Button variant="outline" onClick={() => (window.location.href = `/dashboard/clients/${client.id}/edit`)}>
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-[var(--danger)] hover:text-[var(--danger)]"
-                          onClick={() => deleteClient(client.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
+                        <Button variant="outline" className="text-[var(--danger)]" onClick={() => deleteClient(client.id)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
                         </Button>
                       </div>
+                    </div>
+
+                    {/* Contact Information */}
+                    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-0)] p-6">
+                      <h3 className="mb-4 text-lg font-semibold text-[var(--text-strong)]">Contact Information</h3>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Email</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{client.email || '-'}</p>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">Phone</label>
+                          <p className="mt-1 text-sm text-[var(--text-strong)]">{client.phone || '-'}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 border-t border-[var(--border)] pt-6">
+                      <Button variant="outline" onClick={() => setSelectedClientId(null)}>
+                        Close
+                      </Button>
+                      <Button onClick={() => (window.location.href = `/dashboard/clients/${client.id}/edit`)}>
+                        <Edit className="mr-2 h-4 w-4" />
+                        Edit Client
+                      </Button>
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              })()
+            )}
+          </CardContent>
+        </Card>
+      </div>
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Add Client" description="Create a new customer profile." className="max-w-2xl">
         <form onSubmit={handleCreate} className="space-y-5">
