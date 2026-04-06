@@ -6,20 +6,11 @@ import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, Use
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 
 type DashboardShellProps = {
   children: React.ReactNode;
 };
-
-interface Notification {
-  id: string;
-  type: 'warning' | 'info' | 'success' | 'danger';
-  title: string;
-  message: string;
-  createdAt: Date;
-  read: boolean;
-  actionUrl?: string;
-}
 
 const SIDEBAR_COLLAPSED_KEY = 'skeleton_sidebar_collapsed';
 
@@ -27,31 +18,12 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const { data: session } = useSession();
   const { theme, setTheme, resolvedTheme } = useTheme();
   const { settings } = useSettings();
+  const { notifications, unreadCount, markAllAsRead, markAsRead, deleteNotification } = useNotifications();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [permissionFlags, setPermissionFlags] = useState<Record<string, boolean> | null>(null);
   const [darkDropdownOpen, setDarkDropdownOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'warning',
-      title: 'Contract Expiring Soon',
-      message: 'Contract CTR-20260403-4982 expires in 7 days',
-      createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 mins ago
-      read: false,
-      actionUrl: '/dashboard/contracts',
-    },
-    {
-      id: '2',
-      type: 'info',
-      title: 'New Client Added',
-      message: 'Steve Swoffer was added as a new client',
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-      read: false,
-      actionUrl: '/dashboard/clients',
-    },
-  ]);
 
   const darkThemes = [
     { value: 'dark-standard', label: 'Dark (standard)', color: undefined },
@@ -321,6 +293,23 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <span className="sidebar-nav-label">WordPress</span>
               </Link>
             )}
+            <Link
+              href="/dashboard/notifications"
+              className="sidebar-nav-link relative flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/notifications';
+              }}
+            >
+              <Bell className="h-5 w-5" />
+              <span className="sidebar-nav-label">Notifications</span>
+              {unreadCount > 0 && (
+                <span className="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: getNotificationBadgeColor() }}>
+                  {unreadCount}
+                </span>
+              )}
+            </Link>
             {canSeeSettings && (
               <Link
                 href="/dashboard/settings"
@@ -496,6 +485,23 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               <span>WordPress</span>
             </Link>
           )}
+          <Link
+            href="/dashboard/notifications"
+            className="relative flex items-center gap-3 rounded-xl px-3 py-2 transition"
+            prefetch={true}
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.href = '/dashboard/notifications';
+            }}
+          >
+            <Bell className="h-5 w-5" />
+            <span>Notifications</span>
+            {unreadCount > 0 && (
+              <span className="absolute right-2 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: getNotificationBadgeColor() }}>
+                {unreadCount}
+              </span>
+            )}
+          </Link>
           {canSeeSettings && (
             <Link
               href="/dashboard/settings"
@@ -536,9 +542,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 aria-label="Notifications"
               >
                 <Bell className="h-4 w-4" />
-                {notifications.filter(n => !n.read).length > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: getNotificationBadgeColor() }}>
-                    {notifications.filter(n => !n.read).length}
+                    {unreadCount}
                   </span>
                 )}
               </button>
@@ -546,15 +552,25 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 <div className="absolute right-0 top-full mt-2 w-80 rounded-lg shadow-lg z-50" style={{ backgroundColor: 'var(--surface-0)', border: '1px solid var(--border)' }}>
                   <div className="flex items-center justify-between border-b p-4" style={{ borderColor: 'var(--border)' }}>
                     <h3 className="font-semibold" style={{ color: 'var(--text-strong)' }}>Notifications</h3>
-                    <button
-                      onClick={() => {
-                        setNotifications(notifications.map(n => ({ ...n, read: true })));
-                      }}
-                      className="text-xs transition hover:underline"
-                      style={{ color: 'var(--primary)' }}
-                    >
-                      Mark all read
-                    </button>
+                    <div className="flex items-center gap-3">
+                      {unreadCount > 0 && (
+                        <button
+                          onClick={() => markAllAsRead()}
+                          className="text-xs transition hover:underline"
+                          style={{ color: 'var(--primary)' }}
+                        >
+                          Mark all read
+                        </button>
+                      )}
+                      <Link
+                        href="/dashboard/notifications"
+                        className="text-xs transition hover:underline"
+                        style={{ color: 'var(--text-muted)' }}
+                        onClick={() => setNotificationsOpen(false)}
+                      >
+                        View all
+                      </Link>
+                    </div>
                   </div>
                   <div className="max-h-96 overflow-y-auto">
                     {notifications.length === 0 ? (
@@ -563,13 +579,19 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                         <p>No notifications</p>
                       </div>
                     ) : (
-                      notifications.map((notification) => (
+                      notifications.slice(0, 5).map((notification) => (
                         <div
                           key={notification.id}
-                          className={`border-b p-4 transition hover:bg-opacity-50 ${
+                          className={`border-b p-4 transition hover:bg-opacity-50 cursor-pointer ${
                             notification.read ? 'opacity-60' : ''
                           }`}
                           style={{ borderColor: 'var(--border)' }}
+                          onClick={() => {
+                            if (!notification.read) markAsRead(notification.id);
+                            if (notification.actionUrl) {
+                              window.location.href = notification.actionUrl;
+                            }
+                          }}
                         >
                           <div className="flex gap-3">
                             <div className={`mt-0.5 flex h-2 w-2 flex-shrink-0 rounded-full ${
@@ -590,29 +612,19 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                               </p>
                             </div>
                           </div>
-                          {notification.actionUrl && (
-                            <button
-                              onClick={() => {
-                                window.location.href = notification.actionUrl!;
-                              }}
-                              className="mt-2 text-xs font-medium transition hover:underline"
-                              style={{ color: 'var(--primary)' }}
-                            >
-                              View →
-                            </button>
-                          )}
                         </div>
                       ))
                     )}
                   </div>
                   <div className="border-t p-3 text-center" style={{ borderColor: 'var(--border)' }}>
-                    <button
-                      onClick={() => setNotificationsOpen(false)}
+                    <Link
+                      href="/dashboard/notifications"
                       className="text-xs transition hover:underline"
-                      style={{ color: 'var(--text-muted)' }}
+                      style={{ color: 'var(--primary)' }}
+                      onClick={() => setNotificationsOpen(false)}
                     >
-                      Close
-                    </button>
+                      View all notifications →
+                    </Link>
                   </div>
                 </div>
               )}
@@ -731,9 +743,9 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 aria-label="Notifications"
               >
                 <Bell className="h-4 w-4" />
-                {notifications.filter(n => !n.read).length > 0 && (
+                {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: getNotificationBadgeColor() }}>
-                    {notifications.filter(n => !n.read).length}
+                    {unreadCount}
                   </span>
                 )}
               </button>
@@ -815,4 +827,18 @@ export default function DashboardShell({ children }: DashboardShellProps) {
       </main>
     </div>
   );
+}
+
+// Export utility function for use in other components
+export function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'Just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
 }

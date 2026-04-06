@@ -1,6 +1,7 @@
 'use client';
 
 import DashboardShell from '@/components/dashboard-shell';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 
 export default function DashboardLayout({
   children,
@@ -8,6 +9,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <DashboardShell>{children}</DashboardShell>
+    <NotificationsProvider>
+      <DashboardShell>{children}</DashboardShell>
+    </NotificationsProvider>
   );
 }
