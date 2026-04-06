@@ -125,6 +125,23 @@ export default function DashboardShell({ children }: DashboardShellProps) {
     return `${diffDays}d ago`;
   }
 
+  function getNotificationBadgeColor(): string {
+    switch (theme) {
+      case 'dark-red':
+        return '#ef4444';
+      case 'dark-emerald':
+        return '#10b981';
+      case 'dark-standard':
+        return '#3b82f6';
+      case 'light':
+        return '#3b82f6';
+      case 'system':
+        return '#3b82f6';
+      default:
+        return '#3b82f6';
+    }
+  }
+
   const canSeeUsers = hasPermission('menus.users');
   const canSeeLocations = hasPermission('menus.locations');
   const canSeeUnits = hasPermission('menus.units');
@@ -520,7 +537,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               >
                 <Bell className="h-4 w-4" />
                 {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: 'var(--primary)' }}>
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: getNotificationBadgeColor() }}>
                     {notifications.filter(n => !n.read).length}
                   </span>
                 )}
@@ -715,7 +732,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               >
                 <Bell className="h-4 w-4" />
                 {notifications.filter(n => !n.read).length > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: 'var(--primary)' }}>
+                  <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-xs font-semibold text-white" style={{ backgroundColor: getNotificationBadgeColor() }}>
                     {notifications.filter(n => !n.read).length}
                   </span>
                 )}
