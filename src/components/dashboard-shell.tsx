@@ -471,11 +471,11 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             </button>
             <button
               type="button"
-              onClick={() => setTheme('dark')}
+              onClick={() => setTheme('dark-standard')}
               className="rounded-lg p-2 transition"
               style={{
-                backgroundColor: theme === 'dark' ? 'var(--surface-0)' : 'transparent',
-                color: theme === 'dark' ? 'var(--text-strong)' : 'var(--text-muted)',
+                backgroundColor: theme === 'dark-standard' ? 'var(--surface-0)' : 'transparent',
+                color: theme === 'dark-standard' ? 'var(--text-strong)' : 'var(--text-muted)',
               }}
               aria-label="Dark mode"
             >
@@ -543,11 +543,11 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             </button>
             <button
               type="button"
-              onClick={() => setTheme('dark')}
+              onClick={() => setTheme('dark-standard')}
               className="rounded-lg p-2 transition"
               style={{
-                backgroundColor: theme === 'dark' ? 'var(--surface-0)' : 'transparent',
-                color: theme === 'dark' ? 'var(--text-strong)' : 'var(--text-muted)',
+                backgroundColor: theme === 'dark-standard' ? 'var(--surface-0)' : 'transparent',
+                color: theme === 'dark-standard' ? 'var(--text-strong)' : 'var(--text-muted)',
               }}
               aria-label="Dark mode"
             >

@@ -26,10 +26,12 @@ export default function RootLayout({
               const saved = localStorage.getItem('skeleton_theme');
               const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
               let theme = 'light';
-              if (saved === 'light' || saved === 'dark') {
+              if (saved === 'light' || saved === 'dark-standard' || saved === 'dark-red' || saved === 'dark-emerald') {
                 theme = saved;
+              } else if (saved === 'dark') {
+                theme = 'dark-standard';
               } else if (saved === 'system' || !saved) {
-                theme = prefersDark ? 'dark' : 'light';
+                theme = prefersDark ? 'dark-standard' : 'light';
               }
               document.documentElement.setAttribute('data-theme', theme);
             } catch {
