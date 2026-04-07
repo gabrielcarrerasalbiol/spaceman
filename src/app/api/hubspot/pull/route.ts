@@ -46,6 +46,33 @@ async function fetchDealPipelineMetadata(apiKey: string): Promise<DealPipelineMe
   return { pipelineLabelById, stageLabelById };
 }
 
+async function fetchDealStagePropertyLabels(apiKey: string): Promise<Record<string, string>> {
+  const response = await fetch('https://api.hubapi.com/crm/v3/properties/deals/dealstage', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return {};
+  }
+
+  const data = await response.json();
+  const options = data.options || [];
+  const labelsByValue: Record<string, string> = {};
+
+  for (const option of options) {
+    const value = String(option?.value || '').trim();
+    const label = String(option?.label || '').trim();
+    if (value && label) {
+      labelsByValue[value] = label;
+    }
+  }
+
+  return labelsByValue;
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -194,6 +221,7 @@ export async function POST(request: Request) {
 
     let pipelineLabelById: Record<string, string> = {};
     let stageLabelById: Record<string, string> = {};
+    let stageLabelByPropertyValue: Record<string, string> = {};
 
     try {
       const metadata = await fetchDealPipelineMetadata(apiKey);
@@ -201,6 +229,13 @@ export async function POST(request: Request) {
       stageLabelById = metadata.stageLabelById;
     } catch (metadataError) {
       console.error('Unable to resolve pipeline/stage labels from HubSpot:', metadataError);
+      // Keep syncing and fall back to raw IDs.
+    }
+
+    try {
+      stageLabelByPropertyValue = await fetchDealStagePropertyLabels(apiKey);
+    } catch (metadataError) {
+      console.error('Unable to resolve dealstage property labels from HubSpot:', metadataError);
       // Keep syncing and fall back to raw IDs.
     }
 
@@ -228,10 +263,10 @@ export async function POST(request: Request) {
         throw new Error(`HubSpot API error: ${error}`);
       }
 
-        const data = await response.json();
-        allDeals = [...allDeals, ...data.results];
-        after = data.paging?.next?.after;
-        totalProcessed += data.results?.length || 0;
+      const data = await response.json();
+      allDeals = [...allDeals, ...data.results];
+      after = data.paging?.next?.after;
+      totalProcessed += data.results?.length || 0;
 
     } while (after);
 
@@ -243,7 +278,7 @@ export async function POST(request: Request) {
       const dealData = {
         dealName: properties.dealname || '',
         amount: properties.amount ? parseFloat(properties.amount) : null,
-        dealStage: stageLabelById[stageId] || stageId,
+        dealStage: stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId,
         pipeline: pipelineLabelById[pipelineId] || pipelineId,
         closeDate: properties.closedate ? new Date(properties.closedate) : null,
         owner: properties.hubspot_owner_id || null,
