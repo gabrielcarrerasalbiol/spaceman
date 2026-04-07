@@ -20,14 +20,15 @@ async function getOrCreateSettingsRow() {
   });
 }
 
-async function fetchOwnerLabels(apiKey: string): Promise<Record<string, string>> {
+async function fetchOwnerLabels(apiKey: string): Promise<{ labelsById: Record<string, string>; errors: string[] }> {
   const labelsById: Record<string, string> = {};
+  const errors: string[] = [];
 
   async function fetchOwnerPageSet(archived: boolean): Promise<void> {
     let after: string | undefined;
 
     do {
-      const url = new URL('https://api.hubapi.com/crm/v3/owners/');
+      const url = new URL('https://api.hubapi.com/crm/v3/owners');
       url.searchParams.append('limit', '500');
       url.searchParams.append('archived', String(archived));
       if (after) {
@@ -42,6 +43,8 @@ async function fetchOwnerLabels(apiKey: string): Promise<Record<string, string>>
       });
 
       if (!response.ok) {
+        const body = await response.text();
+        errors.push(`owners list archived=${archived} status=${response.status} body=${body.slice(0, 200)}`);
         return;
       }
 
@@ -72,35 +75,44 @@ async function fetchOwnerLabels(apiKey: string): Promise<Record<string, string>>
   await fetchOwnerPageSet(false);
   await fetchOwnerPageSet(true);
 
-  return labelsById;
+  return { labelsById, errors };
 }
 
-async function fetchOwnerLabelById(apiKey: string, ownerIdOrUserId: string): Promise<string | null> {
+async function fetchOwnerLabelById(apiKey: string, ownerIdOrUserId: string): Promise<{ label: string | null; errors: string[] }> {
   const normalized = String(ownerIdOrUserId || '').trim();
-  if (!normalized) return null;
+  if (!normalized) return { label: null, errors: [] };
+
+  const errors: string[] = [];
 
   for (const idProperty of ['id', 'userId']) {
-    const url = new URL(`https://api.hubapi.com/crm/v3/owners/${normalized}`);
-    url.searchParams.append('idProperty', idProperty);
+    for (const archived of ['false', 'true']) {
+      const url = new URL(`https://api.hubapi.com/crm/v3/owners/${normalized}`);
+      url.searchParams.append('idProperty', idProperty);
+      url.searchParams.append('archived', archived);
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    if (!response.ok) continue;
+      if (!response.ok) {
+        const body = await response.text();
+        errors.push(`owner ${normalized} idProperty=${idProperty} archived=${archived} status=${response.status} body=${body.slice(0, 120)}`);
+        continue;
+      }
 
-    const owner = await response.json();
-    const firstName = String(owner?.firstName || '').trim();
-    const lastName = String(owner?.lastName || '').trim();
-    const fullName = `${firstName} ${lastName}`.trim();
-    const email = String(owner?.email || '').trim();
-    return fullName || email || normalized;
+      const owner = await response.json();
+      const firstName = String(owner?.firstName || '').trim();
+      const lastName = String(owner?.lastName || '').trim();
+      const fullName = `${firstName} ${lastName}`.trim();
+      const email = String(owner?.email || '').trim();
+      return { label: fullName || email || normalized, errors };
+    }
   }
 
-  return null;
+  return { label: null, errors };
 }
 
 export async function POST() {
@@ -125,7 +137,7 @@ export async function POST() {
     }
 
     const apiKey = hubspotConfig.apiKey;
-    const labelsById = await fetchOwnerLabels(apiKey);
+    const { labelsById, errors: listFetchErrors } = await fetchOwnerLabels(apiKey);
 
     const distinctOwnerRows = await (prisma as any).hubSpotDeal.findMany({
       where: { owner: { not: null } },
@@ -139,14 +151,25 @@ export async function POST() {
 
     let resolved = 0;
     let updated = 0;
+    let directLookupResolved = 0;
+    const lookupErrors: string[] = [];
+    const unresolvedOwnerIds: string[] = [];
 
     for (const ownerId of ownerIds) {
       let label = labelsById[ownerId] || null;
       if (!label) {
-        label = await fetchOwnerLabelById(apiKey, ownerId);
+        const lookup = await fetchOwnerLabelById(apiKey, ownerId);
+        label = lookup.label;
+        if (lookup.errors.length > 0) {
+          lookupErrors.push(...lookup.errors);
+        }
+        if (label) {
+          directLookupResolved += 1;
+        }
       }
 
       if (!label || label === ownerId) {
+        unresolvedOwnerIds.push(ownerId);
         continue;
       }
 
@@ -168,6 +191,13 @@ export async function POST() {
       resolvedOwners: resolved,
       updatedDeals: updated,
       checkedOwnerIds: ownerIds.length,
+      directLookupResolved,
+      unresolvedOwnerIds: unresolvedOwnerIds.slice(0, 25),
+      ownerLabelMapCount: Object.keys(labelsById).length,
+      listFetchErrorCount: listFetchErrors.length,
+      listFetchErrors: listFetchErrors.slice(0, 5),
+      lookupErrorCount: lookupErrors.length,
+      lookupErrors: lookupErrors.slice(0, 5),
     });
   } catch (error) {
     console.error('Error refreshing HubSpot owner labels:', error);
