@@ -226,15 +226,54 @@ async function upsertDealsInBatches(
   const dealChunks = chunkArray(deals, UPSERT_BATCH_SIZE);
 
   for (const chunk of dealChunks) {
-    const operations = chunk.map((deal: any) => {
+    const chunkIds = chunk.map((deal: any) => deal.id);
+    const existingDeals = await prisma.hubSpotDeal.findMany({
+      where: {
+        id: {
+          in: chunkIds,
+        },
+      },
+      select: {
+        id: true,
+        dealStage: true,
+      },
+    });
+
+    const existingById = new Map(existingDeals.map((deal) => [deal.id, deal]));
+
+    const createOperations: Array<Promise<any>> = [];
+    const updateStageOperations: Array<Promise<any>> = [];
+
+    for (const deal of chunk) {
       const properties = deal.properties;
       const stageId = properties.dealstage || '';
       const pipelineId = properties.pipeline || '';
       const ownerId = String(properties.hubspot_owner_id || '').trim();
+      const resolvedStage = stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId;
+
+      const existing = existingById.get(deal.id);
+
+      // Existing deals keep their existing data; only stage is refreshed.
+      if (existing) {
+        if (existing.dealStage !== resolvedStage) {
+          updateStageOperations.push(
+            prisma.hubSpotDeal.update({
+              where: { id: deal.id },
+              data: {
+                dealStage: resolvedStage,
+                lastSyncedAt: new Date(),
+              },
+            })
+          );
+        }
+
+        continue;
+      }
+
       const dealData = {
         dealName: properties.dealname || '',
         amount: properties.amount ? parseFloat(properties.amount) : null,
-        dealStage: stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId,
+        dealStage: resolvedStage,
         pipeline: pipelineLabelById[pipelineId] || pipelineId,
         closeDate: properties.closedate ? new Date(properties.closedate) : null,
         owner: ownerLabelById[ownerId] || ownerId || null,
@@ -251,17 +290,23 @@ async function upsertDealsInBatches(
         lastSyncedAt: new Date(),
       };
 
-      return prisma.hubSpotDeal.upsert({
-        where: { id: deal.id },
-        update: dealData,
-        create: {
-          id: deal.id,
-          ...dealData,
-        },
-      });
-    });
+      createOperations.push(
+        prisma.hubSpotDeal.create({
+          data: {
+            id: deal.id,
+            ...dealData,
+          },
+        })
+      );
+    }
 
-    await Promise.all(operations);
+    if (createOperations.length > 0) {
+      await Promise.all(createOperations);
+    }
+
+    if (updateStageOperations.length > 0) {
+      await Promise.all(updateStageOperations);
+    }
   }
 }
 
@@ -434,9 +479,15 @@ export async function POST(request: Request) {
     }
 
     const apiKey = hubspotConfig.apiKey;
+    const body = await request.json().catch(() => ({} as any));
+    const initialAfter = typeof body?.after === 'string' && body.after.length > 0
+      ? body.after
+      : undefined;
+    const maxPages = Math.min(Math.max(Number(body?.maxPages) || 2, 1), 10);
 
-    let after: string | undefined = undefined;
+    let after: string | undefined = initialAfter;
     let totalProcessed = 0;
+    let pagesProcessed = 0;
 
     let pipelineLabelById: Record<string, string> = {};
     let stageLabelById: Record<string, string> = {};
@@ -466,7 +517,7 @@ export async function POST(request: Request) {
       // Keep syncing and fall back to raw IDs.
     }
 
-    // Fetch all deals with pagination
+    // Fetch a bounded number of pages to keep request runtime short.
     do {
       const url = new URL('https://api.hubapi.com/crm/v3/objects/deals');
       // HubSpot limits to 50 when using propertiesWithHistory
@@ -514,25 +565,34 @@ export async function POST(request: Request) {
       );
       after = data.paging?.next?.after;
       totalProcessed += pageDeals.length;
+      pagesProcessed += 1;
 
-    } while (after);
+    } while (after && pagesProcessed < maxPages);
 
-    // Update last sync time in settings
-    await prisma.settings.update({
-      where: { id: settings.id },
-      data: {
-        hubspotConfig: {
-          ...hubspotConfig,
-          lastSync: new Date().toISOString(),
-        } as any,
-      },
-    });
+    const hasMore = Boolean(after);
+
+    // Only mark sync complete when no more pages remain.
+    if (!hasMore) {
+      await prisma.settings.update({
+        where: { id: settings.id },
+        data: {
+          hubspotConfig: {
+            ...hubspotConfig,
+            lastSync: new Date().toISOString(),
+          } as any,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Successfully synced HubSpot deals',
+      message: hasMore ? 'Processed sync batch' : 'Successfully synced HubSpot deals',
+      processedThisRun: totalProcessed,
       totalProcessed,
       totalDeals: totalProcessed,
+      pagesProcessed,
+      hasMore,
+      nextAfter: after || null,
     });
   } catch (error) {
     console.error('Error syncing HubSpot deals:', error);

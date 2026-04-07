@@ -89,6 +89,23 @@ interface HubSpotDealDetails {
   properties?: Record<string, unknown>;
 }
 
+interface SyncBatchResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  processedThisRun?: number;
+  pagesProcessed?: number;
+  hasMore?: boolean;
+  nextAfter?: string | null;
+}
+
+interface SyncProgressState {
+  processed: number;
+  pages: number;
+  startedAt: number;
+  recordsPerMinute: number;
+}
+
 interface ImportLocationMatchInfo {
   extractedLocationName: string;
   matchedLocationName: string | null;
@@ -179,6 +196,7 @@ export default function HubSpotDealsPage() {
   const [importData, setImportData] = useState<any>(null);
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importLocationMatch, setImportLocationMatch] = useState<ImportLocationMatchInfo | null>(null);
+  const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null);
 
   // Import form state
   const [importForm, setImportForm] = useState({
@@ -491,16 +509,56 @@ export default function HubSpotDealsPage() {
     setSyncing(true);
     setError(null);
     setSuccess(null);
+    const startedAt = Date.now();
+    setSyncProgress({
+      processed: 0,
+      pages: 0,
+      startedAt,
+      recordsPerMinute: 0,
+    });
 
     try {
-      const response = await fetch('/api/hubspot/pull', { method: 'POST' });
-      const payload = await response.json();
+      let hasMore = true;
+      let nextAfter: string | null = null;
+      let processedTotal = 0;
+      let pagesTotal = 0;
 
-      if (!response.ok) {
-        throw new Error(payload?.error || 'Failed to sync HubSpot deals');
+      while (hasMore) {
+        const response = await fetch('/api/hubspot/pull', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            after: nextAfter,
+            maxPages: 2,
+          }),
+        });
+
+        const payload: SyncBatchResponse = await response.json();
+
+        if (!response.ok) {
+          throw new Error(payload?.error || 'Failed to sync HubSpot deals');
+        }
+
+        const batchProcessed = payload.processedThisRun || 0;
+        const batchPages = payload.pagesProcessed || 0;
+        processedTotal += batchProcessed;
+        pagesTotal += batchPages;
+
+        const elapsedMinutes = Math.max((Date.now() - startedAt) / 60000, 1 / 60);
+        const recordsPerMinute = Math.round(processedTotal / elapsedMinutes);
+
+        setSyncProgress({
+          processed: processedTotal,
+          pages: pagesTotal,
+          startedAt,
+          recordsPerMinute,
+        });
+
+        hasMore = Boolean(payload.hasMore);
+        nextAfter = payload.nextAfter || null;
       }
 
-      setSuccess(`Successfully synced ${payload?.totalDeals ?? 0} deals from HubSpot`);
+      setSuccess(`Successfully synced ${processedTotal} deals from HubSpot`);
       setCurrentPage(1);
       await fetchDeals();
     } catch (err: unknown) {
@@ -508,6 +566,7 @@ export default function HubSpotDealsPage() {
       setError(message);
     } finally {
       setSyncing(false);
+      setSyncProgress(null);
     }
   }
 
@@ -874,11 +933,24 @@ export default function HubSpotDealsPage() {
         description="Fetching and updating records from HubSpot."
         className="max-w-md"
       >
-        <div className="flex items-center gap-3 py-1">
-          <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
-          <p className="text-sm text-muted-foreground">
-            Please keep this page open. Large accounts can take a little longer.
-          </p>
+        <div className="space-y-3 py-1">
+          <div className="flex items-center gap-3">
+            <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Please keep this page open. Large accounts can take a little longer.
+            </p>
+          </div>
+          <div className="rounded-md border bg-muted/40 p-3 text-sm">
+            <p>Records processed: <strong>{syncProgress?.processed ?? 0}</strong></p>
+            <p>Batches completed: <strong>{syncProgress?.pages ?? 0}</strong></p>
+            <p>
+              Elapsed: <strong>{syncProgress ? Math.floor((Date.now() - syncProgress.startedAt) / 1000) : 0}s</strong>
+            </p>
+            <p>Rate: <strong>{syncProgress?.recordsPerMinute ?? 0} records/min</strong></p>
+            <p className="text-xs text-muted-foreground mt-1">
+              ETA is approximate and depends on remaining HubSpot pages.
+            </p>
+          </div>
         </div>
       </Modal>
 
