@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
+async function getOrCreateSettingsRow() {
+  const byDefaultId = await prisma.settings.findUnique({
+    where: { id: 'default' },
+  });
+  if (byDefaultId) return byDefaultId;
+
+  const existing = await prisma.settings.findFirst({
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (existing) return existing;
+
+  return prisma.settings.create({
+    data: {
+      id: 'default',
+    },
+  });
+}
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -22,12 +40,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // Get current settings
-    const settings = await prisma.settings.findFirst({
-      where: { id: 'default' },
-    });
+    // Resolve the active settings row (legacy installs may not use id="default").
+    const settings = await getOrCreateSettingsRow();
 
-    const currentConfig = (settings?.hubspotConfig as any) || {};
+    const currentConfig = (settings.hubspotConfig as any) || {};
 
     // Update HubSpot configuration
     const hubspotConfig = {
@@ -38,7 +54,7 @@ export async function POST(request: Request) {
     };
 
     await prisma.settings.update({
-      where: { id: 'default' },
+      where: { id: settings.id },
       data: {
         hubspotConfig: hubspotConfig as any,
       },

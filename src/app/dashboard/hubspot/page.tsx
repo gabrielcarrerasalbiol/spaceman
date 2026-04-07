@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Building2, RefreshCw, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
 import Link from 'next/link';
-import DashboardShell from '@/components/dashboard-shell';
 import { useSettings } from '@/contexts/SettingsContext';
 
 interface HubSpotDeal {
@@ -81,33 +80,30 @@ export default function HubSpotDealsPage() {
 
   if (!isEnabled) {
     return (
-      <DashboardShell>
-        <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold">HubSpot Deals</h1>
-            <p className="text-muted-foreground">View and manage your HubSpot CRM deals</p>
-          </div>
-
-          <Card>
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <Settings className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">HubSpot Integration Not Configured</h3>
-              <p className="text-sm text-muted-foreground text-center mb-4">
-                Please configure your HubSpot API credentials in settings to enable this feature.
-              </p>
-              <Link href="/dashboard/settings?tab=hubspot">
-                <Button>Go to Settings</Button>
-              </Link>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold">HubSpot Deals</h1>
+          <p className="text-muted-foreground">View and manage your HubSpot CRM deals</p>
         </div>
-      </DashboardShell>
+
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Settings className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-semibold mb-2">HubSpot Integration Not Configured</h3>
+            <p className="text-sm text-muted-foreground text-center mb-4">
+              Please configure your HubSpot API credentials in settings to enable this feature.
+            </p>
+            <Link href="/dashboard/settings?tab=hubspot">
+              <Button>Go to Settings</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
   return (
-    <DashboardShell>
-      <div className="space-y-6">
+    <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -220,6 +216,5 @@ export default function HubSpotDealsPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardShell>
   );
 }

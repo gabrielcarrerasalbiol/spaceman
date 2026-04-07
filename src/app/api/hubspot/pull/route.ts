@@ -2,6 +2,24 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
+async function getOrCreateSettingsRow() {
+  const byDefaultId = await prisma.settings.findUnique({
+    where: { id: 'default' },
+  });
+  if (byDefaultId) return byDefaultId;
+
+  const existing = await prisma.settings.findFirst({
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (existing) return existing;
+
+  return prisma.settings.create({
+    data: {
+      id: 'default',
+    },
+  });
+}
+
 export async function GET() {
   try {
     const user = await getCurrentUser();
@@ -9,17 +27,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get HubSpot configuration
-    const settings = await prisma.settings.findFirst({
-      where: { id: 'default' },
-    });
-
-    if (!settings) {
-      return NextResponse.json(
-        { error: 'Settings not configured' },
-        { status: 404 }
-      );
-    }
+    // Resolve the active settings row (legacy installs may not use id="default").
+    const settings = await getOrCreateSettingsRow();
 
     const hubspotConfig = (settings.hubspotConfig as any) || {};
 
@@ -64,17 +73,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get HubSpot configuration
-    const settings = await prisma.settings.findFirst({
-      where: { id: 'default' },
-    });
-
-    if (!settings) {
-      return NextResponse.json(
-        { error: 'Settings not configured' },
-        { status: 404 }
-      );
-    }
+    // Resolve the active settings row (legacy installs may not use id="default").
+    const settings = await getOrCreateSettingsRow();
 
     const hubspotConfig = (settings.hubspotConfig as any) || {};
 
@@ -150,7 +150,7 @@ export async function POST(request: Request) {
 
     // Update last sync time in settings
     await prisma.settings.update({
-      where: { id: 'default' },
+      where: { id: settings.id },
       data: {
         hubspotConfig: {
           ...hubspotConfig,
