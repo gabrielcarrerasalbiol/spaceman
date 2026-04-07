@@ -8,6 +8,7 @@ type DealPipelineMetadata = {
 };
 
 const UPSERT_BATCH_SIZE = 20;
+const MIN_NEW_DEAL_AMOUNT_TO_IMPORT = 1;
 
 async function fetchDealPipelineMetadata(apiKey: string): Promise<DealPipelineMetadata> {
   const response = await fetch('https://api.hubapi.com/crm/v3/pipelines/deals', {
@@ -218,29 +219,18 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
 async function upsertDealsInBatches(
   deals: any[],
+  existingById: Map<string, { id: string; dealStage: string }>,
   stageLabelById: Record<string, string>,
   stageLabelByPropertyValue: Record<string, string>,
   pipelineLabelById: Record<string, string>,
   ownerLabelById: Record<string, string>
-): Promise<void> {
+): Promise<{ created: number; stageUpdated: number; skippedLowValue: number }> {
   const dealChunks = chunkArray(deals, UPSERT_BATCH_SIZE);
+  let created = 0;
+  let stageUpdated = 0;
+  let skippedLowValue = 0;
 
   for (const chunk of dealChunks) {
-    const chunkIds = chunk.map((deal: any) => deal.id);
-    const existingDeals = await prisma.hubSpotDeal.findMany({
-      where: {
-        id: {
-          in: chunkIds,
-        },
-      },
-      select: {
-        id: true,
-        dealStage: true,
-      },
-    });
-
-    const existingById = new Map(existingDeals.map((deal) => [deal.id, deal]));
-
     const createOperations: Array<Promise<any>> = [];
     const updateStageOperations: Array<Promise<any>> = [];
 
@@ -265,14 +255,25 @@ async function upsertDealsInBatches(
               },
             })
           );
+          stageUpdated += 1;
         }
 
         continue;
       }
 
+      const amountValue = properties.amount !== undefined && properties.amount !== null && properties.amount !== ''
+        ? parseFloat(properties.amount)
+        : null;
+
+      // Skip importing brand-new low-value deals (<= £1) to reduce noise and sync load.
+      if (amountValue !== null && !Number.isNaN(amountValue) && amountValue <= MIN_NEW_DEAL_AMOUNT_TO_IMPORT) {
+        skippedLowValue += 1;
+        continue;
+      }
+
       const dealData = {
         dealName: properties.dealname || '',
-        amount: properties.amount ? parseFloat(properties.amount) : null,
+        amount: amountValue,
         dealStage: resolvedStage,
         pipeline: pipelineLabelById[pipelineId] || pipelineId,
         closeDate: properties.closedate ? new Date(properties.closedate) : null,
@@ -298,6 +299,7 @@ async function upsertDealsInBatches(
           },
         })
       );
+      created += 1;
     }
 
     if (createOperations.length > 0) {
@@ -308,6 +310,8 @@ async function upsertDealsInBatches(
       await Promise.all(updateStageOperations);
     }
   }
+
+  return { created, stageUpdated, skippedLowValue };
 }
 
 export async function GET(request: Request) {
@@ -487,6 +491,10 @@ export async function POST(request: Request) {
 
     let after: string | undefined = initialAfter;
     let totalProcessed = 0;
+    let totalCreated = 0;
+    let totalStageUpdated = 0;
+    let totalSkippedLowValue = 0;
+    let totalScanned = 0;
     let pagesProcessed = 0;
 
     let pipelineLabelById: Record<string, string> = {};
@@ -522,9 +530,8 @@ export async function POST(request: Request) {
       const url = new URL('https://api.hubapi.com/crm/v3/objects/deals');
       // HubSpot limits to 50 when using propertiesWithHistory
       url.searchParams.append('limit', '50');
-      // Fetch associations for companies and contacts
+      // Keep sync payload small: no associations needed for stage-only refreshes.
       url.searchParams.append('properties', 'dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id,unit_number,unit_type,unit_size,location_name,start_date,end_date,weekly_rate,monthly_rate');
-      url.searchParams.append('associations', 'companies,contacts');
       if (after) {
         url.searchParams.append('after', after);
       }
@@ -543,10 +550,27 @@ export async function POST(request: Request) {
 
       const data = await response.json();
       const pageDeals: any[] = data.results || [];
+      totalScanned += pageDeals.length;
+
+      const pageDealIds = pageDeals.map((deal: any) => deal.id);
+      const existingDealsForPage = await prisma.hubSpotDeal.findMany({
+        where: {
+          id: {
+            in: pageDealIds,
+          },
+        },
+        select: {
+          id: true,
+          dealStage: true,
+        },
+      });
+      const existingById = new Map(existingDealsForPage.map((deal) => [deal.id, deal]));
+
+      const newDealsOnly = pageDeals.filter((deal: any) => !existingById.has(deal.id));
 
       const unresolvedOwnerIds: string[] = Array.from(
         new Set<string>(
-          pageDeals
+          newDealsOnly
             .map((deal: any) => String(deal?.properties?.hubspot_owner_id || '').trim())
             .filter((ownerId: string) => ownerId.length > 0 && !ownerLabelById[ownerId])
         )
@@ -556,15 +580,20 @@ export async function POST(request: Request) {
         ownerLabelById = await resolveMissingOwnerLabels(apiKey, unresolvedOwnerIds, ownerLabelById);
       }
 
-      await upsertDealsInBatches(
+      const stats = await upsertDealsInBatches(
         pageDeals,
+        existingById,
         stageLabelById,
         stageLabelByPropertyValue,
         pipelineLabelById,
         ownerLabelById
       );
+
+      totalCreated += stats.created;
+      totalStageUpdated += stats.stageUpdated;
+      totalSkippedLowValue += stats.skippedLowValue;
       after = data.paging?.next?.after;
-      totalProcessed += pageDeals.length;
+      totalProcessed += stats.created + stats.stageUpdated;
       pagesProcessed += 1;
 
     } while (after && pagesProcessed < maxPages);
@@ -590,6 +619,10 @@ export async function POST(request: Request) {
       processedThisRun: totalProcessed,
       totalProcessed,
       totalDeals: totalProcessed,
+      scannedThisRun: totalScanned,
+      createdThisRun: totalCreated,
+      stageUpdatedThisRun: totalStageUpdated,
+      skippedLowValueThisRun: totalSkippedLowValue,
       pagesProcessed,
       hasMore,
       nextAfter: after || null,
