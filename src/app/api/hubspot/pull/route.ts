@@ -491,10 +491,10 @@ export async function POST(request: Request) {
       }
 
       const data = await response.json();
-      const pageDeals = data.results || [];
+      const pageDeals: any[] = data.results || [];
 
-      const unresolvedOwnerIds = Array.from(
-        new Set(
+      const unresolvedOwnerIds: string[] = Array.from(
+        new Set<string>(
           pageDeals
             .map((deal: any) => String(deal?.properties?.hubspot_owner_id || '').trim())
             .filter((ownerId: string) => ownerId.length > 0 && !ownerLabelById[ownerId])
