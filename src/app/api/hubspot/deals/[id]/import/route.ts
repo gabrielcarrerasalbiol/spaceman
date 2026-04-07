@@ -187,13 +187,13 @@ export async function GET(
       deal: serializeBigInt(deal),
       existingClient: existingClient ? serializeBigInt(existingClient) : null,
       existingContract: existingContract ? serializeBigInt(existingContract) : null,
-      locations: locations.map((loc: any) => ({
+      locations: serializeBigInt(locations.map((loc: any) => ({
         ...loc,
         units: loc.units.filter((u: any) => u.weeklyRate !== null || u.monthlyRate !== null),
-      })),
+      }))),
       clients: clients.map((c: any) => serializeBigInt(c)),
-      hubspotContacts,
-      hubspotCompanies,
+      hubspotContacts: serializeBigInt(hubspotContacts),
+      hubspotCompanies: serializeBigInt(hubspotCompanies),
     });
   } catch (error) {
     console.error('Error preparing HubSpot deal import:', error);
