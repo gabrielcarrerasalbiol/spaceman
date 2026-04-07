@@ -194,7 +194,6 @@ model Contract {
   client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
   unit               Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict)
   location           Location        @relation(fields: [locationId], references: [id], onDelete: Restrict)
-  hubSpotDeal        HubSpotDeal?    @relation("HubSpotDealContract")
 
   @@index([clientId])
   @@index([unitId])
@@ -298,7 +297,7 @@ model HubSpotDeal {
   lastSyncedAt   DateTime  @default(now())
 
   client         Client?   @relation("HubSpotDealClient", fields: [clientId], references: [id])
-  contract       Contract? @relation("HubSpotDealContract", fields: [contractId], references: [id])
+  contract       Contract? @relation(fields: [contractId], references: [id])
 
   @@index([dealStage])
   @@index([pipeline])
