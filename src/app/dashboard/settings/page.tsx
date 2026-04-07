@@ -25,7 +25,7 @@ import {
   Zap,
   Globe,
   MapPin,
-  LucideHubspot as Hubspot
+  Building2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -89,7 +89,7 @@ export default function SettingsPage() {
     unitsEndpoint: 'wp-json/spaceman/v1/units',
   });
 
-  const [hubspotForm, setHubspotForm] = useState({
+  const [hubspotForm, setBuilding2Form] = useState({
     apiKey: '',
     portalId: '',
     enabled: false,
@@ -105,8 +105,8 @@ export default function SettingsPage() {
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [wordpressMessage, setWordpressMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [hubspotLoading, setHubspotLoading] = useState(false);
-  const [hubspotMessage, setHubspotMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [hubspotLoading, setBuilding2Loading] = useState(false);
+  const [hubspotMessage, setBuilding2Message] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [wordpressTestOpen, setWordpressTestOpen] = useState(false);
   const [wordpressTestRunning, setWordpressTestRunning] = useState(false);
   const [wordpressTestLogs, setWordpressTestLogs] = useState<string[]>([]);
@@ -168,7 +168,7 @@ export default function SettingsPage() {
 
       // Initialize HubSpot form from settings
       const hsConfig = (settings as any).hubspotConfig || {};
-      setHubspotForm({
+      setBuilding2Form({
         apiKey: hsConfig.apiKey || '',
         portalId: hsConfig.portalId || '',
         enabled: hsConfig.enabled || false,
@@ -392,8 +392,8 @@ export default function SettingsPage() {
   }
 
   async function handleHubSpotConnectionTest() {
-    setHubspotLoading(true);
-    setHubspotMessage(null);
+    setBuilding2Loading(true);
+    setBuilding2Message(null);
 
     try {
       if (!hubspotForm.apiKey || !hubspotForm.portalId) {
@@ -414,18 +414,18 @@ export default function SettingsPage() {
         throw new Error(payload?.error || 'Connection test failed');
       }
 
-      setHubspotMessage({ type: 'success', text: payload.message || 'HubSpot connection successful!' });
+      setBuilding2Message({ type: 'success', text: payload.message || 'HubSpot connection successful!' });
     } catch (error: any) {
-      setHubspotMessage({ type: 'error', text: error.message });
+      setBuilding2Message({ type: 'error', text: error.message });
     } finally {
-      setHubspotLoading(false);
+      setBuilding2Loading(false);
     }
   }
 
   async function handleHubSpotSaveConfig(e: React.FormEvent) {
     e.preventDefault();
-    setHubspotLoading(true);
-    setHubspotMessage(null);
+    setBuilding2Loading(true);
+    setBuilding2Message(null);
 
     try {
       if (!hubspotForm.apiKey || !hubspotForm.portalId) {
@@ -456,11 +456,11 @@ export default function SettingsPage() {
         },
       });
 
-      setHubspotMessage({ type: 'success', text: 'HubSpot configuration saved successfully!' });
+      setBuilding2Message({ type: 'success', text: 'HubSpot configuration saved successfully!' });
     } catch (error: any) {
-      setHubspotMessage({ type: 'error', text: error.message });
+      setBuilding2Message({ type: 'error', text: error.message });
     } finally {
-      setHubspotLoading(false);
+      setBuilding2Loading(false);
     }
   }
 
@@ -788,7 +788,7 @@ export default function SettingsPage() {
           )}
           {isAdmin && (
             <TabsTrigger value="hubspot" className="flex items-center gap-2 rounded-lg">
-              <Hubspot className="h-4 w-4" />
+              <Building2 className="h-4 w-4" />
               <span>HubSpot</span>
             </TabsTrigger>
           )}
@@ -1922,7 +1922,7 @@ export default function SettingsPage() {
                       id="hubspot-api-key"
                       type="password"
                       value={hubspotForm.apiKey}
-                      onChange={(e) => setHubspotForm({ ...hubspotForm, apiKey: e.target.value })}
+                      onChange={(e) => setBuilding2Form({ ...hubspotForm, apiKey: e.target.value })}
                       placeholder="pat-eu1-..."
                       disabled={hubspotLoading}
                     />
@@ -1939,7 +1939,7 @@ export default function SettingsPage() {
                       id="hubspot-portal-id"
                       type="text"
                       value={hubspotForm.portalId}
-                      onChange={(e) => setHubspotForm({ ...hubspotForm, portalId: e.target.value })}
+                      onChange={(e) => setBuilding2Form({ ...hubspotForm, portalId: e.target.value })}
                       placeholder="144405758"
                       disabled={hubspotLoading}
                     />
@@ -1953,7 +1953,7 @@ export default function SettingsPage() {
                       id="hubspot-enabled"
                       type="checkbox"
                       checked={hubspotForm.enabled}
-                      onChange={(e) => setHubspotForm({ ...hubspotForm, enabled: e.target.checked })}
+                      onChange={(e) => setBuilding2Form({ ...hubspotForm, enabled: e.target.checked })}
                       disabled={hubspotLoading}
                       className="h-4 w-4 rounded"
                     />

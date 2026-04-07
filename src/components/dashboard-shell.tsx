@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe, ChevronDown, Bell, LucideHubspot as Hubspot } from 'lucide-react';
+import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe, ChevronDown, Bell, Building2 } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -304,7 +304,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                   window.location.href = '/dashboard/hubspot';
                 }}
               >
-                <Hubspot className="h-5 w-5" />
+                <Building2 className="h-5 w-5" />
                 <span className="sidebar-nav-label">HubSpot</span>
               </Link>
             )}
@@ -510,7 +510,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
                 window.location.href = '/dashboard/hubspot';
               }}
             >
-              <Hubspot className="h-5 w-5" />
+              <Building2 className="h-5 w-5" />
               <span>HubSpot</span>
             </Link>
           )}

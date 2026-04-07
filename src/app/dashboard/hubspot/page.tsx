@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Hubspot, RefreshCw, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
+import { Building2, RefreshCw, AlertCircle, CheckCircle2, Settings } from 'lucide-react';
 import Link from 'next/link';
 import DashboardShell from '@/components/dashboard-shell';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -112,7 +112,7 @@ export default function HubSpotDealsPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Hubspot className="h-6 w-6" />
+              <Building2 className="h-6 w-6" />
               HubSpot Deals
             </h1>
             <p className="text-muted-foreground">
@@ -168,7 +168,7 @@ export default function HubSpotDealsPage() {
               </div>
             ) : deals.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <Hubspot className="h-12 w-12 text-muted-foreground mb-4" />
+                <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-semibold mb-2">No Deals Found</h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   No deals have been synced from HubSpot yet. Click "Sync Deals" to fetch your deals.
