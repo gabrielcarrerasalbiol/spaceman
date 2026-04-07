@@ -77,43 +77,55 @@ async function fetchDealStagePropertyLabels(apiKey: string): Promise<Record<stri
 
 async function fetchDealOwnerLabels(apiKey: string): Promise<Record<string, string>> {
   const ownerLabelById: Record<string, string> = {};
-  let after: string | undefined;
 
-  do {
-    const url = new URL('https://api.hubapi.com/crm/v3/owners/');
-    url.searchParams.append('limit', '500');
-    url.searchParams.append('archived', 'false');
-    if (after) {
-      url.searchParams.append('after', after);
-    }
+  async function fetchOwnerPageSet(archived: boolean): Promise<void> {
+    let after: string | undefined;
 
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    do {
+      const url = new URL('https://api.hubapi.com/crm/v3/owners/');
+      url.searchParams.append('limit', '500');
+      url.searchParams.append('archived', String(archived));
+      if (after) {
+        url.searchParams.append('after', after);
+      }
 
-    if (!response.ok) {
-      return ownerLabelById;
-    }
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
 
-    const data = await response.json();
-    const owners = data.results || [];
+      if (!response.ok) {
+        return;
+      }
 
-    for (const owner of owners) {
-      const ownerId = String(owner?.id || '').trim();
-      if (!ownerId) continue;
+      const data = await response.json();
+      const owners = data.results || [];
 
-      const firstName = String(owner?.firstName || '').trim();
-      const lastName = String(owner?.lastName || '').trim();
-      const fullName = `${firstName} ${lastName}`.trim();
-      const email = String(owner?.email || '').trim();
-      ownerLabelById[ownerId] = fullName || email || ownerId;
-    }
+      for (const owner of owners) {
+        const ownerId = String(owner?.id || '').trim();
+        const userId = String(owner?.userId || '').trim();
+        const userIdIncludingInactive = String(owner?.userIdIncludingInactive || '').trim();
 
-    after = data.paging?.next?.after;
-  } while (after);
+        const firstName = String(owner?.firstName || '').trim();
+        const lastName = String(owner?.lastName || '').trim();
+        const fullName = `${firstName} ${lastName}`.trim();
+        const email = String(owner?.email || '').trim();
+        const label = fullName || email || ownerId || userId || userIdIncludingInactive;
+        if (!label) continue;
+
+        if (ownerId) ownerLabelById[ownerId] = label;
+        if (userId) ownerLabelById[userId] = label;
+        if (userIdIncludingInactive) ownerLabelById[userIdIncludingInactive] = label;
+      }
+
+      after = data.paging?.next?.after;
+    } while (after);
+  }
+
+  await fetchOwnerPageSet(false);
+  await fetchOwnerPageSet(true);
 
   return ownerLabelById;
 }
@@ -269,6 +281,29 @@ export async function GET(request: Request) {
       skip,
       take: limit,
     });
+
+    // Fallback for legacy rows that still store owner IDs: resolve labels at read time.
+    const unresolvedOwnerIds = Array.from(
+      new Set(
+        deals
+          .map((deal) => String(deal.owner || '').trim())
+          .filter((ownerValue) => /^\d+$/.test(ownerValue))
+      )
+    );
+
+    if (unresolvedOwnerIds.length > 0) {
+      try {
+        const ownerLabelById = await fetchDealOwnerLabels(hubspotConfig.apiKey);
+        for (const deal of deals) {
+          const ownerValue = String(deal.owner || '').trim();
+          if (ownerValue && ownerLabelById[ownerValue]) {
+            (deal as any).owner = ownerLabelById[ownerValue];
+          }
+        }
+      } catch {
+        // Non-blocking: keep numeric owner values if lookup fails.
+      }
+    }
 
     return NextResponse.json({
       success: true,

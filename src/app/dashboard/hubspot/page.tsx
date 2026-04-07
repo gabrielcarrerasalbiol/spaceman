@@ -771,7 +771,6 @@ export default function HubSpotDealsPage() {
                       <th className="px-4 py-3 text-left text-sm font-semibold">Amount</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">Stage</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">Pipeline</th>
-                      <th className="px-4 py-3 text-left text-sm font-semibold">Close Date</th>
                       <th className="px-4 py-3 text-left text-sm font-semibold">Owner</th>
                       <th className="px-4 py-3 text-right text-sm font-semibold">Actions</th>
                     </tr>
@@ -794,9 +793,6 @@ export default function HubSpotDealsPage() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-sm">{deal.pipeline}</td>
-                        <td className="px-4 py-3 text-sm">
-                          {deal.closeDate ? new Date(deal.closeDate).toLocaleDateString() : '-'}
-                        </td>
                         <td className="px-4 py-3 text-sm">{deal.owner || '-'}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
