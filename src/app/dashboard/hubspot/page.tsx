@@ -245,31 +245,46 @@ export default function HubSpotDealsPage() {
 
       setImportData(payload);
 
-      // Extract customer data from deal associations
-      const associations = (deal.rawData as any)?.associations || {};
-      const companies = associations.companies?.results || [];
-      const contacts = associations.contacts?.results || [];
+      // Extract customer data from fetched HubSpot data
+      const hubspotContacts = payload.hubspotContacts || [];
+      const hubspotCompanies = payload.hubspotCompanies || [];
 
-      // Pre-fill form with deal data
+      // Pre-fill form with HubSpot contact/company data
       let clientFirstName = '';
       let clientLastName = '';
       let clientCompanyName = '';
       let clientEmail = '';
       let clientPhone = '';
+      let clientAddressLine1 = '';
+      let clientTownCity = '';
+      let clientCounty = '';
+      let clientPostcode = '';
+      let clientCountry = '';
 
       // Try to get company data
-      if (companies.length > 0) {
-        const company = companies[0];
-        clientCompanyName = company.properties?.name || '';
+      if (hubspotCompanies.length > 0) {
+        const company = hubspotCompanies[0].properties || {};
+        clientCompanyName = company.name || '';
+        clientAddressLine1 = company.address || '';
+        clientTownCity = company.city || '';
+        clientCounty = company.state || '';
+        clientPostcode = company.zip || '';
+        clientCountry = company.country || '';
       }
 
-      // Try to get contact data
-      if (contacts.length > 0) {
-        const contact = contacts[0];
-        clientFirstName = contact.properties?.firstname || '';
-        clientLastName = contact.properties?.lastname || '';
-        clientEmail = contact.properties?.email || '';
-        clientPhone = contact.properties?.phone || '';
+      // Try to get contact data (prioritize over company for personal info)
+      if (hubspotContacts.length > 0) {
+        const contact = hubspotContacts[0].properties || {};
+        clientFirstName = contact.firstname || '';
+        clientLastName = contact.lastname || '';
+        clientEmail = contact.email || clientEmail;
+        clientPhone = contact.phone || contact.mobilephone || clientPhone;
+        // Use contact address if no company address
+        if (!clientAddressLine1) clientAddressLine1 = contact.address || '';
+        if (!clientTownCity) clientTownCity = contact.city || '';
+        if (!clientCounty) clientCounty = contact.state || '';
+        if (!clientPostcode) clientPostcode = contact.zip || '';
+        if (!clientCountry) clientCountry = contact.country || '';
       }
 
       // Set default start date from close date or today
@@ -287,12 +302,12 @@ export default function HubSpotDealsPage() {
           email: clientEmail,
           phone: clientPhone,
           billingEmail: clientEmail,
-          addressLine1: '',
+          addressLine1: clientAddressLine1,
           addressLine2: '',
-          townCity: '',
-          county: '',
-          postcode: '',
-          country: '',
+          townCity: clientTownCity,
+          county: clientCounty,
+          postcode: clientPostcode,
+          country: clientCountry,
         },
         unitId: '',
         locationId: '',
