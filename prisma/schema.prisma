@@ -289,9 +289,9 @@ model HubSpotDeal {
   pipeline       String
   closeDate      DateTime?
   owner          String?
-  clientId       String?
-  contractId     String?
-  importedAt     DateTime?
+  clientId       String?   @map("clientid")
+  contractId     String?   @map("contractid")
+  importedAt     DateTime? @map("importedat")
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   rawData        Json
