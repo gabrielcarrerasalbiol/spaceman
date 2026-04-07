@@ -7,6 +7,8 @@ type DealPipelineMetadata = {
   stageLabelById: Record<string, string>;
 };
 
+const UPSERT_BATCH_SIZE = 20;
+
 async function fetchDealPipelineMetadata(apiKey: string): Promise<DealPipelineMetadata> {
   const response = await fetch('https://api.hubapi.com/crm/v3/pipelines/deals', {
     headers: {
@@ -89,6 +91,61 @@ async function getOrCreateSettingsRow() {
       id: 'default',
     },
   });
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+async function upsertDealsInBatches(
+  deals: any[],
+  stageLabelById: Record<string, string>,
+  stageLabelByPropertyValue: Record<string, string>,
+  pipelineLabelById: Record<string, string>
+): Promise<void> {
+  const dealChunks = chunkArray(deals, UPSERT_BATCH_SIZE);
+
+  for (const chunk of dealChunks) {
+    const operations = chunk.map((deal: any) => {
+      const properties = deal.properties;
+      const stageId = properties.dealstage || '';
+      const pipelineId = properties.pipeline || '';
+      const dealData = {
+        dealName: properties.dealname || '',
+        amount: properties.amount ? parseFloat(properties.amount) : null,
+        dealStage: stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId,
+        pipeline: pipelineLabelById[pipelineId] || pipelineId,
+        closeDate: properties.closedate ? new Date(properties.closedate) : null,
+        owner: properties.hubspot_owner_id || null,
+        // Unit details from HubSpot custom properties
+        unitNumber: properties.unit_number || null,
+        unitType: properties.unit_type || null,
+        unitSize: properties.unit_size || null,
+        locationName: properties.location_name || null,
+        startDate: properties.start_date ? new Date(properties.start_date) : null,
+        endDate: properties.end_date ? new Date(properties.end_date) : null,
+        weeklyRate: properties.weekly_rate ? parseFloat(properties.weekly_rate) : null,
+        monthlyRate: properties.monthly_rate ? parseFloat(properties.monthly_rate) : null,
+        rawData: deal,
+        lastSyncedAt: new Date(),
+      };
+
+      return prisma.hubSpotDeal.upsert({
+        where: { id: deal.id },
+        update: dealData,
+        create: {
+          id: deal.id,
+          ...dealData,
+        },
+      });
+    });
+
+    await Promise.all(operations);
+  }
 }
 
 export async function GET(request: Request) {
@@ -215,7 +272,6 @@ export async function POST(request: Request) {
 
     const apiKey = hubspotConfig.apiKey;
 
-    let allDeals: any[] = [];
     let after: string | undefined = undefined;
     let totalProcessed = 0;
 
@@ -264,48 +320,12 @@ export async function POST(request: Request) {
       }
 
       const data = await response.json();
-      allDeals = [...allDeals, ...data.results];
+      const pageDeals = data.results || [];
+      await upsertDealsInBatches(pageDeals, stageLabelById, stageLabelByPropertyValue, pipelineLabelById);
       after = data.paging?.next?.after;
-      totalProcessed += data.results?.length || 0;
+      totalProcessed += pageDeals.length;
 
     } while (after);
-
-    // Upsert deals to database
-    const updateOperations = allDeals.map((deal: any) => {
-      const properties = deal.properties;
-      const stageId = properties.dealstage || '';
-      const pipelineId = properties.pipeline || '';
-      const dealData = {
-        dealName: properties.dealname || '',
-        amount: properties.amount ? parseFloat(properties.amount) : null,
-        dealStage: stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId,
-        pipeline: pipelineLabelById[pipelineId] || pipelineId,
-        closeDate: properties.closedate ? new Date(properties.closedate) : null,
-        owner: properties.hubspot_owner_id || null,
-        // Unit details from HubSpot custom properties
-        unitNumber: properties.unit_number || null,
-        unitType: properties.unit_type || null,
-        unitSize: properties.unit_size || null,
-        locationName: properties.location_name || null,
-        startDate: properties.start_date ? new Date(properties.start_date) : null,
-        endDate: properties.end_date ? new Date(properties.end_date) : null,
-        weeklyRate: properties.weekly_rate ? parseFloat(properties.weekly_rate) : null,
-        monthlyRate: properties.monthly_rate ? parseFloat(properties.monthly_rate) : null,
-        rawData: deal,
-        lastSyncedAt: new Date(),
-      };
-
-      return prisma.hubSpotDeal.upsert({
-        where: { id: deal.id },
-        update: dealData,
-        create: {
-          id: deal.id,
-          ...dealData,
-        },
-      });
-    });
-
-    await Promise.all(updateOperations);
 
     // Update last sync time in settings
     await prisma.settings.update({
@@ -322,7 +342,7 @@ export async function POST(request: Request) {
       success: true,
       message: 'Successfully synced HubSpot deals',
       totalProcessed,
-      totalDeals: allDeals.length,
+      totalDeals: totalProcessed,
     });
   } catch (error) {
     console.error('Error syncing HubSpot deals:', error);
