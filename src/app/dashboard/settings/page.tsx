@@ -24,7 +24,8 @@ import {
   XCircle,
   Zap,
   Globe,
-  MapPin
+  MapPin,
+  LucideHubspot as Hubspot
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -88,6 +89,12 @@ export default function SettingsPage() {
     unitsEndpoint: 'wp-json/spaceman/v1/units',
   });
 
+  const [hubspotForm, setHubspotForm] = useState({
+    apiKey: '',
+    portalId: '',
+    enabled: false,
+  });
+
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [siteLoading, setSiteLoading] = useState(false);
@@ -98,6 +105,8 @@ export default function SettingsPage() {
   const [siteMessage, setSiteMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [statusMessage, setStatusMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [wordpressMessage, setWordpressMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [hubspotLoading, setHubspotLoading] = useState(false);
+  const [hubspotMessage, setHubspotMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [wordpressTestOpen, setWordpressTestOpen] = useState(false);
   const [wordpressTestRunning, setWordpressTestRunning] = useState(false);
   const [wordpressTestLogs, setWordpressTestLogs] = useState<string[]>([]);
@@ -155,6 +164,14 @@ export default function SettingsPage() {
         enabled: wpConfig.enabled || false,
         locationsEndpoint: wpConfig.locationsEndpoint || 'wp-json/spaceman/v1/locations',
         unitsEndpoint: wpConfig.unitsEndpoint || 'wp-json/spaceman/v1/units',
+      });
+
+      // Initialize HubSpot form from settings
+      const hsConfig = (settings as any).hubspotConfig || {};
+      setHubspotForm({
+        apiKey: hsConfig.apiKey || '',
+        portalId: hsConfig.portalId || '',
+        enabled: hsConfig.enabled || false,
       });
     }
   }, [settings, settingsLoading]);
@@ -371,6 +388,79 @@ export default function SettingsPage() {
     } finally {
       setWordpressPullRunning(false);
       appendWordPressPullLog('Sync finished.');
+    }
+  }
+
+  async function handleHubSpotConnectionTest() {
+    setHubspotLoading(true);
+    setHubspotMessage(null);
+
+    try {
+      if (!hubspotForm.apiKey || !hubspotForm.portalId) {
+        throw new Error('Please provide API Key and Portal ID');
+      }
+
+      const response = await fetch('/api/hubspot/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: hubspotForm.apiKey,
+          portalId: hubspotForm.portalId,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Connection test failed');
+      }
+
+      setHubspotMessage({ type: 'success', text: payload.message || 'HubSpot connection successful!' });
+    } catch (error: any) {
+      setHubspotMessage({ type: 'error', text: error.message });
+    } finally {
+      setHubspotLoading(false);
+    }
+  }
+
+  async function handleHubSpotSaveConfig(e: React.FormEvent) {
+    e.preventDefault();
+    setHubspotLoading(true);
+    setHubspotMessage(null);
+
+    try {
+      if (!hubspotForm.apiKey || !hubspotForm.portalId) {
+        throw new Error('API Key and Portal ID are required');
+      }
+
+      const response = await fetch('/api/settings/update-hubspot', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          apiKey: hubspotForm.apiKey,
+          portalId: hubspotForm.portalId,
+          enabled: hubspotForm.enabled,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to save configuration');
+      }
+
+      // Update settings context
+      await updateSettings({
+        hubspotConfig: {
+          apiKey: hubspotForm.apiKey,
+          portalId: hubspotForm.portalId,
+          enabled: hubspotForm.enabled,
+        },
+      });
+
+      setHubspotMessage({ type: 'success', text: 'HubSpot configuration saved successfully!' });
+    } catch (error: any) {
+      setHubspotMessage({ type: 'error', text: error.message });
+    } finally {
+      setHubspotLoading(false);
     }
   }
 
@@ -694,6 +784,12 @@ export default function SettingsPage() {
             <TabsTrigger value="wordpress" className="flex items-center gap-2 rounded-lg">
               <Globe className="h-4 w-4" />
               <span>WordPress</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="hubspot" className="flex items-center gap-2 rounded-lg">
+              <Hubspot className="h-4 w-4" />
+              <span>HubSpot</span>
             </TabsTrigger>
           )}
         </TabsList>
@@ -1806,6 +1902,119 @@ export default function SettingsPage() {
                 </div>
               </div>
             </Modal>
+          </TabsContent>
+        )}
+
+        {isAdmin && (
+          <TabsContent value="hubspot" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>HubSpot CRM Configuration</CardTitle>
+                <CardDescription>Configure connection to your HubSpot account to sync deals</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleHubSpotSaveConfig} className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="hubspot-api-key" className="text-sm font-medium">
+                      HubSpot API Key
+                    </label>
+                    <Input
+                      id="hubspot-api-key"
+                      type="password"
+                      value={hubspotForm.apiKey}
+                      onChange={(e) => setHubspotForm({ ...hubspotForm, apiKey: e.target.value })}
+                      placeholder="pat-eu1-..."
+                      disabled={hubspotLoading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your HubSpot Personal Access Token (PAT)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="hubspot-portal-id" className="text-sm font-medium">
+                      HubSpot Portal ID
+                    </label>
+                    <Input
+                      id="hubspot-portal-id"
+                      type="text"
+                      value={hubspotForm.portalId}
+                      onChange={(e) => setHubspotForm({ ...hubspotForm, portalId: e.target.value })}
+                      placeholder="144405758"
+                      disabled={hubspotLoading}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Your HubSpot account Portal ID
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="hubspot-enabled"
+                      type="checkbox"
+                      checked={hubspotForm.enabled}
+                      onChange={(e) => setHubspotForm({ ...hubspotForm, enabled: e.target.checked })}
+                      disabled={hubspotLoading}
+                      className="h-4 w-4 rounded"
+                    />
+                    <label htmlFor="hubspot-enabled" className="text-sm font-medium">
+                      Enable HubSpot Integration
+                    </label>
+                  </div>
+
+                  {hubspotMessage && (
+                    <div className={`p-3 rounded-lg ${hubspotMessage.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+                      {hubspotMessage.text}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    <Button
+                      type="submit"
+                      disabled={hubspotLoading}
+                      className="flex-1"
+                    >
+                      {hubspotLoading ? 'Saving...' : 'Save Configuration'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleHubSpotConnectionTest}
+                      disabled={hubspotLoading || !hubspotForm.apiKey || !hubspotForm.portalId}
+                    >
+                      Test Connection
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Setup Instructions</CardTitle>
+                <CardDescription>Follow these steps to configure HubSpot integration</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-1">
+                  <p className="font-medium">Create a HubSpot Personal Access Token</p>
+                  <p className="text-sm text-muted-foreground">
+                    Go to HubSpot Settings → Integrations → API Key → Create Personal Access Token
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium">Find your Portal ID</p>
+                  <p className="text-sm text-muted-foreground">
+                    Your Portal ID is shown in your HubSpot account URL or in Settings → Account Details
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="font-medium">Enter credentials above</p>
+                  <p className="text-sm text-muted-foreground">
+                    Paste your API Key and Portal ID, then test the connection before saving
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
         )}
       </Tabs>

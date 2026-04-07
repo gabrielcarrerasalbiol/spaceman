@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe, ChevronDown, Bell } from 'lucide-react';
+import { Menu, Moon, Sun, X, Home, Settings, LogOut, Users, Monitor, MapPin, UserRound, Box, FileSignature, Globe, ChevronDown, Bell, LucideHubspot as Hubspot } from 'lucide-react';
 import { signOut, useSession } from 'next-auth/react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useSettings } from '@/contexts/SettingsContext';
@@ -120,6 +120,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
   const canSeeClients = hasPermission('menus.clients');
   const canSeeContracts = hasPermission('menus.contracts');
   const canSeeWordPress = hasPermission('menus.wordpress', true);
+  const canSeeHubspot = hasPermission('menus.hubspot', true);
   const canSeeSettings = hasPermission('menus.settings', true);
 
   useEffect(() => {
@@ -291,6 +292,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
               >
                 <Globe className="h-5 w-5" />
                 <span className="sidebar-nav-label">WordPress</span>
+              </Link>
+            )}
+            {canSeeHubspot && (
+              <Link
+                href="/dashboard/hubspot"
+                className="sidebar-nav-link flex items-center gap-3 rounded-xl px-3 py-2 transition"
+                prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/dashboard/hubspot';
+                }}
+              >
+                <Hubspot className="h-5 w-5" />
+                <span className="sidebar-nav-label">HubSpot</span>
               </Link>
             )}
             <Link
@@ -483,6 +498,20 @@ export default function DashboardShell({ children }: DashboardShellProps) {
             >
               <Globe className="h-5 w-5" />
               <span>WordPress</span>
+            </Link>
+          )}
+          {canSeeHubspot && (
+            <Link
+              href="/dashboard/hubspot"
+              className="flex items-center gap-3 rounded-xl px-3 py-2 transition"
+              prefetch={true}
+              onClick={(e) => {
+                e.preventDefault();
+                window.location.href = '/dashboard/hubspot';
+              }}
+            >
+              <Hubspot className="h-5 w-5" />
+              <span>HubSpot</span>
             </Link>
           )}
           <Link
