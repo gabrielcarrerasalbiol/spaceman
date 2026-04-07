@@ -194,6 +194,7 @@ model Contract {
   client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
   unit               Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict)
   location           Location        @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  hubSpotDeals       HubSpotDeal[]
 
   @@index([clientId])
   @@index([unitId])
