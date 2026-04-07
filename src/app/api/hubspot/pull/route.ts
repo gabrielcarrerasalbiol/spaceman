@@ -150,7 +150,8 @@ export async function POST(request: Request) {
     // Fetch all deals with pagination
     do {
       const url = new URL('https://api.hubapi.com/crm/v3/objects/deals');
-      url.searchParams.append('limit', '100');
+      // HubSpot limits to 50 when using propertiesWithHistory
+      url.searchParams.append('limit', '50');
       // Fetch associations for companies and contacts
       url.searchParams.append('propertiesWithHistory', 'dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id');
       url.searchParams.append('associations', 'companies,contacts');
