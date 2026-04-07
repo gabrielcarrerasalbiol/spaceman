@@ -224,10 +224,11 @@ async function upsertDealsInBatches(
   stageLabelByPropertyValue: Record<string, string>,
   pipelineLabelById: Record<string, string>,
   ownerLabelById: Record<string, string>
-): Promise<{ created: number; stageUpdated: number; skippedLowValue: number }> {
+): Promise<{ created: number; stageUpdated: number; ownerUpdated: number; skippedLowValue: number }> {
   const dealChunks = chunkArray(deals, UPSERT_BATCH_SIZE);
   let created = 0;
   let stageUpdated = 0;
+  let ownerUpdated = 0;
   let skippedLowValue = 0;
 
   for (const chunk of dealChunks) {
@@ -255,11 +256,13 @@ async function upsertDealsInBatches(
         if (existing.dealStage !== resolvedStage) {
           nextData.dealStage = resolvedStage;
           shouldUpdate = true;
+          stageUpdated += 1;
         }
 
         if (existing.owner !== resolvedOwner) {
           nextData.owner = resolvedOwner;
           shouldUpdate = true;
+          ownerUpdated += 1;
         }
 
         if (shouldUpdate) {
@@ -269,7 +272,6 @@ async function upsertDealsInBatches(
               data: nextData,
             })
           );
-          stageUpdated += 1;
         }
 
         continue;
@@ -325,7 +327,7 @@ async function upsertDealsInBatches(
     }
   }
 
-  return { created, stageUpdated, skippedLowValue };
+  return { created, stageUpdated, ownerUpdated, skippedLowValue };
 }
 
 export async function GET(request: Request) {
@@ -507,6 +509,7 @@ export async function POST(request: Request) {
     let totalProcessed = 0;
     let totalCreated = 0;
     let totalStageUpdated = 0;
+    let totalOwnerUpdated = 0;
     let totalSkippedLowValue = 0;
     let totalScanned = 0;
     let pagesProcessed = 0;
@@ -581,11 +584,9 @@ export async function POST(request: Request) {
       });
       const existingById = new Map(existingDealsForPage.map((deal) => [deal.id, deal]));
 
-      const newDealsOnly = pageDeals.filter((deal: any) => !existingById.has(deal.id));
-
       const unresolvedOwnerIds: string[] = Array.from(
         new Set<string>(
-          newDealsOnly
+          pageDeals
             .map((deal: any) => String(deal?.properties?.hubspot_owner_id || '').trim())
             .filter((ownerId: string) => ownerId.length > 0 && !ownerLabelById[ownerId])
         )
@@ -606,9 +607,10 @@ export async function POST(request: Request) {
 
       totalCreated += stats.created;
       totalStageUpdated += stats.stageUpdated;
+      totalOwnerUpdated += stats.ownerUpdated;
       totalSkippedLowValue += stats.skippedLowValue;
       after = data.paging?.next?.after;
-      totalProcessed += stats.created + stats.stageUpdated;
+      totalProcessed += stats.created + stats.stageUpdated + stats.ownerUpdated;
       pagesProcessed += 1;
 
     } while (after && pagesProcessed < maxPages);
@@ -637,6 +639,7 @@ export async function POST(request: Request) {
       scannedThisRun: totalScanned,
       createdThisRun: totalCreated,
       stageUpdatedThisRun: totalStageUpdated,
+      ownerUpdatedThisRun: totalOwnerUpdated,
       skippedLowValueThisRun: totalSkippedLowValue,
       pagesProcessed,
       hasMore,
