@@ -20,7 +20,7 @@ async function getOrCreateSettingsRow() {
   });
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) {
@@ -39,9 +39,20 @@ export async function GET() {
       );
     }
 
-    // Get cached deals from database
+    // Parse pagination params
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '25', 10);
+    const skip = (page - 1) * limit;
+
+    // Get total count
+    const total = await prisma.hubSpotDeal.count();
+
+    // Get paginated deals from database
     const deals = await prisma.hubSpotDeal.findMany({
       orderBy: [{ closeDate: 'desc' }, { createdAt: 'desc' }],
+      skip,
+      take: limit,
     });
 
     return NextResponse.json({
@@ -49,6 +60,10 @@ export async function GET() {
       deals,
       lastSyncedAt: hubspotConfig.lastSync,
       count: deals.length,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error('Error fetching HubSpot deals:', error);
