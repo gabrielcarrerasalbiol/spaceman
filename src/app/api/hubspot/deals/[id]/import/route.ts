@@ -35,6 +35,11 @@ const CORE_DEAL_PROPERTIES = [
   'monthly_rate',
 ];
 
+type DealPipelineMetadata = {
+  pipelineLabelById: Record<string, string>;
+  stageLabelById: Record<string, string>;
+};
+
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
@@ -79,6 +84,70 @@ async function fetchAllDealPropertyNames(apiKey: string): Promise<string[]> {
   return Array.from(new Set([...CORE_DEAL_PROPERTIES, ...names]));
 }
 
+async function fetchDealPipelineMetadata(apiKey: string): Promise<DealPipelineMetadata> {
+  const response = await fetch('https://api.hubapi.com/crm/v3/pipelines/deals', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return { pipelineLabelById: {}, stageLabelById: {} };
+  }
+
+  const data = await response.json();
+  const pipelines = data.results || [];
+  const pipelineLabelById: Record<string, string> = {};
+  const stageLabelById: Record<string, string> = {};
+
+  for (const pipeline of pipelines) {
+    const pipelineId = String(pipeline?.id || '').trim();
+    const pipelineLabel = String(pipeline?.label || '').trim();
+    if (pipelineId && pipelineLabel) {
+      pipelineLabelById[pipelineId] = pipelineLabel;
+    }
+
+    const stages = pipeline?.stages || [];
+    for (const stage of stages) {
+      const stageId = String(stage?.id || '').trim();
+      const stageLabel = String(stage?.label || '').trim();
+      if (stageId && stageLabel) {
+        stageLabelById[stageId] = stageLabel;
+      }
+    }
+  }
+
+  return { pipelineLabelById, stageLabelById };
+}
+
+async function fetchDealStagePropertyLabels(apiKey: string): Promise<Record<string, string>> {
+  const response = await fetch('https://api.hubapi.com/crm/v3/properties/deals/dealstage', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return {};
+  }
+
+  const data = await response.json();
+  const options = data.options || [];
+  const labelsByValue: Record<string, string> = {};
+
+  for (const option of options) {
+    const value = String(option?.value || '').trim();
+    const label = String(option?.label || '').trim();
+    if (value && label) {
+      labelsByValue[value] = label;
+    }
+  }
+
+  return labelsByValue;
+}
+
 async function fetchDealAssociationDetails(apiKey: string, dealId: string): Promise<Record<string, any[]>> {
   const details: Record<string, any[]> = {};
 
@@ -116,6 +185,8 @@ async function fetchDealAssociationDetails(apiKey: string, dealId: string): Prom
 async function fetchFullHubspotDeal(apiKey: string, dealId: string): Promise<any> {
   const allPropertyNames = await fetchAllDealPropertyNames(apiKey);
   const propertyChunks = chunkArray(allPropertyNames, HUBSPOT_IMPORT_PROPERTY_BATCH_SIZE);
+  const { pipelineLabelById, stageLabelById } = await fetchDealPipelineMetadata(apiKey);
+  const stageLabelByPropertyValue = await fetchDealStagePropertyLabels(apiKey);
 
   const baseUrl = new URL(`https://api.hubapi.com/crm/v3/objects/deals/${dealId}`);
   baseUrl.searchParams.append('associations', 'companies,contacts');
@@ -166,6 +237,20 @@ async function fetchFullHubspotDeal(apiKey: string, dealId: string): Promise<any
       ...(result.properties || {}),
     };
   }
+
+  const pipelineId = String(mergedDeal?.properties?.pipeline || '').trim();
+  const stageId = String(mergedDeal?.properties?.dealstage || '').trim();
+
+  const pipelineLabel = pipelineLabelById[pipelineId] || pipelineId || null;
+  const stageLabel = stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId || null;
+
+  mergedDeal.pipelineLabel = pipelineLabel;
+  mergedDeal.stageLabel = stageLabel;
+  mergedDeal.properties = {
+    ...(mergedDeal.properties || {}),
+    pipeline_label: pipelineLabel,
+    dealstage_label: stageLabel,
+  };
 
   mergedDeal.associationDetails = await fetchDealAssociationDetails(apiKey, dealId);
   return mergedDeal;
