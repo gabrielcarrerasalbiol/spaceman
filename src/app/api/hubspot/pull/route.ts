@@ -130,6 +130,66 @@ async function fetchDealOwnerLabels(apiKey: string): Promise<Record<string, stri
   return ownerLabelById;
 }
 
+async function fetchOwnerLabelByAnyId(apiKey: string, ownerIdOrUserId: string): Promise<string | null> {
+  const normalized = String(ownerIdOrUserId || '').trim();
+  if (!normalized) return null;
+
+  const idPropertyCandidates = ['id', 'userId'];
+
+  for (const idProperty of idPropertyCandidates) {
+    const url = new URL(`https://api.hubapi.com/crm/v3/owners/${normalized}`);
+    url.searchParams.append('idProperty', idProperty);
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      continue;
+    }
+
+    const owner = await response.json();
+    const firstName = String(owner?.firstName || '').trim();
+    const lastName = String(owner?.lastName || '').trim();
+    const fullName = `${firstName} ${lastName}`.trim();
+    const email = String(owner?.email || '').trim();
+    const label = fullName || email || normalized;
+
+    if (label) {
+      return label;
+    }
+  }
+
+  return null;
+}
+
+async function resolveMissingOwnerLabels(
+  apiKey: string,
+  ownerIds: string[],
+  ownerLabelById: Record<string, string>
+): Promise<Record<string, string>> {
+  const resolved = { ...ownerLabelById };
+
+  for (const ownerId of ownerIds) {
+    const normalized = String(ownerId || '').trim();
+    if (!normalized || resolved[normalized]) continue;
+
+    try {
+      const label = await fetchOwnerLabelByAnyId(apiKey, normalized);
+      if (label) {
+        resolved[normalized] = label;
+      }
+    } catch {
+      // Ignore lookup failures and keep fallback behavior.
+    }
+  }
+
+  return resolved;
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -293,12 +353,35 @@ export async function GET(request: Request) {
 
     if (unresolvedOwnerIds.length > 0) {
       try {
-        const ownerLabelById = await fetchDealOwnerLabels(hubspotConfig.apiKey);
+        let ownerLabelById = await fetchDealOwnerLabels(hubspotConfig.apiKey);
+        ownerLabelById = await resolveMissingOwnerLabels(
+          hubspotConfig.apiKey,
+          unresolvedOwnerIds,
+          ownerLabelById
+        );
+
         for (const deal of deals) {
           const ownerValue = String(deal.owner || '').trim();
           if (ownerValue && ownerLabelById[ownerValue]) {
             (deal as any).owner = ownerLabelById[ownerValue];
           }
+        }
+
+        // Persist resolved labels so IDs don't reappear on next page load.
+        const updates = deals
+          .filter((deal) => {
+            const ownerValue = String(deal.owner || '').trim();
+            return !!ownerValue && !!ownerLabelById[ownerValue] && ownerLabelById[ownerValue] !== ownerValue;
+          })
+          .map((deal) =>
+            prisma.hubSpotDeal.update({
+              where: { id: deal.id },
+              data: { owner: ownerLabelById[String(deal.owner || '').trim()] },
+            })
+          );
+
+        if (updates.length > 0) {
+          await Promise.all(updates);
         }
       } catch {
         // Non-blocking: keep numeric owner values if lookup fails.
@@ -409,6 +492,19 @@ export async function POST(request: Request) {
 
       const data = await response.json();
       const pageDeals = data.results || [];
+
+      const unresolvedOwnerIds = Array.from(
+        new Set(
+          pageDeals
+            .map((deal: any) => String(deal?.properties?.hubspot_owner_id || '').trim())
+            .filter((ownerId: string) => ownerId.length > 0 && !ownerLabelById[ownerId])
+        )
+      );
+
+      if (unresolvedOwnerIds.length > 0) {
+        ownerLabelById = await resolveMissingOwnerLabels(apiKey, unresolvedOwnerIds, ownerLabelById);
+      }
+
       await upsertDealsInBatches(
         pageDeals,
         stageLabelById,
