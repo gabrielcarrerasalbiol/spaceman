@@ -191,7 +191,7 @@ export async function GET(
         ...loc,
         units: loc.units.filter((u: any) => u.weeklyRate !== null || u.monthlyRate !== null),
       })),
-      clients,
+      clients: clients.map((c: any) => serializeBigInt(c)),
       hubspotContacts,
       hubspotCompanies,
     });
