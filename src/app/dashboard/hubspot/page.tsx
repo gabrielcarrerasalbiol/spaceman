@@ -97,11 +97,18 @@ interface SyncBatchResponse {
   scannedThisRun?: number;
   createdThisRun?: number;
   stageUpdatedThisRun?: number;
-  ownerUpdatedThisRun?: number;
   skippedLowValueThisRun?: number;
   pagesProcessed?: number;
   hasMore?: boolean;
   nextAfter?: string | null;
+}
+
+interface OwnerRefreshResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  updatedDeals?: number;
+  resolvedOwners?: number;
 }
 
 interface SyncProgressState {
@@ -109,7 +116,6 @@ interface SyncProgressState {
   scanned: number;
   created: number;
   stageUpdated: number;
-  ownerUpdated: number;
   skippedLowValue: number;
   pages: number;
   startedAt: number;
@@ -207,6 +213,7 @@ export default function HubSpotDealsPage() {
   const [importSubmitting, setImportSubmitting] = useState(false);
   const [importLocationMatch, setImportLocationMatch] = useState<ImportLocationMatchInfo | null>(null);
   const [syncProgress, setSyncProgress] = useState<SyncProgressState | null>(null);
+  const [ownerRefreshing, setOwnerRefreshing] = useState(false);
 
   // Import form state
   const [importForm, setImportForm] = useState({
@@ -525,7 +532,6 @@ export default function HubSpotDealsPage() {
       scanned: 0,
       created: 0,
       stageUpdated: 0,
-      ownerUpdated: 0,
       skippedLowValue: 0,
       pages: 0,
       startedAt,
@@ -539,7 +545,6 @@ export default function HubSpotDealsPage() {
       let scannedTotal = 0;
       let createdTotal = 0;
       let stageUpdatedTotal = 0;
-      let ownerUpdatedTotal = 0;
       let skippedLowValueTotal = 0;
       let pagesTotal = 0;
 
@@ -563,14 +568,12 @@ export default function HubSpotDealsPage() {
         const batchScanned = payload.scannedThisRun || 0;
         const batchCreated = payload.createdThisRun || 0;
         const batchStageUpdated = payload.stageUpdatedThisRun || 0;
-        const batchOwnerUpdated = payload.ownerUpdatedThisRun || 0;
         const batchSkippedLowValue = payload.skippedLowValueThisRun || 0;
         const batchPages = payload.pagesProcessed || 0;
         processedTotal += batchProcessed;
         scannedTotal += batchScanned;
         createdTotal += batchCreated;
         stageUpdatedTotal += batchStageUpdated;
-        ownerUpdatedTotal += batchOwnerUpdated;
         skippedLowValueTotal += batchSkippedLowValue;
         pagesTotal += batchPages;
 
@@ -582,7 +585,6 @@ export default function HubSpotDealsPage() {
           scanned: scannedTotal,
           created: createdTotal,
           stageUpdated: stageUpdatedTotal,
-          ownerUpdated: ownerUpdatedTotal,
           skippedLowValue: skippedLowValueTotal,
           pages: pagesTotal,
           startedAt,
@@ -594,7 +596,7 @@ export default function HubSpotDealsPage() {
       }
 
       setSuccess(
-        `Sync complete. Scanned ${scannedTotal}, created ${createdTotal}, stage-updated ${stageUpdatedTotal}, owner-updated ${ownerUpdatedTotal}, skipped £1 deals ${skippedLowValueTotal}.`
+        `Sync complete. Scanned ${scannedTotal}, created ${createdTotal}, stage-updated ${stageUpdatedTotal}, skipped £1 deals ${skippedLowValueTotal}.`
       );
       setCurrentPage(1);
       await fetchDeals();
@@ -604,6 +606,28 @@ export default function HubSpotDealsPage() {
     } finally {
       setSyncing(false);
       setSyncProgress(null);
+    }
+  }
+
+  async function handleOwnerRefresh(): Promise<void> {
+    setOwnerRefreshing(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/hubspot/owners-refresh', { method: 'POST' });
+      const payload: OwnerRefreshResponse = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to refresh owner labels');
+      }
+
+      setSuccess(payload.message || 'Owner refresh completed successfully');
+      await fetchDeals();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unexpected error while refreshing owner labels';
+      setError(message);
+    } finally {
+      setOwnerRefreshing(false);
     }
   }
 
@@ -700,6 +724,11 @@ export default function HubSpotDealsPage() {
           <Button onClick={() => void handleSync()} disabled={syncing}>
             <RefreshCw className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync Deals'}
+          </Button>
+
+          <Button variant="outline" onClick={() => void handleOwnerRefresh()} disabled={ownerRefreshing || syncing}>
+            <RefreshCw className={`mr-2 h-4 w-4 ${ownerRefreshing ? 'animate-spin' : ''}`} />
+            {ownerRefreshing ? 'Updating Owners...' : 'Update Owners'}
           </Button>
         </div>
       </div>
@@ -982,7 +1011,6 @@ export default function HubSpotDealsPage() {
             <p>Records processed: <strong>{syncProgress?.processed ?? 0}</strong></p>
             <p>Created: <strong>{syncProgress?.created ?? 0}</strong></p>
             <p>Stage updates: <strong>{syncProgress?.stageUpdated ?? 0}</strong></p>
-            <p>Owner updates: <strong>{syncProgress?.ownerUpdated ?? 0}</strong></p>
             <p>Skipped £1 deals: <strong>{syncProgress?.skippedLowValue ?? 0}</strong></p>
             <p>Batches completed: <strong>{syncProgress?.pages ?? 0}</strong></p>
             <p>

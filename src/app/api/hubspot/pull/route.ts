@@ -76,168 +76,6 @@ async function fetchDealStagePropertyLabels(apiKey: string): Promise<Record<stri
   return labelsByValue;
 }
 
-async function fetchDealOwnerLabels(apiKey: string): Promise<Record<string, string>> {
-  const ownerLabelById: Record<string, string> = {};
-
-  async function fetchOwnerPageSet(archived: boolean): Promise<void> {
-    let after: string | undefined;
-
-    do {
-      const url = new URL('https://api.hubapi.com/crm/v3/owners/');
-      url.searchParams.append('limit', '500');
-      url.searchParams.append('archived', String(archived));
-      if (after) {
-        url.searchParams.append('after', after);
-      }
-
-      const response = await fetch(url.toString(), {
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        return;
-      }
-
-      const data = await response.json();
-      const owners = data.results || [];
-
-      for (const owner of owners) {
-        const ownerId = String(owner?.id || '').trim();
-        const userId = String(owner?.userId || '').trim();
-        const userIdIncludingInactive = String(owner?.userIdIncludingInactive || '').trim();
-
-        const firstName = String(owner?.firstName || '').trim();
-        const lastName = String(owner?.lastName || '').trim();
-        const fullName = `${firstName} ${lastName}`.trim();
-        const email = String(owner?.email || '').trim();
-        const label = fullName || email || ownerId || userId || userIdIncludingInactive;
-        if (!label) continue;
-
-        if (ownerId) ownerLabelById[ownerId] = label;
-        if (userId) ownerLabelById[userId] = label;
-        if (userIdIncludingInactive) ownerLabelById[userIdIncludingInactive] = label;
-      }
-
-      after = data.paging?.next?.after;
-    } while (after);
-  }
-
-  await fetchOwnerPageSet(false);
-  await fetchOwnerPageSet(true);
-
-  return ownerLabelById;
-}
-
-async function fetchOwnerLabelByAnyId(apiKey: string, ownerIdOrUserId: string): Promise<string | null> {
-  const normalized = String(ownerIdOrUserId || '').trim();
-  if (!normalized) return null;
-
-  const idPropertyCandidates = ['id', 'userId'];
-
-  for (const idProperty of idPropertyCandidates) {
-    const url = new URL(`https://api.hubapi.com/crm/v3/owners/${normalized}`);
-    url.searchParams.append('idProperty', idProperty);
-
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      continue;
-    }
-
-    const owner = await response.json();
-    const firstName = String(owner?.firstName || '').trim();
-    const lastName = String(owner?.lastName || '').trim();
-    const fullName = `${firstName} ${lastName}`.trim();
-    const email = String(owner?.email || '').trim();
-    const label = fullName || email || normalized;
-
-    if (label) {
-      return label;
-    }
-  }
-
-  return null;
-}
-
-async function resolveMissingOwnerLabels(
-  apiKey: string,
-  ownerIds: string[],
-  ownerLabelById: Record<string, string>
-): Promise<Record<string, string>> {
-  const resolved = { ...ownerLabelById };
-
-  for (const ownerId of ownerIds) {
-    const normalized = String(ownerId || '').trim();
-    if (!normalized || resolved[normalized]) continue;
-
-    try {
-      const label = await fetchOwnerLabelByAnyId(apiKey, normalized);
-      if (label) {
-        resolved[normalized] = label;
-      }
-    } catch {
-      // Ignore lookup failures and keep fallback behavior.
-    }
-  }
-
-  return resolved;
-}
-
-async function backfillExistingOwnerLabels(
-  apiKey: string,
-  ownerLabelById: Record<string, string>
-): Promise<{ ownerLabelById: Record<string, string>; updatedRows: number }> {
-  const distinctOwnerRows = await prisma.hubSpotDeal.findMany({
-    where: {
-      owner: {
-        not: null,
-      },
-    },
-    select: {
-      owner: true,
-    },
-    distinct: ['owner'],
-  });
-
-  const numericOwnerIds = distinctOwnerRows
-    .map((row) => String(row.owner || '').trim())
-    .filter((owner) => /^\d+$/.test(owner));
-
-  if (numericOwnerIds.length === 0) {
-    return { ownerLabelById, updatedRows: 0 };
-  }
-
-  const resolvedOwnerLabels = await resolveMissingOwnerLabels(apiKey, numericOwnerIds, ownerLabelById);
-
-  let updatedRows = 0;
-  for (const ownerId of numericOwnerIds) {
-    const label = resolvedOwnerLabels[ownerId];
-    if (!label || label === ownerId) continue;
-
-    const result = await prisma.hubSpotDeal.updateMany({
-      where: { owner: ownerId },
-      data: {
-        owner: label,
-        lastSyncedAt: new Date(),
-      },
-    });
-
-    updatedRows += result.count;
-  }
-
-  return {
-    ownerLabelById: resolvedOwnerLabels,
-    updatedRows,
-  };
-}
 
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
@@ -267,16 +105,14 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
 async function upsertDealsInBatches(
   deals: any[],
-  existingById: Map<string, { id: string; dealStage: string; owner: string | null }>,
+  existingById: Map<string, { id: string; dealStage: string }>,
   stageLabelById: Record<string, string>,
   stageLabelByPropertyValue: Record<string, string>,
-  pipelineLabelById: Record<string, string>,
-  ownerLabelById: Record<string, string>
-): Promise<{ created: number; stageUpdated: number; ownerUpdated: number; skippedLowValue: number }> {
+  pipelineLabelById: Record<string, string>
+): Promise<{ created: number; stageUpdated: number; skippedLowValue: number }> {
   const dealChunks = chunkArray(deals, UPSERT_BATCH_SIZE);
   let created = 0;
   let stageUpdated = 0;
-  let ownerUpdated = 0;
   let skippedLowValue = 0;
 
   for (const chunk of dealChunks) {
@@ -287,15 +123,13 @@ async function upsertDealsInBatches(
       const properties = deal.properties;
       const stageId = properties.dealstage || '';
       const pipelineId = properties.pipeline || '';
-      const ownerId = String(properties.hubspot_owner_id || '').trim();
-      const resolvedOwner = ownerLabelById[ownerId] || ownerId || null;
       const resolvedStage = stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId;
 
       const existing = existingById.get(deal.id);
 
-      // Existing deals refresh stage and owner label without doing full data updates.
+      // Existing deals refresh stage only without doing full data updates.
       if (existing) {
-        const nextData: { dealStage?: string; owner?: string | null; lastSyncedAt: Date } = {
+        const nextData: { dealStage?: string; lastSyncedAt: Date } = {
           lastSyncedAt: new Date(),
         };
 
@@ -305,12 +139,6 @@ async function upsertDealsInBatches(
           nextData.dealStage = resolvedStage;
           shouldUpdate = true;
           stageUpdated += 1;
-        }
-
-        if (existing.owner !== resolvedOwner) {
-          nextData.owner = resolvedOwner;
-          shouldUpdate = true;
-          ownerUpdated += 1;
         }
 
         if (shouldUpdate) {
@@ -341,7 +169,7 @@ async function upsertDealsInBatches(
         dealStage: resolvedStage,
         pipeline: pipelineLabelById[pipelineId] || pipelineId,
         closeDate: properties.closedate ? new Date(properties.closedate) : null,
-        owner: ownerLabelById[ownerId] || ownerId || null,
+        owner: properties.hubspot_owner_id || null,
         // Unit details from HubSpot custom properties
         unitNumber: properties.unit_number || null,
         unitType: properties.unit_type || null,
@@ -375,7 +203,7 @@ async function upsertDealsInBatches(
     }
   }
 
-  return { created, stageUpdated, ownerUpdated, skippedLowValue };
+  return { created, stageUpdated, skippedLowValue };
 }
 
 export async function GET(request: Request) {
@@ -455,52 +283,6 @@ export async function GET(request: Request) {
       take: limit,
     });
 
-    // Fallback for legacy rows that still store owner IDs: resolve labels at read time.
-    const unresolvedOwnerIds = Array.from(
-      new Set(
-        deals
-          .map((deal) => String(deal.owner || '').trim())
-          .filter((ownerValue) => /^\d+$/.test(ownerValue))
-      )
-    );
-
-    if (unresolvedOwnerIds.length > 0) {
-      try {
-        let ownerLabelById = await fetchDealOwnerLabels(hubspotConfig.apiKey);
-        ownerLabelById = await resolveMissingOwnerLabels(
-          hubspotConfig.apiKey,
-          unresolvedOwnerIds,
-          ownerLabelById
-        );
-
-        for (const deal of deals) {
-          const ownerValue = String(deal.owner || '').trim();
-          if (ownerValue && ownerLabelById[ownerValue]) {
-            (deal as any).owner = ownerLabelById[ownerValue];
-          }
-        }
-
-        // Persist resolved labels so IDs don't reappear on next page load.
-        const updates = deals
-          .filter((deal) => {
-            const ownerValue = String(deal.owner || '').trim();
-            return !!ownerValue && !!ownerLabelById[ownerValue] && ownerLabelById[ownerValue] !== ownerValue;
-          })
-          .map((deal) =>
-            prisma.hubSpotDeal.update({
-              where: { id: deal.id },
-              data: { owner: ownerLabelById[String(deal.owner || '').trim()] },
-            })
-          );
-
-        if (updates.length > 0) {
-          await Promise.all(updates);
-        }
-      } catch {
-        // Non-blocking: keep numeric owner values if lookup fails.
-      }
-    }
-
     return NextResponse.json({
       success: true,
       deals,
@@ -557,7 +339,6 @@ export async function POST(request: Request) {
     let totalProcessed = 0;
     let totalCreated = 0;
     let totalStageUpdated = 0;
-    let totalOwnerUpdated = 0;
     let totalSkippedLowValue = 0;
     let totalScanned = 0;
     let pagesProcessed = 0;
@@ -565,7 +346,6 @@ export async function POST(request: Request) {
     let pipelineLabelById: Record<string, string> = {};
     let stageLabelById: Record<string, string> = {};
     let stageLabelByPropertyValue: Record<string, string> = {};
-    let ownerLabelById: Record<string, string> = {};
 
     try {
       const metadata = await fetchDealPipelineMetadata(apiKey);
@@ -581,24 +361,6 @@ export async function POST(request: Request) {
     } catch (metadataError) {
       console.error('Unable to resolve dealstage property labels from HubSpot:', metadataError);
       // Keep syncing and fall back to raw IDs.
-    }
-
-    try {
-      ownerLabelById = await fetchDealOwnerLabels(apiKey);
-    } catch (metadataError) {
-      console.error('Unable to resolve owner labels from HubSpot:', metadataError);
-      // Keep syncing and fall back to raw IDs.
-    }
-
-    // One-time pass: update existing DB rows that still store numeric owner IDs.
-    try {
-      const backfillResult = await backfillExistingOwnerLabels(apiKey, ownerLabelById);
-      ownerLabelById = backfillResult.ownerLabelById;
-      totalOwnerUpdated += backfillResult.updatedRows;
-      totalProcessed += backfillResult.updatedRows;
-    } catch (backfillError) {
-      console.error('Unable to backfill existing owner labels:', backfillError);
-      // Non-blocking: continue with normal sync.
     }
 
     // Fetch a bounded number of pages to keep request runtime short.
@@ -643,33 +405,19 @@ export async function POST(request: Request) {
       });
       const existingById = new Map(existingDealsForPage.map((deal) => [deal.id, deal]));
 
-      const unresolvedOwnerIds: string[] = Array.from(
-        new Set<string>(
-          pageDeals
-            .map((deal: any) => String(deal?.properties?.hubspot_owner_id || '').trim())
-            .filter((ownerId: string) => ownerId.length > 0 && !ownerLabelById[ownerId])
-        )
-      );
-
-      if (unresolvedOwnerIds.length > 0) {
-        ownerLabelById = await resolveMissingOwnerLabels(apiKey, unresolvedOwnerIds, ownerLabelById);
-      }
-
       const stats = await upsertDealsInBatches(
         pageDeals,
         existingById,
         stageLabelById,
         stageLabelByPropertyValue,
-        pipelineLabelById,
-        ownerLabelById
+        pipelineLabelById
       );
 
       totalCreated += stats.created;
       totalStageUpdated += stats.stageUpdated;
-      totalOwnerUpdated += stats.ownerUpdated;
       totalSkippedLowValue += stats.skippedLowValue;
       after = data.paging?.next?.after;
-      totalProcessed += stats.created + stats.stageUpdated + stats.ownerUpdated;
+      totalProcessed += stats.created + stats.stageUpdated;
       pagesProcessed += 1;
 
     } while (after && pagesProcessed < maxPages);
@@ -698,7 +446,6 @@ export async function POST(request: Request) {
       scannedThisRun: totalScanned,
       createdThisRun: totalCreated,
       stageUpdatedThisRun: totalStageUpdated,
-      ownerUpdatedThisRun: totalOwnerUpdated,
       skippedLowValueThisRun: totalSkippedLowValue,
       pagesProcessed,
       hasMore,
