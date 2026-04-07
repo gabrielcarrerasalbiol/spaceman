@@ -219,7 +219,7 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
 async function upsertDealsInBatches(
   deals: any[],
-  existingById: Map<string, { id: string; dealStage: string }>,
+  existingById: Map<string, { id: string; dealStage: string; owner: string | null }>,
   stageLabelById: Record<string, string>,
   stageLabelByPropertyValue: Record<string, string>,
   pipelineLabelById: Record<string, string>,
@@ -239,20 +239,34 @@ async function upsertDealsInBatches(
       const stageId = properties.dealstage || '';
       const pipelineId = properties.pipeline || '';
       const ownerId = String(properties.hubspot_owner_id || '').trim();
+      const resolvedOwner = ownerLabelById[ownerId] || ownerId || null;
       const resolvedStage = stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId;
 
       const existing = existingById.get(deal.id);
 
-      // Existing deals keep their existing data; only stage is refreshed.
+      // Existing deals refresh stage and owner label without doing full data updates.
       if (existing) {
+        const nextData: { dealStage?: string; owner?: string | null; lastSyncedAt: Date } = {
+          lastSyncedAt: new Date(),
+        };
+
+        let shouldUpdate = false;
+
         if (existing.dealStage !== resolvedStage) {
+          nextData.dealStage = resolvedStage;
+          shouldUpdate = true;
+        }
+
+        if (existing.owner !== resolvedOwner) {
+          nextData.owner = resolvedOwner;
+          shouldUpdate = true;
+        }
+
+        if (shouldUpdate) {
           updateStageOperations.push(
             prisma.hubSpotDeal.update({
               where: { id: deal.id },
-              data: {
-                dealStage: resolvedStage,
-                lastSyncedAt: new Date(),
-              },
+              data: nextData,
             })
           );
           stageUpdated += 1;
@@ -562,6 +576,7 @@ export async function POST(request: Request) {
         select: {
           id: true,
           dealStage: true,
+          owner: true,
         },
       });
       const existingById = new Map(existingDealsForPage.map((deal) => [deal.id, deal]));
