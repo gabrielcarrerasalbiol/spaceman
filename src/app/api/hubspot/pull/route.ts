@@ -191,6 +191,54 @@ async function resolveMissingOwnerLabels(
   return resolved;
 }
 
+async function backfillExistingOwnerLabels(
+  apiKey: string,
+  ownerLabelById: Record<string, string>
+): Promise<{ ownerLabelById: Record<string, string>; updatedRows: number }> {
+  const distinctOwnerRows = await prisma.hubSpotDeal.findMany({
+    where: {
+      owner: {
+        not: null,
+      },
+    },
+    select: {
+      owner: true,
+    },
+    distinct: ['owner'],
+  });
+
+  const numericOwnerIds = distinctOwnerRows
+    .map((row) => String(row.owner || '').trim())
+    .filter((owner) => /^\d+$/.test(owner));
+
+  if (numericOwnerIds.length === 0) {
+    return { ownerLabelById, updatedRows: 0 };
+  }
+
+  const resolvedOwnerLabels = await resolveMissingOwnerLabels(apiKey, numericOwnerIds, ownerLabelById);
+
+  let updatedRows = 0;
+  for (const ownerId of numericOwnerIds) {
+    const label = resolvedOwnerLabels[ownerId];
+    if (!label || label === ownerId) continue;
+
+    const result = await prisma.hubSpotDeal.updateMany({
+      where: { owner: ownerId },
+      data: {
+        owner: label,
+        lastSyncedAt: new Date(),
+      },
+    });
+
+    updatedRows += result.count;
+  }
+
+  return {
+    ownerLabelById: resolvedOwnerLabels,
+    updatedRows,
+  };
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -540,6 +588,17 @@ export async function POST(request: Request) {
     } catch (metadataError) {
       console.error('Unable to resolve owner labels from HubSpot:', metadataError);
       // Keep syncing and fall back to raw IDs.
+    }
+
+    // One-time pass: update existing DB rows that still store numeric owner IDs.
+    try {
+      const backfillResult = await backfillExistingOwnerLabels(apiKey, ownerLabelById);
+      ownerLabelById = backfillResult.ownerLabelById;
+      totalOwnerUpdated += backfillResult.updatedRows;
+      totalProcessed += backfillResult.updatedRows;
+    } catch (backfillError) {
+      console.error('Unable to backfill existing owner labels:', backfillError);
+      // Non-blocking: continue with normal sync.
     }
 
     // Fetch a bounded number of pages to keep request runtime short.
