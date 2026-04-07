@@ -2,6 +2,50 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
+type DealPipelineMetadata = {
+  pipelineLabelById: Record<string, string>;
+  stageLabelById: Record<string, string>;
+};
+
+async function fetchDealPipelineMetadata(apiKey: string): Promise<DealPipelineMetadata> {
+  const response = await fetch('https://api.hubapi.com/crm/v3/pipelines/deals', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`HubSpot pipelines API error: ${error}`);
+  }
+
+  const data = await response.json();
+  const pipelines = data.results || [];
+
+  const pipelineLabelById: Record<string, string> = {};
+  const stageLabelById: Record<string, string> = {};
+
+  for (const pipeline of pipelines) {
+    const pipelineId = String(pipeline?.id || '').trim();
+    const pipelineLabel = String(pipeline?.label || '').trim();
+    if (pipelineId && pipelineLabel) {
+      pipelineLabelById[pipelineId] = pipelineLabel;
+    }
+
+    const stages = pipeline?.stages || [];
+    for (const stage of stages) {
+      const stageId = String(stage?.id || '').trim();
+      const stageLabel = String(stage?.label || '').trim();
+      if (stageId && stageLabel) {
+        stageLabelById[stageId] = stageLabel;
+      }
+    }
+  }
+
+  return { pipelineLabelById, stageLabelById };
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -148,6 +192,18 @@ export async function POST(request: Request) {
     let after: string | undefined = undefined;
     let totalProcessed = 0;
 
+    let pipelineLabelById: Record<string, string> = {};
+    let stageLabelById: Record<string, string> = {};
+
+    try {
+      const metadata = await fetchDealPipelineMetadata(apiKey);
+      pipelineLabelById = metadata.pipelineLabelById;
+      stageLabelById = metadata.stageLabelById;
+    } catch (metadataError) {
+      console.error('Unable to resolve pipeline/stage labels from HubSpot:', metadataError);
+      // Keep syncing and fall back to raw IDs.
+    }
+
     // Fetch all deals with pagination
     do {
       const url = new URL('https://api.hubapi.com/crm/v3/objects/deals');
@@ -182,11 +238,13 @@ export async function POST(request: Request) {
     // Upsert deals to database
     const updateOperations = allDeals.map((deal: any) => {
       const properties = deal.properties;
+      const stageId = properties.dealstage || '';
+      const pipelineId = properties.pipeline || '';
       const dealData = {
         dealName: properties.dealname || '',
         amount: properties.amount ? parseFloat(properties.amount) : null,
-        dealStage: properties.dealstage || '',
-        pipeline: properties.pipeline || '',
+        dealStage: stageLabelById[stageId] || stageId,
+        pipeline: pipelineLabelById[pipelineId] || pipelineId,
         closeDate: properties.closedate ? new Date(properties.closedate) : null,
         owner: properties.hubspot_owner_id || null,
         // Unit details from HubSpot custom properties
