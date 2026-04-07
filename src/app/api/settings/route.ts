@@ -33,6 +33,17 @@ function normalizeWordpressConfig(input: unknown) {
   };
 }
 
+function normalizeHubspotConfig(input: unknown) {
+  const source = input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+
+  return {
+    apiKey: typeof source.apiKey === 'string' ? source.apiKey : '',
+    portalId: typeof source.portalId === 'string' ? source.portalId : '',
+    enabled: Boolean(source.enabled),
+    lastSync: typeof source.lastSync === 'string' ? source.lastSync : null,
+  };
+}
+
 async function getOrCreateSettings() {
   await ensureWordpressConfigColumn();
 
@@ -43,6 +54,7 @@ async function getOrCreateSettings() {
     siteDescription: true,
     primaryColor: true,
     unitStatusConfig: true,
+    hubspotConfig: true,
     wordpressConfig: true,
   };
 
@@ -76,6 +88,7 @@ async function getOrCreateSettings() {
         siteDescription: null,
         primaryColor: '#3b82f6',
         unitStatusConfig: DEFAULT_STATUS_CONFIG,
+        hubspotConfig: normalizeHubspotConfig(null),
         wordpressConfig: normalizeWordpressConfig(null),
       },
       select: withWordpressSelect,
@@ -92,6 +105,7 @@ async function getOrCreateSettings() {
     if (byDefaultId) {
       return {
         ...byDefaultId,
+        hubspotConfig: normalizeHubspotConfig(null),
         wordpressConfig: normalizeWordpressConfig(null),
       };
     }
@@ -103,6 +117,7 @@ async function getOrCreateSettings() {
     if (existing) {
       return {
         ...existing,
+        hubspotConfig: normalizeHubspotConfig(null),
         wordpressConfig: normalizeWordpressConfig(null),
       };
     }
@@ -121,6 +136,7 @@ async function getOrCreateSettings() {
 
     return {
       ...created,
+      hubspotConfig: normalizeHubspotConfig(null),
       wordpressConfig: normalizeWordpressConfig(null),
     };
   }
@@ -137,6 +153,7 @@ export async function GET() {
       siteDescription: settings.siteDescription || null,
       primaryColor: settings.primaryColor,
       unitStatusConfig: normalizeStatusConfig(settings.unitStatusConfig),
+      hubspotConfig: normalizeHubspotConfig(settings.hubspotConfig),
       wordpressConfig: normalizeWordpressConfig(settings.wordpressConfig),
     });
   } catch (error) {
@@ -162,7 +179,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig, wordpressConfig } = body;
+    const { siteName, siteLogo, siteDescription, primaryColor, unitStatusConfig, hubspotConfig, wordpressConfig } = body;
 
     if (wordpressConfig !== undefined) {
       await ensureWordpressConfigColumn();
@@ -178,6 +195,14 @@ export async function POST(request: NextRequest) {
         ...(siteDescription !== undefined && { siteDescription }),
         ...(primaryColor !== undefined && { primaryColor }),
         ...(unitStatusConfig !== undefined && { unitStatusConfig: normalizeStatusConfig(unitStatusConfig) }),
+        ...(hubspotConfig !== undefined && {
+          hubspotConfig: {
+            ...(settings.hubspotConfig && typeof settings.hubspotConfig === 'object'
+              ? (settings.hubspotConfig as Record<string, unknown>)
+              : {}),
+            ...normalizeHubspotConfig(hubspotConfig),
+          },
+        }),
         ...(wordpressConfig !== undefined && {
           wordpressConfig: {
             ...(settings.wordpressConfig && typeof settings.wordpressConfig === 'object'
@@ -194,6 +219,7 @@ export async function POST(request: NextRequest) {
         siteDescription: true,
         primaryColor: true,
         unitStatusConfig: true,
+        hubspotConfig: true,
         wordpressConfig: true,
       },
     });
@@ -204,6 +230,7 @@ export async function POST(request: NextRequest) {
       siteDescription: updated.siteDescription || null,
       primaryColor: updated.primaryColor,
       unitStatusConfig: normalizeStatusConfig(updated.unitStatusConfig),
+      hubspotConfig: normalizeHubspotConfig(updated.hubspotConfig),
       wordpressConfig: normalizeWordpressConfig(updated.wordpressConfig),
     });
   } catch (error) {

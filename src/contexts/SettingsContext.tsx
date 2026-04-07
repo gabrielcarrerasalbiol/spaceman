@@ -9,6 +9,12 @@ interface SiteSettings {
   siteDescription: string | null;
   primaryColor: string;
   unitStatusConfig: StatusConfig;
+  hubspotConfig?: {
+    apiKey?: string;
+    portalId?: string;
+    enabled: boolean;
+    lastSync?: string;
+  };
   wordpressConfig?: {
     siteUrl: string;
     apiUsername?: string;
@@ -32,6 +38,9 @@ const defaultSettings: SiteSettings = {
   siteDescription: null,
   primaryColor: '#3b82f6',
   unitStatusConfig: DEFAULT_STATUS_CONFIG,
+  hubspotConfig: {
+    enabled: false,
+  },
   wordpressConfig: {
     siteUrl: '',
     enabled: false,
@@ -57,6 +66,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
           siteDescription: data.siteDescription || null,
           primaryColor: data.primaryColor || defaultSettings.primaryColor,
           unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
+          hubspotConfig: data.hubspotConfig || defaultSettings.hubspotConfig,
           wordpressConfig: data.wordpressConfig || defaultSettings.wordpressConfig,
         });
       }
@@ -94,6 +104,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         siteDescription: data.siteDescription || null,
         primaryColor: data.primaryColor || defaultSettings.primaryColor,
         unitStatusConfig: normalizeStatusConfig(data.unitStatusConfig),
+        hubspotConfig: data.hubspotConfig || defaultSettings.hubspotConfig,
         wordpressConfig: data.wordpressConfig || defaultSettings.wordpressConfig,
       });
     } catch (error) {
