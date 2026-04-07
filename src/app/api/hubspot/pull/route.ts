@@ -75,6 +75,49 @@ async function fetchDealStagePropertyLabels(apiKey: string): Promise<Record<stri
   return labelsByValue;
 }
 
+async function fetchDealOwnerLabels(apiKey: string): Promise<Record<string, string>> {
+  const ownerLabelById: Record<string, string> = {};
+  let after: string | undefined;
+
+  do {
+    const url = new URL('https://api.hubapi.com/crm/v3/owners/');
+    url.searchParams.append('limit', '500');
+    url.searchParams.append('archived', 'false');
+    if (after) {
+      url.searchParams.append('after', after);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return ownerLabelById;
+    }
+
+    const data = await response.json();
+    const owners = data.results || [];
+
+    for (const owner of owners) {
+      const ownerId = String(owner?.id || '').trim();
+      if (!ownerId) continue;
+
+      const firstName = String(owner?.firstName || '').trim();
+      const lastName = String(owner?.lastName || '').trim();
+      const fullName = `${firstName} ${lastName}`.trim();
+      const email = String(owner?.email || '').trim();
+      ownerLabelById[ownerId] = fullName || email || ownerId;
+    }
+
+    after = data.paging?.next?.after;
+  } while (after);
+
+  return ownerLabelById;
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -105,7 +148,8 @@ async function upsertDealsInBatches(
   deals: any[],
   stageLabelById: Record<string, string>,
   stageLabelByPropertyValue: Record<string, string>,
-  pipelineLabelById: Record<string, string>
+  pipelineLabelById: Record<string, string>,
+  ownerLabelById: Record<string, string>
 ): Promise<void> {
   const dealChunks = chunkArray(deals, UPSERT_BATCH_SIZE);
 
@@ -114,13 +158,14 @@ async function upsertDealsInBatches(
       const properties = deal.properties;
       const stageId = properties.dealstage || '';
       const pipelineId = properties.pipeline || '';
+      const ownerId = String(properties.hubspot_owner_id || '').trim();
       const dealData = {
         dealName: properties.dealname || '',
         amount: properties.amount ? parseFloat(properties.amount) : null,
         dealStage: stageLabelById[stageId] || stageLabelByPropertyValue[stageId] || stageId,
         pipeline: pipelineLabelById[pipelineId] || pipelineId,
         closeDate: properties.closedate ? new Date(properties.closedate) : null,
-        owner: properties.hubspot_owner_id || null,
+        owner: ownerLabelById[ownerId] || ownerId || null,
         // Unit details from HubSpot custom properties
         unitNumber: properties.unit_number || null,
         unitType: properties.unit_type || null,
@@ -278,6 +323,7 @@ export async function POST(request: Request) {
     let pipelineLabelById: Record<string, string> = {};
     let stageLabelById: Record<string, string> = {};
     let stageLabelByPropertyValue: Record<string, string> = {};
+    let ownerLabelById: Record<string, string> = {};
 
     try {
       const metadata = await fetchDealPipelineMetadata(apiKey);
@@ -292,6 +338,13 @@ export async function POST(request: Request) {
       stageLabelByPropertyValue = await fetchDealStagePropertyLabels(apiKey);
     } catch (metadataError) {
       console.error('Unable to resolve dealstage property labels from HubSpot:', metadataError);
+      // Keep syncing and fall back to raw IDs.
+    }
+
+    try {
+      ownerLabelById = await fetchDealOwnerLabels(apiKey);
+    } catch (metadataError) {
+      console.error('Unable to resolve owner labels from HubSpot:', metadataError);
       // Keep syncing and fall back to raw IDs.
     }
 
@@ -321,7 +374,13 @@ export async function POST(request: Request) {
 
       const data = await response.json();
       const pageDeals = data.results || [];
-      await upsertDealsInBatches(pageDeals, stageLabelById, stageLabelByPropertyValue, pipelineLabelById);
+      await upsertDealsInBatches(
+        pageDeals,
+        stageLabelById,
+        stageLabelByPropertyValue,
+        pipelineLabelById,
+        ownerLabelById
+      );
       after = data.paging?.next?.after;
       totalProcessed += pageDeals.length;
 

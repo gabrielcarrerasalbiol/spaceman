@@ -783,7 +783,7 @@ export default function HubSpotDealsPage() {
                         <td className="px-4 py-3 font-medium">{deal.dealName}</td>
                         <td className="px-4 py-3">
                           {deal.amount !== null ? (
-                            <span>GBP {deal.amount.toLocaleString()}</span>
+                            <span>£{deal.amount.toLocaleString()}</span>
                           ) : (
                             <span className="text-muted-foreground">-</span>
                           )}
@@ -898,7 +898,7 @@ export default function HubSpotDealsPage() {
               <div>
                 <p className="text-sm text-muted-foreground">Amount</p>
                 <p className="font-semibold">
-                  {selectedDeal.amount !== null ? `GBP ${selectedDeal.amount.toLocaleString()}` : '-'}
+                  {selectedDeal.amount !== null ? `£${selectedDeal.amount.toLocaleString()}` : '-'}
                 </p>
               </div>
 
