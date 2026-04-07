@@ -282,20 +282,29 @@ enum PlacementShape {
 }
 
 model HubSpotDeal {
-  id             String    @id
-  dealName       String
-  amount         Decimal?  @db.Decimal(12, 2)
-  dealStage      String
-  pipeline       String
-  closeDate      DateTime?
-  owner          String?
-  clientId       String?   @map("clientid")
-  contractId     String?   @map("contractid")
-  importedAt     DateTime? @map("importedat")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  rawData        Json
-  lastSyncedAt   DateTime  @default(now())
+  id              String    @id
+  dealName        String
+  amount          Decimal?  @db.Decimal(12, 2)
+  dealStage       String
+  pipeline        String
+  closeDate       DateTime?
+  owner           String?
+  clientId        String?   @map("clientid")
+  contractId      String?   @map("contractid")
+  importedAt      DateTime? @map("importedat")
+  // Unit details from HubSpot custom properties
+  unitNumber      String?   @map("unitnumber")
+  unitType        String?   @map("unittype")
+  unitSize        String?   @map("unitsize")
+  locationName    String?   @map("locationname")
+  startDate       DateTime? @map("startdate")
+  endDate         DateTime? @map("enddate")
+  weeklyRate      Decimal?  @map("weeklyrate") @db.Decimal(10, 2)
+  monthlyRate     Decimal?  @map("monthlyrate") @db.Decimal(10, 2)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  rawData         Json
+  lastSyncedAt    DateTime  @default(now())
 
   client         Client?   @relation("HubSpotDealClient", fields: [clientId], references: [id])
   contract       Contract? @relation(fields: [contractId], references: [id])

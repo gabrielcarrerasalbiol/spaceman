@@ -153,7 +153,7 @@ export async function POST(request: Request) {
       // HubSpot limits to 50 when using propertiesWithHistory
       url.searchParams.append('limit', '50');
       // Fetch associations for companies and contacts
-      url.searchParams.append('propertiesWithHistory', 'dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id');
+      url.searchParams.append('properties', 'dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id,unit_number,unit_type,unit_size,location_name,start_date,end_date,weekly_rate,monthly_rate');
       url.searchParams.append('associations', 'companies,contacts');
       if (after) {
         url.searchParams.append('after', after);
@@ -181,28 +181,32 @@ export async function POST(request: Request) {
     // Upsert deals to database
     const updateOperations = allDeals.map((deal: any) => {
       const properties = deal.properties;
+      const dealData = {
+        dealName: properties.dealname || '',
+        amount: properties.amount ? parseFloat(properties.amount) : null,
+        dealStage: properties.dealstage || '',
+        pipeline: properties.pipeline || '',
+        closeDate: properties.closedate ? new Date(properties.closedate) : null,
+        owner: properties.hubspot_owner_id || null,
+        // Unit details from HubSpot custom properties
+        unitNumber: properties.unit_number || null,
+        unitType: properties.unit_type || null,
+        unitSize: properties.unit_size || null,
+        locationName: properties.location_name || null,
+        startDate: properties.start_date ? new Date(properties.start_date) : null,
+        endDate: properties.end_date ? new Date(properties.end_date) : null,
+        weeklyRate: properties.weekly_rate ? parseFloat(properties.weekly_rate) : null,
+        monthlyRate: properties.monthly_rate ? parseFloat(properties.monthly_rate) : null,
+        rawData: deal,
+        lastSyncedAt: new Date(),
+      };
+
       return prisma.hubSpotDeal.upsert({
         where: { id: deal.id },
-        update: {
-          dealName: properties.dealname || '',
-          amount: properties.amount ? parseFloat(properties.amount) : null,
-          dealStage: properties.dealstage || '',
-          pipeline: properties.pipeline || '',
-          closeDate: properties.closedate ? new Date(properties.closedate) : null,
-          owner: properties.hubspot_owner_id || null,
-          rawData: deal,
-          lastSyncedAt: new Date(),
-        },
+        update: dealData,
         create: {
           id: deal.id,
-          dealName: properties.dealname || '',
-          amount: properties.amount ? parseFloat(properties.amount) : null,
-          dealStage: properties.dealstage || '',
-          pipeline: properties.pipeline || '',
-          closeDate: properties.closedate ? new Date(properties.closedate) : null,
-          owner: properties.hubspot_owner_id || null,
-          rawData: deal,
-          lastSyncedAt: new Date(),
+          ...dealData,
         },
       });
     });
