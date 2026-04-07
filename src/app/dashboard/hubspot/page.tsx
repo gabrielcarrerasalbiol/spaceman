@@ -383,10 +383,10 @@ export default function HubSpotDealsPage() {
               </div>
             </div>
 
-            {dealDetails.properties?.hs_object_id && (
+            {dealDetails.properties?.hs_object_id ? (
               <div className="border-t pt-4">
                 <a
-                  href={`https://app.hubspot.com/contacts/${hubspotConfig.portalId || ''}/deal/${dealDetails.properties.hs_object_id}`}
+                  href={`https://app.hubspot.com/contacts/${hubspotConfig.portalId || ''}/deal/${String(dealDetails.properties.hs_object_id)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-blue-600 hover:text-blue-800"
@@ -394,7 +394,7 @@ export default function HubSpotDealsPage() {
                   Open in HubSpot -&gt;
                 </a>
               </div>
-            )}
+            ) : null}
           </div>
         </Modal>
       )}
