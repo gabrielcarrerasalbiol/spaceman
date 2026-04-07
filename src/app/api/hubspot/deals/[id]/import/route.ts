@@ -2,6 +2,175 @@ import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
 
+const HUBSPOT_IMPORT_ASSOCIATION_OBJECT_TYPES = [
+  'companies',
+  'contacts',
+  'line_items',
+  'tickets',
+  'quotes',
+  'products',
+  'calls',
+  'emails',
+  'meetings',
+  'notes',
+  'tasks',
+];
+
+const HUBSPOT_IMPORT_PROPERTY_BATCH_SIZE = 150;
+
+const CORE_DEAL_PROPERTIES = [
+  'dealname',
+  'amount',
+  'dealstage',
+  'pipeline',
+  'closedate',
+  'hubspot_owner_id',
+  'unit_number',
+  'unit_type',
+  'unit_size',
+  'location_name',
+  'start_date',
+  'end_date',
+  'weekly_rate',
+  'monthly_rate',
+];
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+async function fetchAllDealPropertyNames(apiKey: string): Promise<string[]> {
+  const names: string[] = [];
+  let after: string | undefined;
+
+  do {
+    const url = new URL('https://api.hubapi.com/crm/v3/properties/deals');
+    url.searchParams.append('limit', '500');
+    url.searchParams.append('archived', 'false');
+    if (after) {
+      url.searchParams.append('after', after);
+    }
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`HubSpot properties API error: ${error}`);
+    }
+
+    const data = await response.json();
+    const pageNames = (data.results || [])
+      .map((property: any) => property?.name)
+      .filter((name: unknown): name is string => typeof name === 'string' && name.length > 0);
+
+    names.push(...pageNames);
+    after = data.paging?.next?.after;
+  } while (after);
+
+  return Array.from(new Set([...CORE_DEAL_PROPERTIES, ...names]));
+}
+
+async function fetchDealAssociationDetails(apiKey: string, dealId: string): Promise<Record<string, any[]>> {
+  const details: Record<string, any[]> = {};
+
+  for (const objectType of HUBSPOT_IMPORT_ASSOCIATION_OBJECT_TYPES) {
+    try {
+      const response = await fetch(`https://api.hubapi.com/crm/v3/associations/deals/${objectType}/batch/read`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inputs: [{ id: dealId }],
+        }),
+      });
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+      const result = (data.results || []).find((r: any) => r?.from?.id === dealId);
+      details[objectType] = (result?.to || []).map((item: any) => ({
+        id: item.id,
+        associationTypes: item.type || item.types || null,
+      }));
+    } catch {
+      // Ignore unsupported association object types for this portal.
+    }
+  }
+
+  return details;
+}
+
+async function fetchFullHubspotDeal(apiKey: string, dealId: string): Promise<any> {
+  const allPropertyNames = await fetchAllDealPropertyNames(apiKey);
+  const propertyChunks = chunkArray(allPropertyNames, HUBSPOT_IMPORT_PROPERTY_BATCH_SIZE);
+
+  const baseUrl = new URL(`https://api.hubapi.com/crm/v3/objects/deals/${dealId}`);
+  baseUrl.searchParams.append('associations', 'companies,contacts');
+  baseUrl.searchParams.append('properties', 'dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id');
+
+  const baseResponse = await fetch(baseUrl.toString(), {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!baseResponse.ok) {
+    const error = await baseResponse.text();
+    throw new Error(`HubSpot deal API error: ${error}`);
+  }
+
+  const baseDeal = await baseResponse.json();
+  const mergedDeal = {
+    ...baseDeal,
+    properties: { ...(baseDeal.properties || {}) },
+  };
+
+  for (const propertyChunk of propertyChunks) {
+    const response = await fetch('https://api.hubapi.com/crm/v3/objects/deals/batch/read', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        inputs: [{ id: dealId }],
+        properties: propertyChunk,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`HubSpot batch/read API error: ${error}`);
+    }
+
+    const data = await response.json();
+    const result = (data.results || []).find((r: any) => r.id === dealId);
+    if (!result) continue;
+
+    mergedDeal.properties = {
+      ...(mergedDeal.properties || {}),
+      ...(result.properties || {}),
+    };
+  }
+
+  mergedDeal.associationDetails = await fetchDealAssociationDetails(apiKey, dealId);
+  return mergedDeal;
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -36,7 +205,7 @@ export async function GET(
     }
 
     const settings = await getOrCreateSettingsRow();
-    const hubspotConfig = (settings.hubspotConfig as any) || {};
+    const hubspotConfig = ((settings as any).hubspotConfig as any) || {};
 
     if (!hubspotConfig.enabled || !hubspotConfig.apiKey) {
       return NextResponse.json(
@@ -78,12 +247,20 @@ export async function GET(
       });
     }
 
+    let fullHubspotDeal: any = null;
+
+    try {
+      fullHubspotDeal = await fetchFullHubspotDeal(hubspotConfig.apiKey, deal.id);
+    } catch (hubspotError) {
+      console.error('Error fetching full HubSpot deal for import:', hubspotError);
+    }
+
     // Fetch customer details from HubSpot using deal associations
     let hubspotContacts: any[] = [];
     let hubspotCompanies: any[] = [];
 
     try {
-      const rawData = deal.rawData as any;
+      const rawData = (fullHubspotDeal || deal.rawData) as any;
       const associations = rawData?.associations || {};
 
       // Fetch associated contacts
@@ -185,6 +362,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       deal: serializeBigInt(deal),
+      hubspotDealFull: serializeBigInt(fullHubspotDeal),
       existingClient: existingClient ? serializeBigInt(existingClient) : null,
       existingContract: existingContract ? serializeBigInt(existingContract) : null,
       locations: serializeBigInt(locations.map((loc: any) => ({

@@ -143,6 +143,7 @@ export async function POST(request: Request) {
     }
 
     const apiKey = hubspotConfig.apiKey;
+
     let allDeals: any[] = [];
     let after: string | undefined = undefined;
     let totalProcessed = 0;
@@ -171,10 +172,10 @@ export async function POST(request: Request) {
         throw new Error(`HubSpot API error: ${error}`);
       }
 
-      const data = await response.json();
-      allDeals = [...allDeals, ...data.results];
-      after = data.paging?.next?.after;
-      totalProcessed += data.results?.length || 0;
+        const data = await response.json();
+        allDeals = [...allDeals, ...data.results];
+        after = data.paging?.next?.after;
+        totalProcessed += data.results?.length || 0;
 
     } while (after);
 
