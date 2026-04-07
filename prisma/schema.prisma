@@ -127,6 +127,7 @@ model Client {
   createdById      BigInt?
   updatedById      BigInt?
   contracts        Contract[]
+  hubSpotDeals     HubSpotDeal[]
 
   @@index([status])
   @@index([email])
@@ -193,6 +194,7 @@ model Contract {
   client             Client          @relation(fields: [clientId], references: [id], onDelete: Restrict)
   unit               Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict)
   location           Location        @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  hubSpotDeal        HubSpotDeal?
 
   @@index([clientId])
   @@index([unitId])
@@ -287,13 +289,21 @@ model HubSpotDeal {
   pipeline       String
   closeDate      DateTime?
   owner          String?
+  clientId       String?
+  contractId     String?
+  importedAt     DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   rawData        Json
   lastSyncedAt   DateTime  @default(now())
 
+  client         Client?   @relation(fields: [clientId], references: [id])
+  contract       Contract? @relation(fields: [contractId], references: [id])
+
   @@index([dealStage])
   @@index([pipeline])
   @@index([closeDate])
+  @@index([clientId])
+  @@index([contractId])
   @@map("hubspot_deals")
 }

@@ -11,11 +11,56 @@ import {
   Eye,
   RefreshCw,
   Settings,
+  X,
+  Filter,
+  Download,
+  UserPlus,
+  MapPin,
+  Package,
 } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
 import { useSettings } from '@/contexts/SettingsContext';
+
+interface DealFilters {
+  dealName: string;
+  amountMin: string;
+  amountMax: string;
+  dealStage: string;
+  pipeline: string;
+  closeDateFrom: string;
+  closeDateTo: string;
+  owner: string;
+}
+
+interface HubSpotDeal {
+  id: string;
+  dealName: string;
+  amount: number | null;
+  dealStage: string;
+  pipeline: string;
+  closeDate: Date | null;
+  owner: string | null;
+  lastSyncedAt: Date;
+  rawData?: Record<string, unknown>;
+  clientId?: string | null;
+  contractId?: string | null;
+  importedAt?: Date | null;
+}
+
+interface DealFilters {
+  dealName: string;
+  amountMin: string;
+  amountMax: string;
+  dealStage: string;
+  pipeline: string;
+  closeDateFrom: string;
+  closeDateTo: string;
+  owner: string;
+}
 
 interface HubSpotDeal {
   id: string;
@@ -62,31 +107,283 @@ export default function HubSpotDealsPage() {
   const [totalDeals, setTotalDeals] = useState(0);
   const dealsPerPage = 25;
 
+  // Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<DealFilters>({
+    dealName: '',
+    amountMin: '',
+    amountMax: '',
+    dealStage: '',
+    pipeline: '',
+    closeDateFrom: '',
+    closeDateTo: '',
+    owner: '',
+  });
+
+  // Unique values for select dropdowns (populated from deals)
+  const [uniqueStages, setUniqueStages] = useState<string[]>([]);
+  const [uniquePipelines, setUniquePipelines] = useState<string[]>([]);
+
+  // Import modal state
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importDeal, setImportDeal] = useState<HubSpotDeal | null>(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importData, setImportData] = useState<any>(null);
+  const [importSubmitting, setImportSubmitting] = useState(false);
+
+  // Import form state
+  const [importForm, setImportForm] = useState({
+    createNewClient: false,
+    clientId: '',
+    clientData: {
+      firstName: '',
+      lastName: '',
+      companyName: '',
+      email: '',
+      phone: '',
+      billingEmail: '',
+      addressLine1: '',
+      addressLine2: '',
+      townCity: '',
+      county: '',
+      postcode: '',
+      country: '',
+    },
+    unitId: '',
+    locationId: '',
+    startDate: '',
+    endDate: '',
+    weeklyRate: '',
+    monthlyRate: '',
+    depositAmount: '',
+    paymentMethod: '',
+    notes: '',
+  });
+
   useEffect(() => {
     void fetchDeals();
-  }, [currentPage]);
+  }, [currentPage, filters]);
 
   async function fetchDeals(): Promise<void> {
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/hubspot/pull?page=${currentPage}&limit=${dealsPerPage}`);
+      // Build query params with filters
+      const params = new URLSearchParams({
+        page: String(currentPage),
+        limit: String(dealsPerPage),
+      });
+
+      // Add filters to query params
+      if (filters.dealName) params.append('dealName', filters.dealName);
+      if (filters.amountMin) params.append('amountMin', filters.amountMin);
+      if (filters.amountMax) params.append('amountMax', filters.amountMax);
+      if (filters.dealStage) params.append('dealStage', filters.dealStage);
+      if (filters.pipeline) params.append('pipeline', filters.pipeline);
+      if (filters.closeDateFrom) params.append('closeDateFrom', filters.closeDateFrom);
+      if (filters.closeDateTo) params.append('closeDateTo', filters.closeDateTo);
+      if (filters.owner) params.append('owner', filters.owner);
+
+      const response = await fetch(`/api/hubspot/pull?${params.toString()}`);
       const payload: PaginatedResponse = await response.json();
 
       if (!response.ok) {
         throw new Error(payload.error || 'Failed to fetch HubSpot deals');
       }
 
-      setDeals(payload.deals || []);
+      const fetchedDeals = payload.deals || [];
+      setDeals(fetchedDeals);
       setTotalPages(payload.totalPages || 1);
       setTotalDeals(payload.total || 0);
+
+      // Extract unique values for filters (from all deals, not just current page)
+      setUniqueStages([...new Set(fetchedDeals.map((d) => d.dealStage).filter(Boolean))]);
+      setUniquePipelines([...new Set(fetchedDeals.map((d) => d.pipeline).filter(Boolean))]);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Unexpected error while fetching deals';
       setError(message);
     } finally {
       setLoading(false);
     }
+  }
+
+  function updateFilter(key: keyof DealFilters, value: string): void {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setCurrentPage(1); // Reset to first page when filter changes
+  }
+
+  function clearFilters(): void {
+    setFilters({
+      dealName: '',
+      amountMin: '',
+      amountMax: '',
+      dealStage: '',
+      pipeline: '',
+      closeDateFrom: '',
+      closeDateTo: '',
+      owner: '',
+    });
+    setCurrentPage(1);
+  }
+
+  const hasActiveFilters = Object.values(filters).some((v) => v !== '');
+
+  // Import functions
+  async function openImportModal(deal: HubSpotDeal): Promise<void> {
+    setImportDeal(deal);
+    setShowImportModal(true);
+    setImportLoading(true);
+
+    try {
+      const response = await fetch(`/api/hubspot/deals/${deal.id}/import`);
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to fetch import data');
+      }
+
+      setImportData(payload);
+
+      // Extract customer data from deal associations
+      const associations = (deal.rawData as any)?.associations || {};
+      const companies = associations.companies?.results || [];
+      const contacts = associations.contacts?.results || [];
+
+      // Pre-fill form with deal data
+      let clientFirstName = '';
+      let clientLastName = '';
+      let clientCompanyName = '';
+      let clientEmail = '';
+      let clientPhone = '';
+
+      // Try to get company data
+      if (companies.length > 0) {
+        const company = companies[0];
+        clientCompanyName = company.properties?.name || '';
+      }
+
+      // Try to get contact data
+      if (contacts.length > 0) {
+        const contact = contacts[0];
+        clientFirstName = contact.properties?.firstname || '';
+        clientLastName = contact.properties?.lastname || '';
+        clientEmail = contact.properties?.email || '';
+        clientPhone = contact.properties?.phone || '';
+      }
+
+      // Set default start date from close date or today
+      const defaultStartDate = deal.closeDate
+        ? new Date(deal.closeDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      setImportForm({
+        createNewClient: !payload.existingClient,
+        clientId: payload.existingClient?.id || '',
+        clientData: {
+          firstName: clientFirstName,
+          lastName: clientLastName || 'Unknown', // Default required
+          companyName: clientCompanyName,
+          email: clientEmail,
+          phone: clientPhone,
+          billingEmail: clientEmail,
+          addressLine1: '',
+          addressLine2: '',
+          townCity: '',
+          county: '',
+          postcode: '',
+          country: '',
+        },
+        unitId: '',
+        locationId: '',
+        startDate: defaultStartDate,
+        endDate: '',
+        weeklyRate: deal.amount ? String(deal.amount) : '',
+        monthlyRate: '',
+        depositAmount: '',
+        paymentMethod: '',
+        notes: `Imported from HubSpot deal: ${deal.dealName}`,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unexpected error while fetching import data';
+      setError(message);
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
+  function closeImportModal(): void {
+    setShowImportModal(false);
+    setImportDeal(null);
+    setImportData(null);
+    setImportForm({
+      createNewClient: false,
+      clientId: '',
+      clientData: {
+        firstName: '',
+        lastName: '',
+        companyName: '',
+        email: '',
+        phone: '',
+        billingEmail: '',
+        addressLine1: '',
+        addressLine2: '',
+        townCity: '',
+        county: '',
+        postcode: '',
+        country: '',
+      },
+      unitId: '',
+      locationId: '',
+      startDate: '',
+      endDate: '',
+      weeklyRate: '',
+      monthlyRate: '',
+      depositAmount: '',
+      paymentMethod: '',
+      notes: '',
+    });
+  }
+
+  async function submitImport(): Promise<void> {
+    if (!importDeal) return;
+
+    setImportSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/hubspot/deals/${importDeal.id}/import`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(importForm),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to import deal');
+      }
+
+      setSuccess(payload.message || 'Successfully imported deal');
+      closeImportModal();
+      await fetchDeals();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unexpected error while importing deal';
+      setError(message);
+    } finally {
+      setImportSubmitting(false);
+    }
+  }
+
+  function updateImportForm<K extends keyof typeof importForm>(key: K, value: typeof importForm[K]): void {
+    setImportForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function updateClientData<K extends keyof typeof importForm.clientData>(key: K, value: string): void {
+    setImportForm((prev) => ({
+      ...prev,
+      clientData: { ...prev.clientData, [key]: value },
+    }));
   }
 
   async function handleSync(): Promise<void> {
@@ -184,6 +481,18 @@ export default function HubSpotDealsPage() {
         </div>
 
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters((prev) => !prev)}
+            className={hasActiveFilters ? 'border-accent bg-accent/10' : ''}
+          >
+            <Filter className="mr-2 h-4 w-4" />
+            Filters
+            {hasActiveFilters && <span className="ml-2 rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">
+              {Object.values(filters).filter((v) => v !== '').length}
+            </span>}
+          </Button>
+
           <Button variant="outline" onClick={() => void fetchDeals()} disabled={loading}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
@@ -236,6 +545,121 @@ export default function HubSpotDealsPage() {
             </div>
           ) : (
             <>
+              {/* Filters Section */}
+              {showFilters && (
+                <div className="mb-4 rounded-lg border border-dashed border-gray-300 bg-muted/30 p-4">
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">Filter Deals</h3>
+                    {hasActiveFilters && (
+                      <Button variant="ghost" size="sm" onClick={clearFilters}>
+                        <X className="mr-1 h-3 w-3" />
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {/* Deal Name */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Deal Name</label>
+                      <Input
+                        placeholder="Search deals..."
+                        value={filters.dealName}
+                        onChange={(e) => updateFilter('dealName', e.target.value)}
+                      />
+                    </div>
+
+                    {/* Amount Range */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Amount Range</label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={filters.amountMin}
+                          onChange={(e) => updateFilter('amountMin', e.target.value)}
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={filters.amountMax}
+                          onChange={(e) => updateFilter('amountMax', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Stage */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Stage</label>
+                      <Select
+                        value={filters.dealStage}
+                        onValueChange={(value) => updateFilter('dealStage', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All stages" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All stages</SelectItem>
+                          {uniqueStages.map((stage) => (
+                            <SelectItem key={stage} value={stage}>
+                              {stage}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Pipeline */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Pipeline</label>
+                      <Select
+                        value={filters.pipeline}
+                        onValueChange={(value) => updateFilter('pipeline', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All pipelines" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All pipelines</SelectItem>
+                          {uniquePipelines.map((pipeline) => (
+                            <SelectItem key={pipeline} value={pipeline}>
+                              {pipeline}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Close Date Range */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Close Date</label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="date"
+                          value={filters.closeDateFrom}
+                          onChange={(e) => updateFilter('closeDateFrom', e.target.value)}
+                        />
+                        <Input
+                          type="date"
+                          value={filters.closeDateTo}
+                          onChange={(e) => updateFilter('closeDateTo', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Owner */}
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Owner</label>
+                      <Input
+                        placeholder="Search owner..."
+                        value={filters.owner}
+                        onChange={(e) => updateFilter('owner', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -272,9 +696,35 @@ export default function HubSpotDealsPage() {
                         </td>
                         <td className="px-4 py-3 text-sm">{deal.owner || '-'}</td>
                         <td className="px-4 py-3 text-right">
-                          <Button variant="ghost" size="sm" onClick={() => handleViewDeal(deal)}>
-                            <Eye className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => void handleViewDeal(deal)}
+                              title="View deal details"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            {!deal.importedAt && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => void openImportModal(deal)}
+                                title="Import deal"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
+                            {deal.importedAt && (
+                              <span
+                                className="inline-flex items-center gap-1 text-xs text-green-600"
+                                title={`Imported on ${new Date(deal.importedAt).toLocaleDateString()}`}
+                              >
+                                <MapPin className="h-3 w-3" />
+                                Imported
+                              </span>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -396,6 +846,357 @@ export default function HubSpotDealsPage() {
               </div>
             ) : null}
           </div>
+        </Modal>
+      )}
+
+      {/* Import Modal */}
+      {showImportModal && importDeal && (
+        <Modal
+          open={showImportModal}
+          onClose={closeImportModal}
+          title={`Import Deal: ${importDeal.dealName}`}
+          description="Create client and contract from HubSpot deal"
+          className="max-w-2xl"
+        >
+          {importLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Deal Summary */}
+              <div className="rounded-lg bg-muted/50 p-4">
+                <h3 className="mb-2 text-sm font-semibold">Deal Summary</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Amount:</span>{' '}
+                    <span className="font-medium">
+                      {importDeal.amount !== null ? `£${importDeal.amount.toLocaleString()}` : '-'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Stage:</span>{' '}
+                    <span className="font-medium">{importDeal.dealStage}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Pipeline:</span>{' '}
+                    <span className="font-medium">{importDeal.pipeline}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Close Date:</span>{' '}
+                    <span className="font-medium">
+                      {importDeal.closeDate ? new Date(importDeal.closeDate).toLocaleDateString() : '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Existing import status */}
+              {importData?.existingContract && (
+                <div className="rounded-lg bg-green-50 p-4 text-green-800">
+                  <p className="font-medium">This deal has already been imported</p>
+                  <p className="text-sm">
+                    Contract: {importData.existingContract.contractNumber}
+                  </p>
+                </div>
+              )}
+
+              {/* Client Selection */}
+              <div>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                  <UserPlus className="h-4 w-4" />
+                  Client
+                </h3>
+
+                <div className="mb-3">
+                  <label className="mb-2 flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={importForm.createNewClient}
+                      onChange={(e) => updateImportForm('createNewClient', e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span className="text-sm">Create new client from deal data</span>
+                  </label>
+                </div>
+
+                {!importForm.createNewClient ? (
+                  <Select
+                    value={importForm.clientId}
+                    onValueChange={(value) => updateImportForm('clientId', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select existing client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {importData?.clients?.map((client: any) => (
+                        <SelectItem key={client.id} value={client.id}>
+                          {client.companyName
+                            ? `${client.companyName} (${client.firstName} ${client.lastName})`
+                            : `${client.firstName} ${client.lastName}`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                    <h4 className="text-xs font-semibold text-muted-foreground">
+                      New Client Details (from HubSpot associations)
+                    </h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">First Name *</label>
+                        <Input
+                          value={importForm.clientData.firstName}
+                          onChange={(e) => updateClientData('firstName', e.target.value)}
+                          placeholder="John"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Last Name *</label>
+                        <Input
+                          value={importForm.clientData.lastName}
+                          onChange={(e) => updateClientData('lastName', e.target.value)}
+                          placeholder="Doe"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1 block text-xs text-muted-foreground">Company Name</label>
+                        <Input
+                          value={importForm.clientData.companyName}
+                          onChange={(e) => updateClientData('companyName', e.target.value)}
+                          placeholder="Acme Corp"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Email</label>
+                        <Input
+                          type="email"
+                          value={importForm.clientData.email}
+                          onChange={(e) => updateClientData('email', e.target.value)}
+                          placeholder="john@example.com"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Phone</label>
+                        <Input
+                          type="tel"
+                          value={importForm.clientData.phone}
+                          onChange={(e) => updateClientData('phone', e.target.value)}
+                          placeholder="+44 123 456 7890"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1 block text-xs text-muted-foreground">Billing Email</label>
+                        <Input
+                          type="email"
+                          value={importForm.clientData.billingEmail}
+                          onChange={(e) => updateClientData('billingEmail', e.target.value)}
+                          placeholder="billing@example.com"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1 block text-xs text-muted-foreground">Address Line 1</label>
+                        <Input
+                          value={importForm.clientData.addressLine1}
+                          onChange={(e) => updateClientData('addressLine1', e.target.value)}
+                          placeholder="123 Main St"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="mb-1 block text-xs text-muted-foreground">City</label>
+                        <Input
+                          value={importForm.clientData.townCity}
+                          onChange={(e) => updateClientData('townCity', e.target.value)}
+                          placeholder="London"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Postcode</label>
+                        <Input
+                          value={importForm.clientData.postcode}
+                          onChange={(e) => updateClientData('postcode', e.target.value)}
+                          placeholder="SW1A 1AA"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Country</label>
+                        <Input
+                          value={importForm.clientData.country}
+                          onChange={(e) => updateClientData('country', e.target.value)}
+                          placeholder="United Kingdom"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Location & Unit Selection */}
+              <div>
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                  <MapPin className="h-4 w-4" />
+                  Location & Unit
+                </h3>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="mb-1 block text-xs text-muted-foreground">Location</label>
+                    <Select
+                      value={importForm.locationId}
+                      onValueChange={(value) => {
+                        updateImportForm('locationId', value);
+                        updateImportForm('unitId', ''); // Reset unit when location changes
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select location" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {importData?.locations?.map((location: any) => (
+                          <SelectItem key={location.id} value={location.id}>
+                            {location.name} ({location.units?.length || 0} units available)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {importForm.locationId && (
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Unit</label>
+                      <Select value={importForm.unitId} onValueChange={(value) => updateImportForm('unitId', value)}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {importData?.locations
+                            ?.find((l: any) => l.id === importForm.locationId)
+                            ?.units?.map((unit: any) => (
+                              <SelectItem key={unit.id} value={unit.id}>
+                                {unit.code || unit.name} - {unit.type} - {unit.sizeSqft} sqft -
+                                £{unit.weeklyRate || unit.monthlyRate}/{unit.weeklyRate ? 'wk' : 'mo'}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Contract Details */}
+              {importForm.unitId && (
+                <div>
+                  <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                    <Package className="h-4 w-4" />
+                    Contract Details
+                  </h3>
+
+                  <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Start Date *</label>
+                        <Input
+                          type="date"
+                          value={importForm.startDate}
+                          onChange={(e) => updateImportForm('startDate', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">End Date</label>
+                        <Input
+                          type="date"
+                          value={importForm.endDate}
+                          onChange={(e) => updateImportForm('endDate', e.target.value)}
+                          min={importForm.startDate}
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Weekly Rate</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={importForm.weeklyRate}
+                          onChange={(e) => updateImportForm('weeklyRate', e.target.value)}
+                          placeholder="100.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Monthly Rate</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={importForm.monthlyRate}
+                          onChange={(e) => updateImportForm('monthlyRate', e.target.value)}
+                          placeholder="400.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Deposit Amount</label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={importForm.depositAmount}
+                          onChange={(e) => updateImportForm('depositAmount', e.target.value)}
+                          placeholder="200.00"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs text-muted-foreground">Payment Method</label>
+                        <Select
+                          value={importForm.paymentMethod}
+                          onValueChange={(value) => updateImportForm('paymentMethod', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment method" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                            <SelectItem value="direct_debit">Direct Debit</SelectItem>
+                            <SelectItem value="card">Card</SelectItem>
+                            <SelectItem value="cash">Cash</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs text-muted-foreground">Notes</label>
+                      <textarea
+                        className="flex min-h-[80px] w-full rounded-xl border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-colors border-[var(--border)] bg-[var(--surface-0)] text-[var(--text-strong)] placeholder:text-[var(--text-muted)]"
+                        value={importForm.notes}
+                        onChange={(e) => updateImportForm('notes', e.target.value)}
+                        placeholder="Additional contract notes..."
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 border-t pt-4">
+                <Button variant="outline" onClick={closeImportModal} disabled={importSubmitting}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => void submitImport()}
+                  disabled={importSubmitting || (!importForm.createNewClient && !importForm.clientId)}
+                >
+                  {importSubmitting ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="mr-2 h-4 w-4" />
+                      Import Deal
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          )}
         </Modal>
       )}
     </div>

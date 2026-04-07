@@ -45,11 +45,53 @@ export async function GET(request: Request) {
     const limit = parseInt(searchParams.get('limit') || '25', 10);
     const skip = (page - 1) * limit;
 
-    // Get total count
-    const total = await prisma.hubSpotDeal.count();
+    // Parse filter params
+    const dealName = searchParams.get('dealName');
+    const amountMin = searchParams.get('amountMin');
+    const amountMax = searchParams.get('amountMax');
+    const dealStage = searchParams.get('dealStage');
+    const pipeline = searchParams.get('pipeline');
+    const closeDateFrom = searchParams.get('closeDateFrom');
+    const closeDateTo = searchParams.get('closeDateTo');
+    const owner = searchParams.get('owner');
 
-    // Get paginated deals from database
+    // Build where clause for filters
+    const where: any = {};
+
+    if (dealName) {
+      where.dealName = { contains: dealName, mode: 'insensitive' };
+    }
+
+    if (amountMin || amountMax) {
+      where.amount = {};
+      if (amountMin) where.amount.gte = parseFloat(amountMin);
+      if (amountMax) where.amount.lte = parseFloat(amountMax);
+    }
+
+    if (dealStage) {
+      where.dealStage = dealStage;
+    }
+
+    if (pipeline) {
+      where.pipeline = pipeline;
+    }
+
+    if (closeDateFrom || closeDateTo) {
+      where.closeDate = {};
+      if (closeDateFrom) where.closeDate.gte = new Date(closeDateFrom);
+      if (closeDateTo) where.closeDate.lte = new Date(closeDateTo);
+    }
+
+    if (owner) {
+      where.owner = { contains: owner, mode: 'insensitive' };
+    }
+
+    // Get total count (with filters)
+    const total = await prisma.hubSpotDeal.count({ where });
+
+    // Get paginated deals from database (with filters)
     const deals = await prisma.hubSpotDeal.findMany({
+      where,
       orderBy: [{ closeDate: 'desc' }, { createdAt: 'desc' }],
       skip,
       take: limit,
@@ -109,6 +151,9 @@ export async function POST(request: Request) {
     do {
       const url = new URL('https://api.hubapi.com/crm/v3/objects/deals');
       url.searchParams.append('limit', '100');
+      // Fetch associations for companies and contacts
+      url.searchParams.append('propertiesWithHistory', 'dealname,amount,dealstage,pipeline,closedate,hubspot_owner_id');
+      url.searchParams.append('associations', 'companies,contacts');
       if (after) {
         url.searchParams.append('after', after);
       }
