@@ -15,6 +15,7 @@ model Settings {
   primaryColor    String   @default("#3b82f6")
   unitStatusConfig Json    @default("{}")
   wordpressConfig Json     @default("{}")
+  hubspotConfig   Json     @default("{}")
   updatedAt       DateTime @updatedAt
 
   @@map("settings")
@@ -276,4 +277,23 @@ enum ClientStatus {
 enum PlacementShape {
   RECTANGLE
   POLYGON
+}
+
+model HubSpotDeal {
+  id             String    @id
+  dealName       String
+  amount         Decimal?  @db.Decimal(12, 2)
+  dealStage      String
+  pipeline       String
+  closeDate      DateTime?
+  owner          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  rawData        Json
+  lastSyncedAt   DateTime  @default(now())
+
+  @@index([dealStage])
+  @@index([pipeline])
+  @@index([closeDate])
+  @@map("hubspot_deals")
 }
