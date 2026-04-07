@@ -78,6 +78,60 @@ export async function GET(
       });
     }
 
+    // Fetch customer details from HubSpot using deal associations
+    let hubspotContacts: any[] = [];
+    let hubspotCompanies: any[] = [];
+
+    try {
+      const rawData = deal.rawData as any;
+      const associations = rawData?.associations || {};
+
+      // Fetch associated contacts
+      const contactIds = associations.contacts?.results?.map((r: any) => r.id) || [];
+      if (contactIds.length > 0) {
+        const contactUrl = new URL('https://api.hubapi.com/crm/v3/objects/contacts/batch/read');
+        const contactResponse = await fetch(contactUrl.toString(), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${hubspotConfig.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: contactIds.map((id: string) => ({ id })),
+            properties: ['firstname', 'lastname', 'email', 'phone', 'mobilephone', 'company', 'address', 'city', 'state', 'zip', 'country'],
+          }),
+        });
+        if (contactResponse.ok) {
+          const contactData = await contactResponse.json();
+          hubspotContacts = contactData.results || [];
+        }
+      }
+
+      // Fetch associated companies
+      const companyIds = associations.companies?.results?.map((r: any) => r.id) || [];
+      if (companyIds.length > 0) {
+        const companyUrl = new URL('https://api.hubapi.com/crm/v3/objects/companies/batch/read');
+        const companyResponse = await fetch(companyUrl.toString(), {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${hubspotConfig.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            inputs: companyIds.map((id: string) => ({ id })),
+            properties: ['name', 'domain', 'address', 'city', 'state', 'zip', 'country', 'phone'],
+          }),
+        });
+        if (companyResponse.ok) {
+          const companyData = await companyResponse.json();
+          hubspotCompanies = companyData.results || [];
+        }
+      }
+    } catch (hubspotError) {
+      console.error('Error fetching HubSpot associations:', hubspotError);
+      // Continue without HubSpot data
+    }
+
     // Fetch available locations and units
     const locations = await prisma.location.findMany({
       where: { active: true },
@@ -138,6 +192,8 @@ export async function GET(
         units: loc.units.filter((u: any) => u.weeklyRate !== null || u.monthlyRate !== null),
       })),
       clients,
+      hubspotContacts,
+      hubspotCompanies,
     });
   } catch (error) {
     console.error('Error preparing HubSpot deal import:', error);
