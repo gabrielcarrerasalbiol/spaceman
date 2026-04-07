@@ -89,6 +89,54 @@ interface HubSpotDealDetails {
   properties?: Record<string, unknown>;
 }
 
+interface ImportLocationMatchInfo {
+  extractedLocationName: string;
+  matchedLocationName: string | null;
+  availableUnits: number;
+}
+
+function normalizeLocationText(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function extractDealLocationName(payload: any, deal: HubSpotDeal): string {
+  const props = payload?.hubspotDealFull?.properties || {};
+  const candidates = [
+    props.location_name,
+    props.location,
+    props.site_location,
+    payload?.deal?.locationName,
+    (deal.rawData as any)?.properties?.location_name,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return '';
+}
+
+function extractDealUnitHint(payload: any, deal: HubSpotDeal): string {
+  const props = payload?.hubspotDealFull?.properties || {};
+  const candidates = [
+    props.unit_number,
+    props.unit_name,
+    props.unit,
+    payload?.deal?.unitNumber,
+    (deal.rawData as any)?.properties?.unit_number,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate.trim();
+    }
+  }
+
+  return '';
+}
+
 export default function HubSpotDealsPage() {
   const { settings } = useSettings();
   const hubspotConfig = (settings as Record<string, any>)?.hubspotConfig || {};
@@ -130,6 +178,7 @@ export default function HubSpotDealsPage() {
   const [importLoading, setImportLoading] = useState(false);
   const [importData, setImportData] = useState<any>(null);
   const [importSubmitting, setImportSubmitting] = useState(false);
+  const [importLocationMatch, setImportLocationMatch] = useState<ImportLocationMatchInfo | null>(null);
 
   // Import form state
   const [importForm, setImportForm] = useState({
@@ -245,6 +294,42 @@ export default function HubSpotDealsPage() {
 
       setImportData(payload);
 
+      const extractedLocationName = extractDealLocationName(payload, deal);
+      const extractedUnitHint = extractDealUnitHint(payload, deal);
+      const locations = payload.locations || [];
+
+      const normalizedExtractedLocation = extractedLocationName
+        ? normalizeLocationText(extractedLocationName)
+        : '';
+
+      const matchedLocation = normalizedExtractedLocation
+        ? locations.find((location: any) => {
+            const normalizedLocationName = normalizeLocationText(location.name || '');
+            return (
+              normalizedLocationName === normalizedExtractedLocation
+              || normalizedLocationName.includes(normalizedExtractedLocation)
+              || normalizedExtractedLocation.includes(normalizedLocationName)
+            );
+          })
+        : null;
+
+      const matchedUnit = matchedLocation && extractedUnitHint
+        ? (matchedLocation.units || []).find((unit: any) => {
+            const code = String(unit.code || '').trim().toLowerCase();
+            const name = String(unit.name || '').trim().toLowerCase();
+            const hint = extractedUnitHint.trim().toLowerCase();
+            return code === hint || name === hint || code.includes(hint) || name.includes(hint);
+          })
+        : null;
+
+      setImportLocationMatch(extractedLocationName
+        ? {
+            extractedLocationName,
+            matchedLocationName: matchedLocation?.name || null,
+            availableUnits: matchedLocation?.units?.length || 0,
+          }
+        : null);
+
       // Extract customer data from fetched HubSpot data
       const hubspotContacts = payload.hubspotContacts || [];
       const hubspotCompanies = payload.hubspotCompanies || [];
@@ -309,8 +394,8 @@ export default function HubSpotDealsPage() {
           postcode: clientPostcode,
           country: clientCountry,
         },
-        unitId: '',
-        locationId: '',
+        unitId: matchedUnit?.id || '',
+        locationId: matchedLocation?.id || '',
         startDate: defaultStartDate,
         endDate: '',
         weeklyRate: deal.amount ? String(deal.amount) : '',
@@ -331,6 +416,7 @@ export default function HubSpotDealsPage() {
     setShowImportModal(false);
     setImportDeal(null);
     setImportData(null);
+    setImportLocationMatch(null);
     setImportForm({
       createNewClient: false,
       clientId: '',
@@ -916,6 +1002,21 @@ export default function HubSpotDealsPage() {
                 </div>
               )}
 
+              {(importData?.hubspotOwner || importData?.matchedSystemUser) && (
+                <div className={`rounded-lg p-4 text-sm ${importData?.matchedSystemUser ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-800'}`}>
+                  <p className="font-medium">Deal Owner Mapping</p>
+                  <p>
+                    HubSpot owner: {importData?.hubspotOwner?.firstName || ''} {importData?.hubspotOwner?.lastName || ''}
+                    {importData?.hubspotOwner?.email ? ` (${importData.hubspotOwner.email})` : ''}
+                  </p>
+                  <p>
+                    {importData?.matchedSystemUser
+                      ? `Matched system user: ${importData.matchedSystemUser.username || importData.matchedSystemUser.email}`
+                      : 'No matching system user found for this HubSpot owner.'}
+                  </p>
+                </div>
+              )}
+
               {/* Client Selection */}
               <div>
                 <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
@@ -1053,6 +1154,14 @@ export default function HubSpotDealsPage() {
                   <MapPin className="h-4 w-4" />
                   Location & Unit
                 </h3>
+
+                {importLocationMatch && (
+                  <div className={`mb-3 rounded-md border p-3 text-sm ${importLocationMatch.matchedLocationName ? 'border-green-300 bg-green-50 text-green-800' : 'border-amber-300 bg-amber-50 text-amber-800'}`}>
+                    {importLocationMatch.matchedLocationName
+                      ? `Matched deal location "${importLocationMatch.extractedLocationName}" to "${importLocationMatch.matchedLocationName}" (${importLocationMatch.availableUnits} available units).`
+                      : `Detected deal location "${importLocationMatch.extractedLocationName}" but could not find an exact location match. Please select manually.`}
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <div>

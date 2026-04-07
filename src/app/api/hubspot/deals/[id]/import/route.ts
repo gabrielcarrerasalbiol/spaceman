@@ -171,6 +171,67 @@ async function fetchFullHubspotDeal(apiKey: string, dealId: string): Promise<any
   return mergedDeal;
 }
 
+async function fetchHubSpotOwnerById(apiKey: string, ownerId: string): Promise<any | null> {
+  const ownerUrl = new URL(`https://api.hubapi.com/crm/v3/owners/${ownerId}`);
+  ownerUrl.searchParams.append('idProperty', 'id');
+
+  const response = await fetch(ownerUrl.toString(), {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    return null;
+  }
+
+  return response.json();
+}
+
+function normalizeText(value: string | null | undefined): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+async function resolveHubSpotOwnerUserMatch(apiKey: string, dealData: any) {
+  const ownerId = String(dealData?.properties?.hubspot_owner_id || '').trim();
+  if (!ownerId) {
+    return { hubspotOwner: null, matchedUser: null };
+  }
+
+  const hubspotOwner = await fetchHubSpotOwnerById(apiKey, ownerId);
+  if (!hubspotOwner) {
+    return { hubspotOwner: null, matchedUser: null };
+  }
+
+  const ownerEmail = normalizeText(hubspotOwner.email);
+  const ownerFullName = normalizeText(`${hubspotOwner.firstName || ''} ${hubspotOwner.lastName || ''}`);
+
+  const users = await prisma.users.findMany({
+    where: { active: true },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+    },
+  });
+
+  const matchedUser = users.find((candidate) => {
+    const candidateEmail = normalizeText(candidate.email);
+    const candidateUsername = normalizeText(candidate.username);
+    return (
+      (ownerEmail && candidateEmail === ownerEmail)
+      || (ownerEmail && candidateUsername === ownerEmail)
+      || (ownerFullName && candidateUsername === ownerFullName)
+    );
+  }) || null;
+
+  return {
+    hubspotOwner,
+    matchedUser,
+  };
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -248,9 +309,11 @@ export async function GET(
     }
 
     let fullHubspotDeal: any = null;
+    let ownerMatch = { hubspotOwner: null as any, matchedUser: null as any };
 
     try {
       fullHubspotDeal = await fetchFullHubspotDeal(hubspotConfig.apiKey, deal.id);
+      ownerMatch = await resolveHubSpotOwnerUserMatch(hubspotConfig.apiKey, fullHubspotDeal);
     } catch (hubspotError) {
       console.error('Error fetching full HubSpot deal for import:', hubspotError);
     }
@@ -363,6 +426,8 @@ export async function GET(
       success: true,
       deal: serializeBigInt(deal),
       hubspotDealFull: serializeBigInt(fullHubspotDeal),
+      hubspotOwner: serializeBigInt(ownerMatch.hubspotOwner),
+      matchedSystemUser: serializeBigInt(ownerMatch.matchedUser),
       existingClient: existingClient ? serializeBigInt(existingClient) : null,
       existingContract: existingContract ? serializeBigInt(existingContract) : null,
       locations: serializeBigInt(locations.map((loc: any) => ({
@@ -400,6 +465,9 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const settings = await getOrCreateSettingsRow();
+    const hubspotConfig = ((settings as any).hubspotConfig as any) || {};
+
     const body = await request.json();
     const {
       clientId,
@@ -428,6 +496,15 @@ export async function POST(
       );
     }
 
+    const rawDealData = (deal.rawData as any) || {};
+    const ownerMatch = hubspotConfig.apiKey
+      ? await resolveHubSpotOwnerUserMatch(hubspotConfig.apiKey, rawDealData)
+      : { hubspotOwner: null as any, matchedUser: null as any };
+
+    const actorUserId = ownerMatch.matchedUser?.id
+      ? BigInt(ownerMatch.matchedUser.id)
+      : BigInt(user.id);
+
     // Determine or create client
     let finalClientId = clientId;
 
@@ -448,8 +525,8 @@ export async function POST(
           county: clientData.county || null,
           postcode: clientData.postcode || null,
           country: clientData.country || null,
-          createdById: BigInt(user.id),
-          updatedById: BigInt(user.id),
+          createdById: actorUserId,
+          updatedById: actorUserId,
         },
       });
       finalClientId = newClient.id;
@@ -490,8 +567,8 @@ export async function POST(
             paymentMethod: paymentMethod || null,
             notes: notes || `Imported from HubSpot deal: ${deal.dealName}`,
             status: 'DRAFT',
-            createdById: BigInt(user.id),
-            updatedById: BigInt(user.id),
+            createdById: actorUserId,
+            updatedById: actorUserId,
           },
           include: {
             client: true,
