@@ -120,7 +120,8 @@ export function SelectItem({ value, children, className = '' }: SelectItemProps)
   )
 }
 
-export function SelectValue({ placeholder }: { placeholder?: string }) {
+export function SelectValue({ placeholder, children }: { placeholder?: string; children?: React.ReactNode }) {
   const { value } = React.useContext(SelectContext)
-  return <span style={{ color: value ? 'var(--text-strong)' : 'var(--text-muted)' }}>{value || placeholder}</span>
+  const displayValue = children ?? value ?? placeholder
+  return <span style={{ color: value ? 'var(--text-strong)' : 'var(--text-muted)' }}>{displayValue}</span>
 }

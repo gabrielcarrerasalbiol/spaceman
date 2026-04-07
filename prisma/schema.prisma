@@ -291,6 +291,7 @@ model HubSpotDeal {
   owner           String?
   clientId        String?   @map("clientid")
   contractId      String?   @map("contractid")
+  isImported      Boolean   @default(false) @map("isimported")
   importedAt      DateTime? @map("importedat")
   // Unit details from HubSpot custom properties
   unitNumber      String?   @map("unitnumber")

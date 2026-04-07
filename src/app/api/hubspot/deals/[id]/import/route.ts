@@ -629,6 +629,7 @@ export async function POST(
       where: { id: params.id },
       data: {
         clientId: finalClientId,
+        isImported: true,
         importedAt: new Date(),
       },
     });

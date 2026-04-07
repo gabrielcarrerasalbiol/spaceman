@@ -566,6 +566,8 @@ export default function HubSpotDealsPage() {
   const showPagination = totalPages > 1;
   const from = (currentPage - 1) * dealsPerPage + 1;
   const to = Math.min(currentPage * dealsPerPage, totalDeals);
+  const selectedImportLocation = importData?.locations?.find((l: any) => l.id === importForm.locationId) || null;
+  const selectedImportUnit = selectedImportLocation?.units?.find((u: any) => u.id === importForm.unitId) || null;
 
   return (
     <div className="space-y-6">
@@ -868,6 +870,21 @@ export default function HubSpotDealsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Modal
+        open={syncing}
+        onClose={() => {}}
+        title="Syncing HubSpot Deals"
+        description="Fetching and updating records from HubSpot."
+        className="max-w-md"
+      >
+        <div className="flex items-center gap-3 py-1">
+          <RefreshCw className="h-5 w-5 animate-spin text-muted-foreground" />
+          <p className="text-sm text-muted-foreground">
+            Please keep this page open. Large accounts can take a little longer.
+          </p>
+        </div>
+      </Modal>
 
       {selectedDeal && dealDetails && (
         <Modal
@@ -1174,7 +1191,11 @@ export default function HubSpotDealsPage() {
                       }}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select location" />
+                        <SelectValue placeholder="Select location">
+                          {selectedImportLocation
+                            ? `${selectedImportLocation.name} (${selectedImportLocation.units?.length || 0} units available)`
+                            : undefined}
+                        </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {importData?.locations?.map((location: any) => (
@@ -1191,7 +1212,11 @@ export default function HubSpotDealsPage() {
                       <label className="mb-1 block text-xs text-muted-foreground">Unit</label>
                       <Select value={importForm.unitId} onValueChange={(value) => updateImportForm('unitId', value)}>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select unit" />
+                          <SelectValue placeholder="Select unit">
+                            {selectedImportUnit
+                              ? `${selectedImportUnit.code || selectedImportUnit.name} - ${selectedImportUnit.type} - ${selectedImportUnit.sizeSqft} sqft - £${selectedImportUnit.weeklyRate || selectedImportUnit.monthlyRate}/${selectedImportUnit.weeklyRate ? 'wk' : 'mo'}`
+                              : undefined}
+                          </SelectValue>
                         </SelectTrigger>
                         <SelectContent>
                           {importData?.locations
