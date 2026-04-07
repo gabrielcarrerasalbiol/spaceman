@@ -113,11 +113,26 @@ export async function GET(
       },
     });
 
+    // Convert BigInt values to strings for JSON serialization
+    const serializeBigInt = (obj: any): any => {
+      if (obj === null || obj === undefined) return obj;
+      if (typeof obj === 'bigint') return obj.toString();
+      if (Array.isArray(obj)) return obj.map(serializeBigInt);
+      if (typeof obj === 'object') {
+        const result: any = {};
+        for (const key in obj) {
+          result[key] = serializeBigInt(obj[key]);
+        }
+        return result;
+      }
+      return obj;
+    };
+
     return NextResponse.json({
       success: true,
-      deal,
-      existingClient,
-      existingContract,
+      deal: serializeBigInt(deal),
+      existingClient: existingClient ? serializeBigInt(existingClient) : null,
+      existingContract: existingContract ? serializeBigInt(existingContract) : null,
       locations: locations.map((loc: any) => ({
         ...loc,
         units: loc.units.filter((u: any) => u.weeklyRate !== null || u.monthlyRate !== null),
@@ -260,19 +275,53 @@ export async function POST(
         return created;
       });
 
+      const client = await prisma.client.findUnique({ where: { id: finalClientId } });
+
+      // Convert BigInt to string for JSON serialization
+      const serializeBigInt = (obj: any): any => {
+        if (obj === null || obj === undefined) return obj;
+        if (typeof obj === 'bigint') return obj.toString();
+        if (Array.isArray(obj)) return obj.map(serializeBigInt);
+        if (typeof obj === 'object') {
+          const result: any = {};
+          for (const key in obj) {
+            result[key] = serializeBigInt(obj[key]);
+          }
+          return result;
+        }
+        return obj;
+      };
+
       return NextResponse.json({
         success: true,
         message: 'Successfully imported deal and created contract',
-        client: await prisma.client.findUnique({ where: { id: finalClientId } }),
-        contract,
+        client: serializeBigInt(client),
+        contract: serializeBigInt(contract),
       });
     }
 
     // If no contract created, just return client info
+    const client = await prisma.client.findUnique({ where: { id: finalClientId } });
+
+    // Convert BigInt to string for JSON serialization
+    const serializeBigInt = (obj: any): any => {
+      if (obj === null || obj === undefined) return obj;
+      if (typeof obj === 'bigint') return obj.toString();
+      if (Array.isArray(obj)) return obj.map(serializeBigInt);
+      if (typeof obj === 'object') {
+        const result: any = {};
+        for (const key in obj) {
+          result[key] = serializeBigInt(obj[key]);
+        }
+        return result;
+      }
+      return obj;
+    };
+
     return NextResponse.json({
       success: true,
       message: 'Successfully linked deal to client',
-      client: await prisma.client.findUnique({ where: { id: finalClientId } }),
+      client: serializeBigInt(client),
     });
   } catch (error) {
     console.error('Error importing HubSpot deal:', error);
