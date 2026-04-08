@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { canManageUser, isAdmin } from '@/lib/permissions';
 import { auth } from '@/lib/auth';
 import { extractRequestInfo, logAudit } from '@/lib/audit-logger';
+import { createRateLimitResponse, enforceDbRateLimit, getClientIp } from '@/lib/db-rate-limit';
 import bcrypt from 'bcryptjs';
 
 // GET /api/users/[id] - Get single user
@@ -26,6 +27,17 @@ export async function GET(
 
     if (!canManageUser(currentUser as any, id)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rateLimit = await enforceDbRateLimit({
+      scope: 'users:update',
+      identifier: `${String(currentUser.id)}:${getClientIp(request)}`,
+      windowMs: 60_000,
+      max: 40,
+    });
+
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit);
     }
 
     const user = await prisma.users.findUnique({
@@ -210,6 +222,17 @@ export async function DELETE(
 
     if (!isAdmin(currentUser as any)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rateLimit = await enforceDbRateLimit({
+      scope: 'users:delete',
+      identifier: `${String(currentUser.id)}:${getClientIp(request)}`,
+      windowMs: 60_000,
+      max: 20,
+    });
+
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit);
     }
 
     const { id } = await params;

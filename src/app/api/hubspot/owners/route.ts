@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import bcrypt from 'bcryptjs';
+import { createRateLimitResponse, enforceDbRateLimit, getClientIp } from '@/lib/db-rate-limit';
 
 function pickString(source: any, keys: string[]): string {
   for (const key of keys) {
@@ -53,6 +54,39 @@ async function fetchHubSpotUserProfile(apiKey: string, userId: string) {
   return response.json();
 }
 
+async function fetchHubSpotContactByEmail(apiKey: string, email: string) {
+  if (!email) return null;
+
+  const url = 'https://api.hubapi.com/crm/v3/objects/contacts/search';
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: 'email',
+              operator: 'EQ',
+              value: email,
+            },
+          ],
+        },
+      ],
+      properties: ['phone', 'mobilephone', 'address', 'city', 'state', 'zip', 'country'],
+      limit: 1,
+    }),
+  });
+
+  if (!response.ok) return null;
+  const payload = await response.json().catch(() => null);
+  const first = payload?.results?.[0];
+  return first?.properties || null;
+}
+
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
     where: { id: 'default' },
@@ -80,6 +114,17 @@ export async function GET(request: NextRequest) {
 
     if (!isAdmin(user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rateLimit = await enforceDbRateLimit({
+      scope: 'hubspot:owners:get',
+      identifier: `${user.id}:${getClientIp(request)}`,
+      windowMs: 60_000,
+      max: 20,
+    });
+
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit);
     }
 
     // Resolve active settings row to avoid reading stale/non-default entries.
@@ -195,6 +240,17 @@ export async function POST(request: NextRequest) {
 
     if (!isAdmin(user)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const rateLimit = await enforceDbRateLimit({
+      scope: 'hubspot:owners:import',
+      identifier: `${user.id}:${getClientIp(request)}`,
+      windowMs: 60_000,
+      max: 10,
+    });
+
+    if (!rateLimit.allowed) {
+      return createRateLimitResponse(rateLimit);
     }
 
     const body = await request.json();
@@ -314,8 +370,21 @@ export async function POST(request: NextRequest) {
           lastName = parsed.lastName;
         }
 
-        const phone = pickString(hubspotUserProfile, ['phone', 'phoneNumber', 'primaryPhoneNumber']) || null;
-        const mobile = pickString(hubspotUserProfile, ['mobilePhoneNumber', 'mobile']) || null;
+        const hubspotContact = await fetchHubSpotContactByEmail(apiKey, email);
+
+        const phone =
+          pickString(hubspotUserProfile, ['phone', 'phoneNumber', 'primaryPhoneNumber']) ||
+          pickString(hubspotContact, ['phone']) ||
+          null;
+        const mobile =
+          pickString(hubspotUserProfile, ['mobilePhoneNumber', 'mobile']) ||
+          pickString(hubspotContact, ['mobilephone']) ||
+          null;
+        const addressLine1 = pickString(hubspotContact, ['address']) || null;
+        const townCity = pickString(hubspotContact, ['city']) || null;
+        const county = pickString(hubspotContact, ['state']) || null;
+        const postcode = pickString(hubspotContact, ['zip']) || null;
+        const country = pickString(hubspotContact, ['country']) || null;
         const fullName = `${firstName} ${lastName}`.trim();
 
         // Skip if email already exists
@@ -360,6 +429,11 @@ export async function POST(request: NextRequest) {
             lastName: lastName || null,
             phone,
             mobile,
+            addressLine1,
+            townCity,
+            county,
+            postcode,
+            country,
             hubspotOwnerId: ownerId,
             active: true,
             banned: false,
@@ -377,6 +451,23 @@ export async function POST(request: NextRequest) {
           email,
           name: fullName,
           username,
+          enrichment: {
+            fromOwner: {
+              hasFirstName: Boolean(ownerData?.firstName),
+              hasLastName: Boolean(ownerData?.lastName),
+            },
+            fromUserProfile: {
+              found: Boolean(hubspotUserProfile),
+              hasPhone: Boolean(pickString(hubspotUserProfile, ['phone', 'phoneNumber', 'primaryPhoneNumber'])),
+              hasMobile: Boolean(pickString(hubspotUserProfile, ['mobilePhoneNumber', 'mobile'])),
+            },
+            fromContact: {
+              found: Boolean(hubspotContact),
+              hasPhone: Boolean(pickString(hubspotContact, ['phone'])),
+              hasMobile: Boolean(pickString(hubspotContact, ['mobilephone'])),
+              hasAddress: Boolean(pickString(hubspotContact, ['address'])),
+            },
+          },
           status: 'success',
         });
       } catch (error) {
