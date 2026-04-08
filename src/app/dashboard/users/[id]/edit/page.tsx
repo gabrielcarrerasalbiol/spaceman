@@ -15,19 +15,43 @@ interface UserData {
   id: string;
   email: string;
   username: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  phone: string | null;
+  mobile: string | null;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  townCity: string | null;
+  county: string | null;
+  postcode: string | null;
+  country: string | null;
+  hubspotOwnerId: string | null;
   role: string;
   active: boolean;
+  createdAt: string;
+  lastLogin: string | null;
 }
 
 export default function EditUserPage() {
   const params = useParams();
   const router = useRouter();
   const { user: currentUser, isAdmin, loading: permissionsLoading } = usePermissions();
+  const userId = Array.isArray(params.id) ? params.id[0] : (params.id as string);
   
   const [user, setUser] = useState<UserData | null>(null);
   const [form, setForm] = useState({
+    firstName: '',
+    lastName: '',
     email: '',
     username: '',
+    phone: '',
+    mobile: '',
+    addressLine1: '',
+    addressLine2: '',
+    townCity: '',
+    county: '',
+    postcode: '',
+    country: '',
     password: '',
     confirmPassword: '',
     role: 'USER',
@@ -46,24 +70,34 @@ export default function EditUserPage() {
       }
       
       // Allow admins or the user themselves
-      if (!isAdmin && currentUser.id !== params.id as string) {
+      if (!isAdmin && String(currentUser.id) !== userId) {
         router.push('/dashboard');
         return;
       }
       
       fetchUser();
     }
-  }, [currentUser, isAdmin, permissionsLoading, params.id as string]);
+  }, [currentUser, isAdmin, permissionsLoading, userId]);
 
   async function fetchUser() {
     try {
-      const response = await fetch(`/api/users/${params.id as string}`);
+      const response = await fetch(`/api/users/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setUser(data);
         setForm({
+          firstName: data.firstName || '',
+          lastName: data.lastName || '',
           email: data.email,
           username: data.username || '',
+          phone: data.phone || '',
+          mobile: data.mobile || '',
+          addressLine1: data.addressLine1 || '',
+          addressLine2: data.addressLine2 || '',
+          townCity: data.townCity || '',
+          county: data.county || '',
+          postcode: data.postcode || '',
+          country: data.country || '',
           password: '',
           confirmPassword: '',
           role: data.role,
@@ -98,8 +132,18 @@ export default function EditUserPage() {
 
     try {
       const body: any = {
+        firstName: form.firstName || null,
+        lastName: form.lastName || null,
         email: form.email,
         username: form.username || null,
+        phone: form.phone || null,
+        mobile: form.mobile || null,
+        addressLine1: form.addressLine1 || null,
+        addressLine2: form.addressLine2 || null,
+        townCity: form.townCity || null,
+        county: form.county || null,
+        postcode: form.postcode || null,
+        country: form.country || null,
       };
 
       if (form.password) {
@@ -112,7 +156,7 @@ export default function EditUserPage() {
         body.active = form.active;
       }
 
-      const response = await fetch(`/api/users/${params.id as string}`, {
+      const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -208,32 +252,188 @@ export default function EditUserPage() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <Input
-                id="email"
-                type="email"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-              />
+            <div className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <h3 className="text-base font-semibold" style={{ color: 'var(--text-strong)' }}>Basic Information</h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="firstName" className="text-sm font-medium">
+                      First name
+                    </label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      value={form.firstName}
+                      onChange={(e) => setForm({ ...form, firstName: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="lastName" className="text-sm font-medium">
+                      Last name
+                    </label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      value={form.lastName}
+                      onChange={(e) => setForm({ ...form, lastName: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="username" className="text-sm font-medium">
+                    Username
+                  </label>
+                  <Input
+                    id="username"
+                    type="text"
+                    value={form.username}
+                    onChange={(e) => setForm({ ...form, username: e.target.value })}
+                    placeholder="Optional"
+                    maxLength={12}
+                  />
+                </div>
+
+                {user?.hubspotOwnerId && (
+                  <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                    HubSpot owner linked: <span className="font-mono">{user.hubspotOwnerId}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border p-4 space-y-4" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}>
+                <h3 className="text-base font-semibold" style={{ color: 'var(--text-strong)' }}>Contact & Address</h3>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="phone" className="text-sm font-medium">
+                      Phone
+                    </label>
+                    <Input
+                      id="phone"
+                      type="text"
+                      value={form.phone}
+                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="mobile" className="text-sm font-medium">
+                      Mobile
+                    </label>
+                    <Input
+                      id="mobile"
+                      type="text"
+                      value={form.mobile}
+                      onChange={(e) => setForm({ ...form, mobile: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="addressLine1" className="text-sm font-medium">
+                    Address line 1
+                  </label>
+                  <Input
+                    id="addressLine1"
+                    type="text"
+                    value={form.addressLine1}
+                    onChange={(e) => setForm({ ...form, addressLine1: e.target.value })}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="addressLine2" className="text-sm font-medium">
+                    Address line 2
+                  </label>
+                  <Input
+                    id="addressLine2"
+                    type="text"
+                    value={form.addressLine2}
+                    onChange={(e) => setForm({ ...form, addressLine2: e.target.value })}
+                    placeholder="Optional"
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="townCity" className="text-sm font-medium">
+                      Town/City
+                    </label>
+                    <Input
+                      id="townCity"
+                      type="text"
+                      value={form.townCity}
+                      onChange={(e) => setForm({ ...form, townCity: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="county" className="text-sm font-medium">
+                      County/State
+                    </label>
+                    <Input
+                      id="county"
+                      type="text"
+                      value={form.county}
+                      onChange={(e) => setForm({ ...form, county: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="postcode" className="text-sm font-medium">
+                      Postcode
+                    </label>
+                    <Input
+                      id="postcode"
+                      type="text"
+                      value={form.postcode}
+                      onChange={(e) => setForm({ ...form, postcode: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="country" className="text-sm font-medium">
+                      Country
+                    </label>
+                    <Input
+                      id="country"
+                      type="text"
+                      value={form.country}
+                      onChange={(e) => setForm({ ...form, country: e.target.value })}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="username" className="text-sm font-medium">
-                Username
-              </label>
-              <Input
-                id="username"
-                type="text"
-                value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })}
-                placeholder="Optional"
-                maxLength={12}
-              />
-            </div>
+            {user && (
+              <div className="grid gap-3 rounded-xl border p-4 text-sm sm:grid-cols-2" style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)', color: 'var(--text-muted)' }}>
+                <p>Created: {new Date(user.createdAt).toLocaleString()}</p>
+                <p>Last login: {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never'}</p>
+              </div>
+            )}
 
             <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
               <h3 className="text-lg font-medium mb-4">Change Password</h3>

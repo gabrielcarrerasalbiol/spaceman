@@ -167,33 +167,51 @@ export default function SettingsPage() {
   const [importingOwners, setImportingOwners] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
-      setProfileForm({
-        username: (currentUser as any).username || '',
-        email: currentUser.email || '',
-        firstName: (currentUser as any).firstName || '',
-        lastName: (currentUser as any).lastName || '',
-        phone: (currentUser as any).phone || '',
-        mobile: (currentUser as any).mobile || '',
-        avatar: (currentUser as any).avatar || '',
-        addressLine1: (currentUser as any).addressLine1 || '',
-        addressLine2: (currentUser as any).addressLine2 || '',
-        townCity: (currentUser as any).townCity || '',
-        county: (currentUser as any).county || '',
-        postcode: (currentUser as any).postcode || '',
-        country: (currentUser as any).country || '',
-      });
+    if (!currentUser) return;
 
-      // Calculate profile completion
-      const completion = [
-        (currentUser as any).firstName && (currentUser as any).lastName ? 25 : 0,
-        currentUser.email ? 25 : 0,
-        25, // Has account
-        25, // Is active
-      ].reduce((acc: number, val: number) => acc + val, 0);
-      setStats(prev => ({ ...prev, profileCompletion: completion }));
-    }
-  }, [currentUser]);
+    const userData = currentUser as any;
+
+    setProfileForm({
+      username: userData.username || '',
+      email: currentUser.email || '',
+      firstName: userData.firstName || '',
+      lastName: userData.lastName || '',
+      phone: userData.phone || '',
+      mobile: userData.mobile || '',
+      avatar: userData.avatar || '',
+      addressLine1: userData.addressLine1 || '',
+      addressLine2: userData.addressLine2 || '',
+      townCity: userData.townCity || '',
+      county: userData.county || '',
+      postcode: userData.postcode || '',
+      country: userData.country || '',
+    });
+
+    const completion = [
+      userData.firstName && userData.lastName ? 20 : 0,
+      currentUser.email ? 20 : 0,
+      userData.phone || userData.mobile ? 20 : 0,
+      userData.addressLine1 && userData.townCity ? 20 : 0,
+      userData.avatar ? 20 : 0,
+    ].reduce((acc: number, val: number) => acc + val, 0);
+
+    setStats(prev => ({ ...prev, profileCompletion: completion }));
+  }, [
+    currentUser?.id,
+    currentUser?.email,
+    (currentUser as any)?.username,
+    (currentUser as any)?.firstName,
+    (currentUser as any)?.lastName,
+    (currentUser as any)?.phone,
+    (currentUser as any)?.mobile,
+    (currentUser as any)?.avatar,
+    (currentUser as any)?.addressLine1,
+    (currentUser as any)?.addressLine2,
+    (currentUser as any)?.townCity,
+    (currentUser as any)?.county,
+    (currentUser as any)?.postcode,
+    (currentUser as any)?.country,
+  ]);
 
   useEffect(() => {
     if (!settingsLoading) {
@@ -1070,106 +1088,156 @@ export default function SettingsPage() {
                   </div>
                 )}
 
-                <div className="grid gap-6 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium">
-                      <User className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
-                      Username
-                    </label>
-                    <Input
-                      id="username"
-                      type="text"
-                      value={profileForm.username}
-                      onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
-                      placeholder="Enter your username"
-                      maxLength={12}
-                      className="rounded-xl"
-                    />
+                <div className="grid gap-6 lg:grid-cols-3">
+                  <div
+                    className="rounded-2xl border p-5 space-y-4"
+                    style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                  >
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-strong)' }}>
+                      Avatar
+                    </p>
+                    <div className="flex justify-center">
+                      {profileForm.avatar ? (
+                        <img
+                          src={profileForm.avatar}
+                          alt="Profile avatar"
+                          className="h-24 w-24 rounded-full object-cover border"
+                          style={{ borderColor: 'var(--border)' }}
+                        />
+                      ) : (
+                        <div
+                          className="h-24 w-24 rounded-full border flex items-center justify-center"
+                          style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-1)' }}
+                        >
+                          <User className="h-10 w-10" style={{ color: 'var(--text-muted)' }} />
+                        </div>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="avatar" className="text-sm font-medium">
+                        Avatar URL
+                      </label>
+                      <Input
+                        id="avatar"
+                        type="url"
+                        value={profileForm.avatar}
+                        onChange={(e) => setProfileForm({ ...profileForm, avatar: e.target.value })}
+                        placeholder="https://..."
+                        className="rounded-xl"
+                      />
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                        Paste a direct image URL to set your profile picture.
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium">
-                      <Mail className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
-                      Email Address
-                    </label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={profileForm.email}
-                      onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                      placeholder="Enter your email"
-                      className="rounded-xl"
-                    />
-                  </div>
+                  <div className="space-y-5 lg:col-span-2">
+                    <div
+                      className="rounded-2xl border p-5"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                    >
+                      <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--text-strong)' }}>
+                        Personal details
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2 sm:col-span-2">
+                          <label htmlFor="email" className="flex items-center gap-2 text-sm font-medium">
+                            <Mail className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                            Email Address
+                          </label>
+                          <Input
+                            id="email"
+                            type="email"
+                            value={profileForm.email}
+                            onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                            placeholder="Enter your email"
+                            className="rounded-xl"
+                          />
+                        </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="firstName" className="text-sm font-medium">
-                      First Name
-                    </label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      value={profileForm.firstName}
-                      onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
-                      placeholder="Enter your first name"
-                      className="rounded-xl"
-                    />
-                  </div>
+                        <div className="space-y-2">
+                          <label htmlFor="firstName" className="text-sm font-medium">
+                            First Name
+                          </label>
+                          <Input
+                            id="firstName"
+                            type="text"
+                            value={profileForm.firstName}
+                            onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
+                            placeholder="Enter your first name"
+                            className="rounded-xl"
+                          />
+                        </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="lastName" className="text-sm font-medium">
-                      Last Name
-                    </label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      value={profileForm.lastName}
-                      onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
-                      placeholder="Enter your last name"
-                      className="rounded-xl"
-                    />
-                  </div>
+                        <div className="space-y-2">
+                          <label htmlFor="lastName" className="text-sm font-medium">
+                            Last Name
+                          </label>
+                          <Input
+                            id="lastName"
+                            type="text"
+                            value={profileForm.lastName}
+                            onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
+                            placeholder="Enter your last name"
+                            className="rounded-xl"
+                          />
+                        </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="phone" className="text-sm font-medium">
-                      Phone Number
-                    </label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={profileForm.phone}
-                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
-                      placeholder="Enter your phone number"
-                      className="rounded-xl"
-                    />
-                  </div>
+                        <div className="space-y-2 sm:col-span-2">
+                          <label htmlFor="username" className="flex items-center gap-2 text-sm font-medium">
+                            <User className="h-4 w-4" style={{ color: 'var(--text-muted)' }} />
+                            Username
+                          </label>
+                          <Input
+                            id="username"
+                            type="text"
+                            value={profileForm.username}
+                            onChange={(e) => setProfileForm({ ...profileForm, username: e.target.value })}
+                            placeholder="Enter your username"
+                            maxLength={12}
+                            className="rounded-xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="mobile" className="text-sm font-medium">
-                      Mobile Number
-                    </label>
-                    <Input
-                      id="mobile"
-                      type="tel"
-                      value={profileForm.mobile}
-                      onChange={(e) => setProfileForm({ ...profileForm, mobile: e.target.value })}
-                      placeholder="Enter your mobile number"
-                      className="rounded-xl"
-                    />
-                  </div>
+                    <div
+                      className="rounded-2xl border p-5"
+                      style={{ borderColor: 'var(--border)', backgroundColor: 'var(--surface-0)' }}
+                    >
+                      <p className="mb-4 text-sm font-semibold" style={{ color: 'var(--text-strong)' }}>
+                        Contact numbers
+                      </p>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <label htmlFor="phone" className="text-sm font-medium">
+                            Phone Number
+                          </label>
+                          <Input
+                            id="phone"
+                            type="tel"
+                            value={profileForm.phone}
+                            onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                            placeholder="Enter your phone number"
+                            className="rounded-xl"
+                          />
+                        </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="avatar" className="text-sm font-medium">
-                      Avatar URL
-                    </label>
-                    <Input
-                      id="avatar"
-                      type="url"
-                      value={profileForm.avatar}
-                      onChange={(e) => setProfileForm({ ...profileForm, avatar: e.target.value })}
-                      placeholder="Enter avatar image URL"
-                      className="rounded-xl"
-                    />
+                        <div className="space-y-2">
+                          <label htmlFor="mobile" className="text-sm font-medium">
+                            Mobile Number
+                          </label>
+                          <Input
+                            id="mobile"
+                            type="tel"
+                            value={profileForm.mobile}
+                            onChange={(e) => setProfileForm({ ...profileForm, mobile: e.target.value })}
+                            placeholder="Enter your mobile number"
+                            className="rounded-xl"
+                          />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
