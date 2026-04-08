@@ -2,6 +2,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 
+async function getOrCreateSettingsRow() {
+  const byDefaultId = await prisma.settings.findUnique({
+    where: { id: 'default' },
+  });
+  if (byDefaultId) return byDefaultId;
+
+  const existing = await prisma.settings.findFirst({
+    orderBy: { updatedAt: 'desc' },
+  });
+  if (existing) return existing;
+
+  return prisma.settings.create({
+    data: {
+      id: 'default',
+    },
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getCurrentUser();
@@ -13,11 +31,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Get settings to find HubSpot API key
-    const settings = await prisma.settings.findFirst();
-    if (!settings) {
-      return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
-    }
+    // Resolve active settings row to avoid reading stale/non-default entries.
+    const settings = await getOrCreateSettingsRow();
 
     const hubspotConfig = (settings as any).hubspotConfig || {};
     if (!hubspotConfig.enabled || !hubspotConfig.apiKey) {
@@ -141,11 +156,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get settings to find HubSpot API key
-    const settings = await prisma.settings.findFirst();
-    if (!settings) {
-      return NextResponse.json({ error: 'Settings not found' }, { status: 404 });
-    }
+    // Resolve active settings row to avoid reading stale/non-default entries.
+    const settings = await getOrCreateSettingsRow();
 
     const hubspotConfig = (settings as any).hubspotConfig || {};
     if (!hubspotConfig.enabled || !hubspotConfig.apiKey) {

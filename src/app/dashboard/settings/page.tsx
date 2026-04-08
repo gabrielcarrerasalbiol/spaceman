@@ -1961,16 +1961,9 @@ export default function SettingsPage() {
               onClose={() => setHubspotOwnersOpen(false)}
               title="Import HubSpot Owners"
               description="Select HubSpot owners to import as users. Already imported owners are disabled."
+              className="max-w-4xl max-h-[72vh]"
             >
-              <div className="space-y-6" style={{ maxWidth: '800px' }}>
-                <div>
-                  <h2 className="text-2xl font-bold" style={{ color: 'var(--text-strong)' }}>
-                    Import HubSpot Owners
-                  </h2>
-                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
-                    Select HubSpot owners to import as users. Already imported owners will be disabled.
-                  </p>
-                </div>
+              <div className="space-y-4">
 
                 {hubspotImportResult && (
                   <div className="flex items-start gap-3 p-4 rounded-xl border"
@@ -2010,14 +2003,14 @@ export default function SettingsPage() {
                 )}
 
                 {hubspotOwnersLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-8">
                     <RefreshCw className="h-8 w-8 animate-spin" style={{ color: 'var(--accent)' }} />
                   </div>
                 ) : (
                   <>
                     {hubspotOwners.length === 0 ? (
-                      <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
-                        <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <div className="text-center py-8" style={{ color: 'var(--text-muted)' }}>
+                        <Building2 className="h-10 w-10 mx-auto mb-3 opacity-50" />
                         <p>No HubSpot owners found</p>
                       </div>
                     ) : (
@@ -2038,7 +2031,7 @@ export default function SettingsPage() {
                           </Button>
                         </div>
 
-                        <div className="max-h-96 overflow-y-auto rounded-xl border" style={{ backgroundColor: 'var(--surface-0)' }}>
+                        <div className="max-h-72 overflow-y-auto rounded-xl border" style={{ backgroundColor: 'var(--surface-0)' }}>
                           {hubspotOwners.map((owner) => (
                             <div
                               key={owner.id}
