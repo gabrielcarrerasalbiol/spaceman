@@ -38,6 +38,7 @@ model users {
   modifiedAt         DateTime    @updatedAt
   role               Role?       @relation(fields: [roleId], references: [id])
   activities         activities[]
+  auditLogs          AuditLog[]
 
   @@map("users")
 }
@@ -251,6 +252,39 @@ enum ActivityType {
   LOGOUT
   PASSWORD_CHANGE
   PROFILE_UPDATE
+}
+
+model AuditLog {
+  id          String      @id @default(cuid())
+  userId      BigInt
+  action      AuditAction
+  entityType  String      @db.VarChar(50)
+  entityId    String?
+  description String
+  metadata    Json?
+  ipAddress   String?     @db.VarChar(45)
+  userAgent   String?     @db.VarChar(500)
+  createdAt   DateTime    @default(now())
+
+  user        users       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  IMPORT
+  SYNC
+  SETTINGS_UPDATE
 }
 
 enum UnitStatus {

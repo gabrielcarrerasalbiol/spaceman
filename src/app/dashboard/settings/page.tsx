@@ -25,7 +25,10 @@ import {
   Zap,
   Globe,
   MapPin,
-  Building2
+  Building2,
+  Clock,
+  Filter,
+  RefreshCw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -127,6 +130,23 @@ export default function SettingsPage() {
     profileCompletion: 0
   });
 
+  // Activity Logs state
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [auditLogFilters, setAuditLogFilters] = useState({
+    startDate: '',
+    endDate: '',
+    action: '',
+    entityType: '',
+    search: '',
+  });
+  const [auditLogPagination, setAuditLogPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0,
+  });
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+
   useEffect(() => {
     if (currentUser) {
       setProfileForm({
@@ -182,6 +202,11 @@ export default function SettingsPage() {
       fetchUsersAndRoles();
     }
   }, [isAdmin]);
+
+  // Fetch audit logs when filters or pagination change
+  useEffect(() => {
+    fetchAuditLogs();
+  }, [auditLogPagination.page, auditLogFilters]);
 
   async function fetchUsersAndRoles() {
     try {
@@ -685,6 +710,37 @@ export default function SettingsPage() {
     </div>
   );
 
+  // Activity Logs fetch function
+  async function fetchAuditLogs() {
+    setAuditLogsLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: auditLogPagination.page.toString(),
+        limit: auditLogPagination.limit.toString(),
+        ...(auditLogFilters.startDate && { startDate: auditLogFilters.startDate }),
+        ...(auditLogFilters.endDate && { endDate: auditLogFilters.endDate }),
+        ...(auditLogFilters.action && { action: auditLogFilters.action }),
+        ...(auditLogFilters.entityType && { entityType: auditLogFilters.entityType }),
+        ...(auditLogFilters.search && { search: auditLogFilters.search }),
+      });
+
+      const response = await fetch(`/api/audit-logs?${params}`);
+      if (response.ok) {
+        const data = await response.json();
+        setAuditLogs(data.logs);
+        setAuditLogPagination((prev) => ({
+          ...prev,
+          total: data.pagination.total,
+          totalPages: data.pagination.totalPages,
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch audit logs:', error);
+    } finally {
+      setAuditLogsLoading(false);
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header Section */}
@@ -790,6 +846,12 @@ export default function SettingsPage() {
             <TabsTrigger value="hubspot" className="flex items-center gap-2 rounded-lg">
               <Building2 className="h-4 w-4" />
               <span>HubSpot</span>
+            </TabsTrigger>
+          )}
+          {isAdmin && (
+            <TabsTrigger value="activity-logs" className="flex items-center gap-2 rounded-lg">
+              <Clock className="h-4 w-4" />
+              <span>Activity Logs</span>
             </TabsTrigger>
           )}
         </TabsList>
@@ -2013,6 +2075,239 @@ export default function SettingsPage() {
                     Paste your API Key and Portal ID, then test the connection before saving
                   </p>
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        )}
+
+        {/* Activity Logs Tab */}
+        {isAdmin && (
+          <TabsContent value="activity-logs" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="flex h-8 w-8 items-center justify-center rounded-lg"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, var(--accent) 16%, var(--surface-0))`,
+                      }}
+                    >
+                      <Clock className="h-4 w-4" style={{ color: 'var(--accent)' }} />
+                    </div>
+                    <div>
+                      <CardTitle>Activity Logs</CardTitle>
+                      <CardDescription>Track all system actions and changes</CardDescription>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => fetchAuditLogs()}
+                    disabled={auditLogsLoading}
+                    variant="outline"
+                    className="rounded-xl"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${auditLogsLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Filters */}
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Start Date</label>
+                    <Input
+                      type="date"
+                      value={auditLogFilters.startDate}
+                      onChange={(e) =>
+                        setAuditLogFilters((prev) => ({ ...prev, startDate: e.target.value }))
+                      }
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">End Date</label>
+                    <Input
+                      type="date"
+                      value={auditLogFilters.endDate}
+                      onChange={(e) =>
+                        setAuditLogFilters((prev) => ({ ...prev, endDate: e.target.value }))
+                      }
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Action</label>
+                    <select
+                      value={auditLogFilters.action}
+                      onChange={(e) =>
+                        setAuditLogFilters((prev) => ({ ...prev, action: e.target.value }))
+                      }
+                      className="w-full rounded-xl border bg-transparent px-3 py-2 text-sm"
+                    >
+                      <option value="">All Actions</option>
+                      <option value="CREATE">Create</option>
+                      <option value="UPDATE">Update</option>
+                      <option value="DELETE">Delete</option>
+                      <option value="LOGIN">Login</option>
+                      <option value="LOGOUT">Logout</option>
+                      <option value="EXPORT">Export</option>
+                      <option value="IMPORT">Import</option>
+                      <option value="SYNC">Sync</option>
+                      <option value="SETTINGS_UPDATE">Settings Update</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Entity Type</label>
+                    <select
+                      value={auditLogFilters.entityType}
+                      onChange={(e) =>
+                        setAuditLogFilters((prev) => ({ ...prev, entityType: e.target.value }))
+                      }
+                      className="w-full rounded-xl border bg-transparent px-3 py-2 text-sm"
+                    >
+                      <option value="">All Entities</option>
+                      <option value="USER">User</option>
+                      <option value="CLIENT">Client</option>
+                      <option value="LOCATION">Location</option>
+                      <option value="UNIT">Unit</option>
+                      <option value="CONTRACT">Contract</option>
+                      <option value="ROLE">Role</option>
+                      <option value="SETTINGS">Settings</option>
+                      <option value="HUBSPOT">HubSpot</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Search</label>
+                    <Input
+                      type="text"
+                      placeholder="Search descriptions..."
+                      value={auditLogFilters.search}
+                      onChange={(e) =>
+                        setAuditLogFilters((prev) => ({ ...prev, search: e.target.value }))
+                      }
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                {/* Results count */}
+                <div className="flex items-center justify-between text-sm" style={{ color: 'var(--text-muted)' }}>
+                  <span>
+                    Showing {auditLogs.length} of {auditLogPagination.total} logs
+                  </span>
+                </div>
+
+                {/* Logs table */}
+                <div className="rounded-xl border overflow-hidden">
+                  <table className="w-full">
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid var(--border)', backgroundColor: 'var(--surface-1)' }}>
+                        <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                          Timestamp
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                          User
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                          Action
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                          Entity
+                        </th>
+                        <th className="px-4 py-3 text-left text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                          Description
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {auditLogsLoading ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-8">
+                            <RefreshCw className="h-6 w-6 animate-spin mx-auto" />
+                          </td>
+                        </tr>
+                      ) : auditLogs.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="text-center py-8"
+                            style={{ color: 'var(--text-muted)' }}
+                          >
+                            No activity logs found matching your filters
+                          </td>
+                        </tr>
+                      ) : (
+                        auditLogs.map((log) => (
+                          <tr
+                            key={log.id}
+                            style={{ borderBottom: '1px solid var(--border)' }}
+                          >
+                            <td className="px-4 py-3 text-sm">
+                              {new Date(log.createdAt).toLocaleString()}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div>
+                                <div className="font-medium">{log.user.username || log.user.email}</div>
+                                <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                                  {log.user.email}
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <Badge variant="outline">{log.action}</Badge>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className="text-sm">{log.entityType}</span>
+                              {log.entityId && (
+                                <span className="text-xs ml-1" style={{ color: 'var(--text-muted)' }}>
+                                  ({log.entityId.slice(0, 8)}...)
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-sm">{log.description}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                {auditLogPagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between">
+                    <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                      Page {auditLogPagination.page} of {auditLogPagination.totalPages}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() =>
+                          setAuditLogPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                        }
+                        disabled={auditLogPagination.page === 1 || auditLogsLoading}
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        onClick={() =>
+                          setAuditLogPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                        }
+                        disabled={
+                          auditLogPagination.page >= auditLogPagination.totalPages ||
+                          auditLogsLoading
+                        }
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl"
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

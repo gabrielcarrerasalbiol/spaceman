@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 import { serializeForJson } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
@@ -70,6 +71,24 @@ export async function POST(request: NextRequest) {
         createdById: BigInt(user.id),
         updatedById: BigInt(user.id),
       },
+    });
+
+    // Log the action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'CREATE',
+      entityType: 'CLIENT',
+      entityId: client.id,
+      description: `Created client: ${firstName} ${lastName}${companyName ? ` (${companyName})` : ''}`,
+      metadata: {
+        firstName,
+        lastName,
+        companyName,
+        email,
+        status,
+      },
+      ipAddress,
+      userAgent,
     });
 
     return NextResponse.json(serializeForJson(client), { status: 201 });

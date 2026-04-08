@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 import bcrypt from 'bcryptjs';
 
 // GET /api/users - List users (admin only)
@@ -121,6 +122,22 @@ export async function POST(request: NextRequest) {
       include: {
         role: true,
       },
+    });
+
+    // Log the action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'CREATE',
+      entityType: 'USER',
+      entityId: newUser.id.toString(),
+      description: `Created new user: ${email}`,
+      metadata: {
+        email,
+        username,
+        role: roleRecord?.name || 'USER',
+      },
+      ipAddress,
+      userAgent,
     });
 
     return NextResponse.json({

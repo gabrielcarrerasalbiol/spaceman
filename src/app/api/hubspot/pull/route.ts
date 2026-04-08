@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
 import { prisma } from '@/lib/prisma';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 
 type DealPipelineMetadata = {
   pipelineLabelById: Record<string, string>;
@@ -437,6 +438,24 @@ export async function POST(request: Request) {
       });
     }
 
+    // Log the sync action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'SYNC',
+      entityType: 'HUBSPOT',
+      description: 'Initiated HubSpot deal sync',
+      metadata: {
+        maxPages,
+        pagesProcessed,
+        totalScanned,
+        createdThisRun: totalCreated,
+        stageUpdatedThisRun: totalStageUpdated,
+        hasMore,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json({
       success: true,
       message: hasMore ? 'Processed sync batch' : 'Successfully synced HubSpot deals',
@@ -453,6 +472,24 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     console.error('Error syncing HubSpot deals:', error);
+
+    // Log sync failure
+    try {
+      const { ipAddress, userAgent } = extractRequestInfo(request);
+      await logAudit(user.id, {
+        action: 'SYNC',
+        entityType: 'HUBSPOT',
+        description: 'HubSpot sync failed',
+        metadata: {
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+        ipAddress,
+        userAgent,
+      });
+    } catch (logError) {
+      // Ignore logging errors in error handler
+    }
+
     return NextResponse.json(
       {
         error: 'Failed to sync HubSpot deals',

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 import { serializeForJson } from '@/lib/utils';
 import { syncMultipleUnitStatuses } from '@/lib/contracts';
 
@@ -114,6 +115,25 @@ export async function POST(request: NextRequest) {
 
       await syncMultipleUnitStatuses(tx, [unitId]);
       return created;
+    });
+
+    // Log the action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'CREATE',
+      entityType: 'CONTRACT',
+      entityId: contract.id,
+      description: `Created contract: ${contract.contractNumber}`,
+      metadata: {
+        contractNumber: contract.contractNumber,
+        clientName: `${contract.client.firstName} ${contract.client.lastName}`,
+        unitCode: contract.unit.code,
+        locationName: contract.location.name,
+        startDate: contract.startDate.toISOString(),
+        status: contract.status,
+      },
+      ipAddress,
+      userAgent,
     });
 
     return NextResponse.json(serializeForJson(contract), { status: 201 });
