@@ -1888,7 +1888,12 @@ export default function SettingsPage() {
             </Card>
 
             {/* HubSpot Owners Import Modal */}
-            <Modal open={hubspotOwnersOpen} onOpenChange={setHubspotOwnersOpen}>
+            <Modal
+              open={hubspotOwnersOpen}
+              onClose={() => setHubspotOwnersOpen(false)}
+              title="Import HubSpot Owners"
+              description="Select HubSpot owners to import as users. Already imported owners are disabled."
+            >
               <div className="space-y-6" style={{ maxWidth: '800px' }}>
                 <div>
                   <h2 className="text-2xl font-bold" style={{ color: 'var(--text-strong)' }}>
@@ -1992,7 +1997,7 @@ export default function SettingsPage() {
                                 </div>
                               </label>
                               {owner.imported && (
-                                <Badge variant="outline" style={{ fontSize: '0.75rem' }}>
+                                <Badge variant="secondary" className="text-xs">
                                   Imported
                                 </Badge>
                               )}

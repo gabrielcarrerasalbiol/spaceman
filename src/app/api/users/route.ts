@@ -77,7 +77,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, username, password, role } = body;
+    const {
+      email,
+      username,
+      password,
+      role,
+      firstName,
+      lastName,
+      phone,
+      mobile,
+      avatar,
+      addressLine1,
+      addressLine2,
+      townCity,
+      county,
+      postcode,
+      country,
+      hubspotOwnerId
+    } = body;
 
     if (!email || !password) {
       return NextResponse.json(
@@ -116,6 +133,18 @@ export async function POST(request: NextRequest) {
         username: username || null,
         password: hashedPassword,
         roleId: roleRecord?.id || null,
+        firstName: firstName || null,
+        lastName: lastName || null,
+        phone: phone || null,
+        mobile: mobile || null,
+        avatar: avatar || null,
+        addressLine1: addressLine1 || null,
+        addressLine2: addressLine2 || null,
+        townCity: townCity || null,
+        county: county || null,
+        postcode: postcode || null,
+        country: country || null,
+        hubspotOwnerId: hubspotOwnerId || null,
         active: true,
         banned: false,
       },
@@ -130,10 +159,12 @@ export async function POST(request: NextRequest) {
       action: 'CREATE',
       entityType: 'USER',
       entityId: newUser.id.toString(),
-      description: `Created new user: ${email}`,
+      description: `Created new user: ${firstName || ''} ${lastName || ''} (${email})`,
       metadata: {
         email,
         username,
+        firstName,
+        lastName,
         role: roleRecord?.name || 'USER',
       },
       ipAddress,
