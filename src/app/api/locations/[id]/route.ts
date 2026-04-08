@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
@@ -75,6 +76,23 @@ export async function PUT(
 
     const location = await prisma.location.update({ where: { id }, data });
 
+    // Log the update action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'UPDATE',
+      entityType: 'LOCATION',
+      entityId: location.id,
+      description: `Updated location: ${location.name}`,
+      metadata: {
+        name: location.name,
+        code: location.code,
+        townCity: location.townCity,
+        active: location.active,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json(serializeForJson(location));
   } catch (error) {
     console.error('Error updating location:', error);
@@ -83,7 +101,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -101,7 +119,30 @@ export async function DELETE(
       );
     }
 
+    // Get location details before deletion for logging
+    const location = await prisma.location.findUnique({ where: { id } });
+    if (!location) {
+      return NextResponse.json({ error: 'Location not found' }, { status: 404 });
+    }
+
     await prisma.location.delete({ where: { id } });
+
+    // Log the delete action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'DELETE',
+      entityType: 'LOCATION',
+      entityId: id,
+      description: `Deleted location: ${location.name}`,
+      metadata: {
+        name: location.name,
+        code: location.code,
+        townCity: location.townCity,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting location:', error);

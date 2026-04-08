@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 import { serializeForJson } from '@/lib/utils';
 import { syncMultipleUnitStatuses } from '@/lib/contracts';
 
@@ -106,6 +107,24 @@ export async function PUT(
       return updated;
     });
 
+    // Log the update action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'UPDATE',
+      entityType: 'CONTRACT',
+      entityId: contract.id,
+      description: `Updated contract: ${contract.contractNumber}`,
+      metadata: {
+        contractNumber: contract.contractNumber,
+        clientName: `${contract.client.firstName} ${contract.client.lastName}`,
+        unitCode: contract.unit.code,
+        locationName: contract.location.name,
+        status: contract.status,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json(serializeForJson(contract));
   } catch (error) {
     console.error('Error updating contract:', error);
@@ -114,7 +133,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -126,7 +145,11 @@ export async function DELETE(
 
     const existingContract = await prisma.contract.findUnique({
       where: { id },
-      select: { unitId: true },
+      include: {
+        client: true,
+        unit: true,
+        location: true,
+      },
     });
 
     if (!existingContract) {
@@ -137,6 +160,24 @@ export async function DELETE(
       await tx.contract.delete({ where: { id } });
       await syncMultipleUnitStatuses(tx, [existingContract.unitId]);
     });
+
+    // Log the delete action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'DELETE',
+      entityType: 'CONTRACT',
+      entityId: id,
+      description: `Deleted contract: ${existingContract.contractNumber}`,
+      metadata: {
+        contractNumber: existingContract.contractNumber,
+        clientName: `${existingContract.client.firstName} ${existingContract.client.lastName}`,
+        unitCode: existingContract.unit.code,
+        locationName: existingContract.location.name,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting contract:', error);

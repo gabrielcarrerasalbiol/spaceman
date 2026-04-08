@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import { logAudit, extractRequestInfo } from '@/lib/audit-logger';
 import { serializeForJson } from '@/lib/utils';
 
 export async function GET(
@@ -75,6 +76,25 @@ export async function PUT(
     }
 
     const client = await prisma.client.update({ where: { id }, data });
+
+    // Log the update action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'UPDATE',
+      entityType: 'CLIENT',
+      entityId: client.id,
+      description: `Updated client: ${client.firstName} ${client.lastName}${client.companyName ? ` (${client.companyName})` : ''}`,
+      metadata: {
+        firstName: client.firstName,
+        lastName: client.lastName,
+        companyName: client.companyName,
+        email: client.email,
+        status: client.status,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json(serializeForJson(client));
   } catch (error) {
     console.error('Error updating client:', error);
@@ -83,7 +103,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
@@ -101,7 +121,31 @@ export async function DELETE(
       );
     }
 
+    // Get client details before deletion for logging
+    const client = await prisma.client.findUnique({ where: { id } });
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+
     await prisma.client.delete({ where: { id } });
+
+    // Log the delete action
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(user.id, {
+      action: 'DELETE',
+      entityType: 'CLIENT',
+      entityId: id,
+      description: `Deleted client: ${client.firstName} ${client.lastName}${client.companyName ? ` (${client.companyName})` : ''}`,
+      metadata: {
+        firstName: client.firstName,
+        lastName: client.lastName,
+        companyName: client.companyName,
+        email: client.email,
+      },
+      ipAddress,
+      userAgent,
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting client:', error);
