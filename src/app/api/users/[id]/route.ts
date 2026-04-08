@@ -124,14 +124,60 @@ export async function PUT(
       hubspotOwnerId
     } = body;
 
+    const textFieldMax: Record<string, number> = {
+      username: 12,
+      email: 255,
+      firstName: 100,
+      lastName: 100,
+      phone: 20,
+      mobile: 20,
+      avatar: 500,
+      addressLine1: 255,
+      addressLine2: 255,
+      townCity: 100,
+      county: 100,
+      postcode: 20,
+      country: 100,
+      hubspotOwnerId: 50,
+    };
+
+    for (const [field, max] of Object.entries(textFieldMax)) {
+      const value = body[field];
+      if (value === undefined || value === null) continue;
+
+      if (typeof value !== 'string') {
+        return NextResponse.json(
+          { error: `${field} must be a string` },
+          { status: 400 }
+        );
+      }
+
+      const normalized = value.trim();
+      if (normalized.length > max) {
+        return NextResponse.json(
+          { error: `${field} is too long (max ${max} characters)` },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (email !== undefined && typeof email === 'string' && email.trim().length === 0) {
+      return NextResponse.json(
+        { error: 'email is required' },
+        { status: 400 }
+      );
+    }
+
     const updateData: any = {};
 
-    if (username !== undefined) updateData.username = username || null;
+    if (username !== undefined) updateData.username = typeof username === 'string' ? (username.trim() || null) : null;
     if (email !== undefined) {
+      const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+
       // Check if email is already used by another user
       const existingUser = await prisma.users.findFirst({
         where: {
-          email,
+          email: normalizedEmail,
           id: { not: BigInt(id) }
         },
       });
@@ -141,7 +187,7 @@ export async function PUT(
           { status: 400 }
         );
       }
-      updateData.email = email;
+      updateData.email = normalizedEmail;
     }
     if (password) {
       updateData.password = await bcrypt.hash(password, 10);
@@ -149,22 +195,22 @@ export async function PUT(
     }
 
     // Profile fields
-    if (firstName !== undefined) updateData.firstName = firstName || null;
-    if (lastName !== undefined) updateData.lastName = lastName || null;
-    if (phone !== undefined) updateData.phone = phone || null;
-    if (mobile !== undefined) updateData.mobile = mobile || null;
-    if (avatar !== undefined) updateData.avatar = avatar || null;
+    if (firstName !== undefined) updateData.firstName = typeof firstName === 'string' ? (firstName.trim() || null) : null;
+    if (lastName !== undefined) updateData.lastName = typeof lastName === 'string' ? (lastName.trim() || null) : null;
+    if (phone !== undefined) updateData.phone = typeof phone === 'string' ? (phone.trim() || null) : null;
+    if (mobile !== undefined) updateData.mobile = typeof mobile === 'string' ? (mobile.trim() || null) : null;
+    if (avatar !== undefined) updateData.avatar = typeof avatar === 'string' ? (avatar.trim() || null) : null;
 
     // Address fields
-    if (addressLine1 !== undefined) updateData.addressLine1 = addressLine1 || null;
-    if (addressLine2 !== undefined) updateData.addressLine2 = addressLine2 || null;
-    if (townCity !== undefined) updateData.townCity = townCity || null;
-    if (county !== undefined) updateData.county = county || null;
-    if (postcode !== undefined) updateData.postcode = postcode || null;
-    if (country !== undefined) updateData.country = country || null;
+    if (addressLine1 !== undefined) updateData.addressLine1 = typeof addressLine1 === 'string' ? (addressLine1.trim() || null) : null;
+    if (addressLine2 !== undefined) updateData.addressLine2 = typeof addressLine2 === 'string' ? (addressLine2.trim() || null) : null;
+    if (townCity !== undefined) updateData.townCity = typeof townCity === 'string' ? (townCity.trim() || null) : null;
+    if (county !== undefined) updateData.county = typeof county === 'string' ? (county.trim() || null) : null;
+    if (postcode !== undefined) updateData.postcode = typeof postcode === 'string' ? (postcode.trim() || null) : null;
+    if (country !== undefined) updateData.country = typeof country === 'string' ? (country.trim() || null) : null;
 
     // HubSpot integration
-    if (hubspotOwnerId !== undefined) updateData.hubspotOwnerId = hubspotOwnerId || null;
+    if (hubspotOwnerId !== undefined) updateData.hubspotOwnerId = typeof hubspotOwnerId === 'string' ? (hubspotOwnerId.trim() || null) : null;
 
     // Only admins can change role and active status
     if (isAdmin(currentUser as any)) {

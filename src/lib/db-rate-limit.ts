@@ -19,15 +19,20 @@ let ensureTablePromise: Promise<void> | null = null;
 
 async function ensureRateLimitTable() {
   if (!ensureTablePromise) {
-    ensureTablePromise = prisma.$executeRawUnsafe(`
-      CREATE TABLE IF NOT EXISTS api_rate_limits (
-        key TEXT PRIMARY KEY,
-        count INTEGER NOT NULL DEFAULT 0,
-        reset_at TIMESTAMPTZ NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_api_rate_limits_reset_at ON api_rate_limits(reset_at);
-    `).then(() => undefined);
+    ensureTablePromise = (async () => {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS api_rate_limits (
+          key TEXT PRIMARY KEY,
+          count INTEGER NOT NULL DEFAULT 0,
+          reset_at TIMESTAMPTZ NOT NULL,
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+
+      await prisma.$executeRawUnsafe(`
+        CREATE INDEX IF NOT EXISTS idx_api_rate_limits_reset_at ON api_rate_limits(reset_at)
+      `);
+    })();
   }
 
   await ensureTablePromise;
