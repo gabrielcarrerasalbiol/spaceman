@@ -166,52 +166,75 @@ export default function SettingsPage() {
   const [hubspotImportResult, setHubspotImportResult] = useState<any>(null);
   const [importingOwners, setImportingOwners] = useState(false);
 
+  function calculateProfileCompletion(input: typeof profileForm) {
+    const completion = [
+      input.firstName.trim() && input.lastName.trim() ? 20 : 0,
+      input.email.trim() ? 20 : 0,
+      input.phone.trim() || input.mobile.trim() ? 20 : 0,
+      input.addressLine1.trim() && input.townCity.trim() ? 20 : 0,
+      input.avatar.trim() ? 20 : 0,
+    ].reduce((acc: number, val: number) => acc + val, 0);
+
+    return completion;
+  }
+
   useEffect(() => {
     if (!currentUser) return;
 
     const userData = currentUser as any;
 
-    setProfileForm({
-      username: userData.username || '',
-      email: currentUser.email || '',
-      firstName: userData.firstName || '',
-      lastName: userData.lastName || '',
-      phone: userData.phone || '',
-      mobile: userData.mobile || '',
-      avatar: userData.avatar || '',
-      addressLine1: userData.addressLine1 || '',
-      addressLine2: userData.addressLine2 || '',
-      townCity: userData.townCity || '',
-      county: userData.county || '',
-      postcode: userData.postcode || '',
-      country: userData.country || '',
-    });
+    setProfileForm((previous) => ({
+      username: userData.username || previous.username || '',
+      email: currentUser.email || previous.email || '',
+      firstName: userData.firstName || previous.firstName || '',
+      lastName: userData.lastName || previous.lastName || '',
+      phone: userData.phone || previous.phone || '',
+      mobile: userData.mobile || previous.mobile || '',
+      avatar: userData.avatar || previous.avatar || '',
+      addressLine1: userData.addressLine1 || previous.addressLine1 || '',
+      addressLine2: userData.addressLine2 || previous.addressLine2 || '',
+      townCity: userData.townCity || previous.townCity || '',
+      county: userData.county || previous.county || '',
+      postcode: userData.postcode || previous.postcode || '',
+      country: userData.country || previous.country || '',
+    }));
 
-    const completion = [
-      userData.firstName && userData.lastName ? 20 : 0,
-      currentUser.email ? 20 : 0,
-      userData.phone || userData.mobile ? 20 : 0,
-      userData.addressLine1 && userData.townCity ? 20 : 0,
-      userData.avatar ? 20 : 0,
-    ].reduce((acc: number, val: number) => acc + val, 0);
-
-    setStats(prev => ({ ...prev, profileCompletion: completion }));
+    // Hydrate full profile from DB (session payload may not include all custom profile fields).
+    if (currentUser.id) {
+      fetch(`/api/users/${currentUser.id}`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((payload) => {
+          if (!payload) return;
+          setProfileForm({
+            username: payload.username || '',
+            email: payload.email || '',
+            firstName: payload.firstName || '',
+            lastName: payload.lastName || '',
+            phone: payload.phone || '',
+            mobile: payload.mobile || '',
+            avatar: payload.avatar || '',
+            addressLine1: payload.addressLine1 || '',
+            addressLine2: payload.addressLine2 || '',
+            townCity: payload.townCity || '',
+            county: payload.county || '',
+            postcode: payload.postcode || '',
+            country: payload.country || '',
+          });
+        })
+        .catch(() => {
+          // Keep best-effort local values when profile fetch fails.
+        });
+    }
   }, [
     currentUser?.id,
     currentUser?.email,
     (currentUser as any)?.username,
-    (currentUser as any)?.firstName,
-    (currentUser as any)?.lastName,
-    (currentUser as any)?.phone,
-    (currentUser as any)?.mobile,
-    (currentUser as any)?.avatar,
-    (currentUser as any)?.addressLine1,
-    (currentUser as any)?.addressLine2,
-    (currentUser as any)?.townCity,
-    (currentUser as any)?.county,
-    (currentUser as any)?.postcode,
-    (currentUser as any)?.country,
   ]);
+
+  useEffect(() => {
+    const completion = calculateProfileCompletion(profileForm);
+    setStats((prev) => ({ ...prev, profileCompletion: completion }));
+  }, [profileForm]);
 
   useEffect(() => {
     if (!settingsLoading) {
