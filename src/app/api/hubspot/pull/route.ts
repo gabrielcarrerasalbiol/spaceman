@@ -307,8 +307,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let user: Awaited<ReturnType<typeof getCurrentUser>>;
+
   try {
-    const user = await getCurrentUser();
+    user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -475,17 +477,19 @@ export async function POST(request: Request) {
 
     // Log sync failure
     try {
-      const { ipAddress, userAgent } = extractRequestInfo(request);
-      await logAudit(user.id, {
-        action: 'SYNC',
-        entityType: 'HUBSPOT',
-        description: 'HubSpot sync failed',
-        metadata: {
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-        ipAddress,
-        userAgent,
-      });
+      if (user) {
+        const { ipAddress, userAgent } = extractRequestInfo(request);
+        await logAudit(user.id, {
+          action: 'SYNC',
+          entityType: 'HUBSPOT',
+          description: 'HubSpot sync failed',
+          metadata: {
+            error: error instanceof Error ? error.message : 'Unknown error',
+          },
+          ipAddress,
+          userAgent,
+        });
+      }
     } catch (logError) {
       // Ignore logging errors in error handler
     }
