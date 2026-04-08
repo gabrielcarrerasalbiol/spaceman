@@ -1,31 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
-import { z } from 'zod';
 
-// Query parameter validation schema
-const auditLogsQuerySchema = z.object({
-  page: z.string().optional().default('1'),
-  limit: z.string().optional().default('50'),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  action: z
-    .enum([
-      'CREATE',
-      'UPDATE',
-      'DELETE',
-      'LOGIN',
-      'LOGOUT',
-      'EXPORT',
-      'IMPORT',
-      'SYNC',
-      'SETTINGS_UPDATE',
-    ])
-    .optional(),
-  entityType: z.string().optional(),
-  userId: z.string().optional(),
-  search: z.string().optional(),
-});
+// Valid action types
+const VALID_ACTIONS = [
+  'CREATE',
+  'UPDATE',
+  'DELETE',
+  'LOGIN',
+  'LOGOUT',
+  'EXPORT',
+  'IMPORT',
+  'SYNC',
+  'SETTINGS_UPDATE',
+] as const;
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,58 +28,60 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
-    // Parse and validate query parameters
-    const queryParams = auditLogsQuerySchema.safeParse(
-      Object.fromEntries(searchParams)
-    );
+    // Parse and validate query parameters manually
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50'))); // Max 100 per page
+    const skip = (page - 1) * limit;
 
-    if (!queryParams.success) {
+    const action = searchParams.get('action');
+    if (action && !VALID_ACTIONS.includes(action as any)) {
       return NextResponse.json(
-        { error: 'Invalid query parameters', details: queryParams.error.errors },
+        { error: 'Invalid action parameter' },
         { status: 400 }
       );
     }
-
-    const page = parseInt(queryParams.data.page);
-    const limit = Math.min(parseInt(queryParams.data.limit), 100); // Max 100 per page
-    const skip = (page - 1) * limit;
 
     // Build where clause
     const where: any = {};
 
     // Date range filter
-    if (queryParams.data.startDate || queryParams.data.endDate) {
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    if (startDate || endDate) {
       where.createdAt = {};
-      if (queryParams.data.startDate) {
-        where.createdAt.gte = new Date(queryParams.data.startDate);
+      if (startDate) {
+        where.createdAt.gte = new Date(startDate);
       }
-      if (queryParams.data.endDate) {
+      if (endDate) {
         // Include the entire end date
-        const endDate = new Date(queryParams.data.endDate);
-        endDate.setHours(23, 59, 59, 999);
-        where.createdAt.lte = endDate;
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        where.createdAt.lte = endDateObj;
       }
     }
 
     // Action filter
-    if (queryParams.data.action) {
-      where.action = queryParams.data.action;
+    if (action) {
+      where.action = action;
     }
 
     // Entity type filter
-    if (queryParams.data.entityType) {
-      where.entityType = queryParams.data.entityType;
+    const entityType = searchParams.get('entityType');
+    if (entityType) {
+      where.entityType = entityType;
     }
 
     // User filter
-    if (queryParams.data.userId) {
-      where.userId = BigInt(queryParams.data.userId);
+    const userId = searchParams.get('userId');
+    if (userId) {
+      where.userId = BigInt(userId);
     }
 
     // Search in description
-    if (queryParams.data.search) {
+    const search = searchParams.get('search');
+    if (search) {
       where.description = {
-        contains: queryParams.data.search,
+        contains: search,
         mode: 'insensitive',
       };
     }
