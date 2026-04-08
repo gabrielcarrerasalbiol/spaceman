@@ -307,7 +307,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  let user: Awaited<ReturnType<typeof getCurrentUser>>;
+  let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
 
   try {
     user = await getCurrentUser();

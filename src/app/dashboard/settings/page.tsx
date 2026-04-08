@@ -2255,7 +2255,7 @@ export default function SettingsPage() {
                               </div>
                             </td>
                             <td className="px-4 py-3">
-                              <Badge variant="outline">{log.action}</Badge>
+                              <Badge variant="secondary">{log.action}</Badge>
                             </td>
                             <td className="px-4 py-3">
                               <span className="text-sm">{log.entityType}</span>

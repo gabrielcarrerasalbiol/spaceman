@@ -38,7 +38,7 @@ export async function logAudit(
         entityType: options.entityType,
         entityId: options.entityId || null,
         description: options.description,
-        metadata: options.metadata || null,
+        metadata: options.metadata ?? undefined,
         ipAddress: options.ipAddress || null,
         userAgent: options.userAgent || null,
       },
