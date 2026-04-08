@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { canManageUser, isAdmin } from '@/lib/permissions';
 import { auth } from '@/lib/auth';
+import { extractRequestInfo, logAudit } from '@/lib/audit-logger';
 import bcrypt from 'bcryptjs';
 
 // GET /api/users/[id] - Get single user
@@ -214,15 +215,46 @@ export async function DELETE(
     const { id } = await params;
 
     // Prevent self-deletion
-    if (currentUser.id === id) {
+    if (String(currentUser.id) === String(id)) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
         { status: 400 }
       );
     }
 
+    const targetUser = await prisma.users.findUnique({
+      where: { id: BigInt(id) },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    if (!targetUser) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
     await prisma.users.delete({
       where: { id: BigInt(id) },
+    });
+
+    const { ipAddress, userAgent } = extractRequestInfo(request);
+    await logAudit(String(currentUser.id), {
+      action: 'DELETE',
+      entityType: 'USER',
+      entityId: targetUser.id.toString(),
+      description: `Deleted user: ${targetUser.email}`,
+      metadata: {
+        deletedEmail: targetUser.email,
+        deletedUsername: targetUser.username,
+        deletedFirstName: targetUser.firstName,
+        deletedLastName: targetUser.lastName,
+      },
+      ipAddress,
+      userAgent,
     });
 
     return NextResponse.json({ success: true });

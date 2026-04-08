@@ -7,10 +7,10 @@
 @layer base {
   :root {
     --sidebar-width: 16rem;
-    --app-bg: #f8fafc;
-    --surface-0: #ffffff;
-    --surface-1: #f1f5f9;
-    --surface-2: #e2e8f0;
+    --app-bg: #eef1f7;
+    --surface-0: #f4f4f9;
+    --surface-1: #eceef5;
+    --surface-2: #e1e4ee;
     --text-strong: #0f172a;
     --text-muted: #64748b;
     --border: #cbd5e1;

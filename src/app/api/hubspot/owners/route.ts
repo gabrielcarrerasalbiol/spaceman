@@ -1,6 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getCurrentUser, isAdmin } from '@/lib/permissions';
+import bcrypt from 'bcryptjs';
+
+function pickString(source: any, keys: string[]): string {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
+function parseNameFromEmail(email: string): { firstName: string; lastName: string } {
+  const local = email.split('@')[0] || '';
+  const tokens = local
+    .replace(/[._-]+/g, ' ')
+    .split(' ')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (tokens.length === 0) return { firstName: '', lastName: '' };
+
+  const firstName = tokens[0] || '';
+  const lastName = tokens.slice(1).join(' ');
+
+  return {
+    firstName: firstName ? firstName.charAt(0).toUpperCase() + firstName.slice(1) : '',
+    lastName: lastName ? lastName.charAt(0).toUpperCase() + lastName.slice(1) : '',
+  };
+}
+
+function buildUsernameCandidate(email: string, firstName: string, lastName: string): string {
+  const fromName = `${firstName}.${lastName}`.replace(/\.+/g, '.').replace(/^\.|\.$/g, '');
+  const source = fromName || (email.split('@')[0] || 'user');
+  return source.toLowerCase().replace(/[^a-z0-9._-]/g, '').slice(0, 12);
+}
+
+async function fetchHubSpotUserProfile(apiKey: string, userId: string) {
+  if (!userId) return null;
+
+  const url = new URL(`https://api.hubapi.com/settings/v3/users/${encodeURIComponent(userId)}`);
+  const response = await fetch(url.toString(), {
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) return null;
+  return response.json();
+}
 
 async function getOrCreateSettingsRow() {
   const byDefaultId = await prisma.settings.findUnique({
@@ -174,10 +225,12 @@ export async function POST(request: NextRequest) {
       select: {
         email: true,
         hubspotOwnerId: true,
+        username: true,
       },
     });
 
     const existingEmails = new Set(existingUsers.map((u) => u.email));
+    const existingUsernames = new Set(existingUsers.map((u) => u.username).filter(Boolean));
     const existingOwnerIds = new Set(
       existingUsers.map((u) => u.hubspotOwnerId).filter(Boolean)
     );
@@ -233,9 +286,36 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
-        const email = String(ownerData?.email || '').trim();
-        const firstName = String(ownerData?.firstName || '').trim();
-        const lastName = String(ownerData?.lastName || '').trim();
+        const userId = String(ownerData?.userId || '').trim();
+        const hubspotUserProfile = await fetchHubSpotUserProfile(apiKey, userId);
+
+        const email = pickString(ownerData, ['email']) || pickString(hubspotUserProfile, ['email', 'primaryEmail']);
+
+        if (!email) {
+          results.errors++;
+          results.details.push({
+            ownerId,
+            status: 'error',
+            reason: 'Owner has no email address',
+          });
+          continue;
+        }
+
+        let firstName =
+          pickString(ownerData, ['firstName']) ||
+          pickString(hubspotUserProfile, ['firstName', 'givenName']);
+        let lastName =
+          pickString(ownerData, ['lastName']) ||
+          pickString(hubspotUserProfile, ['lastName', 'familyName']);
+
+        if (!firstName && !lastName) {
+          const parsed = parseNameFromEmail(email);
+          firstName = parsed.firstName;
+          lastName = parsed.lastName;
+        }
+
+        const phone = pickString(hubspotUserProfile, ['phone', 'phoneNumber', 'primaryPhoneNumber']) || null;
+        const mobile = pickString(hubspotUserProfile, ['mobilePhoneNumber', 'mobile']) || null;
         const fullName = `${firstName} ${lastName}`.trim();
 
         // Skip if email already exists
@@ -250,30 +330,53 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        let username: string | null = null;
+        const usernameBase = buildUsernameCandidate(email, firstName, lastName);
+        if (usernameBase) {
+          if (!existingUsernames.has(usernameBase)) {
+            username = usernameBase;
+          } else {
+            for (let i = 1; i < 100; i++) {
+              const suffix = String(i);
+              const candidate = `${usernameBase.slice(0, Math.max(1, 12 - suffix.length))}${suffix}`;
+              if (!existingUsernames.has(candidate)) {
+                username = candidate;
+                break;
+              }
+            }
+          }
+        }
+
         // Generate a random password (user will need to reset)
         const randomPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
-
-        // Create user
-        const bcrypt = require('bcryptjs');
         const hashedPassword = await bcrypt.hash(randomPassword, 10);
 
         await prisma.users.create({
           data: {
             email,
+            username,
             password: hashedPassword,
-            firstName,
-            lastName,
+            firstName: firstName || null,
+            lastName: lastName || null,
+            phone,
+            mobile,
             hubspotOwnerId: ownerId,
             active: true,
             banned: false,
           },
         });
 
+        existingEmails.add(email);
+        if (username) {
+          existingUsernames.add(username);
+        }
+
         results.success++;
         results.details.push({
           ownerId,
           email,
           name: fullName,
+          username,
           status: 'success',
         });
       } catch (error) {
