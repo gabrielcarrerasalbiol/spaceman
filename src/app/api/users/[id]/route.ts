@@ -40,6 +40,18 @@ export async function GET(
       id: user.id.toString(),
       email: user.email,
       username: user.username,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      mobile: user.mobile,
+      avatar: user.avatar,
+      addressLine1: user.addressLine1,
+      addressLine2: user.addressLine2,
+      townCity: user.townCity,
+      county: user.county,
+      postcode: user.postcode,
+      country: user.country,
+      hubspotOwnerId: user.hubspotOwnerId,
       role: user.role?.name || 'USER',
       active: user.active && !user.banned,
       banned: user.banned,
@@ -79,7 +91,25 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { username, email, password, role, active } = body;
+    const {
+      username,
+      email,
+      password,
+      role,
+      active,
+      firstName,
+      lastName,
+      phone,
+      mobile,
+      avatar,
+      addressLine1,
+      addressLine2,
+      townCity,
+      county,
+      postcode,
+      country,
+      hubspotOwnerId
+    } = body;
 
     const updateData: any = {};
 
@@ -87,7 +117,7 @@ export async function PUT(
     if (email !== undefined) {
       // Check if email is already used by another user
       const existingUser = await prisma.users.findFirst({
-        where: { 
+        where: {
           email,
           id: { not: BigInt(id) }
         },
@@ -104,6 +134,24 @@ export async function PUT(
       updateData.password = await bcrypt.hash(password, 10);
       updateData.passwdModifiedAt = new Date();
     }
+
+    // Profile fields
+    if (firstName !== undefined) updateData.firstName = firstName || null;
+    if (lastName !== undefined) updateData.lastName = lastName || null;
+    if (phone !== undefined) updateData.phone = phone || null;
+    if (mobile !== undefined) updateData.mobile = mobile || null;
+    if (avatar !== undefined) updateData.avatar = avatar || null;
+
+    // Address fields
+    if (addressLine1 !== undefined) updateData.addressLine1 = addressLine1 || null;
+    if (addressLine2 !== undefined) updateData.addressLine2 = addressLine2 || null;
+    if (townCity !== undefined) updateData.townCity = townCity || null;
+    if (county !== undefined) updateData.county = county || null;
+    if (postcode !== undefined) updateData.postcode = postcode || null;
+    if (country !== undefined) updateData.country = country || null;
+
+    // HubSpot integration
+    if (hubspotOwnerId !== undefined) updateData.hubspotOwnerId = hubspotOwnerId || null;
 
     // Only admins can change role and active status
     if (isAdmin(currentUser as any)) {

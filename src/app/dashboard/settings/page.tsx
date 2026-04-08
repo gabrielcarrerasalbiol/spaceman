@@ -68,6 +68,17 @@ export default function SettingsPage() {
   const [profileForm, setProfileForm] = useState({
     username: '',
     email: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    mobile: '',
+    avatar: '',
+    addressLine1: '',
+    addressLine2: '',
+    townCity: '',
+    county: '',
+    postcode: '',
+    country: '',
   });
 
   const [passwordForm, setPasswordForm] = useState({
@@ -147,16 +158,35 @@ export default function SettingsPage() {
   });
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 
+  // HubSpot owners import state
+  const [hubspotOwnersOpen, setHubspotOwnersOpen] = useState(false);
+  const [hubspotOwnersLoading, setHubspotOwnersLoading] = useState(false);
+  const [hubspotOwners, setHubspotOwners] = useState<any[]>([]);
+  const [selectedOwnerIds, setSelectedOwnerIds] = useState<Set<string>>(new Set());
+  const [hubspotImportResult, setHubspotImportResult] = useState<any>(null);
+  const [importingOwners, setImportingOwners] = useState(false);
+
   useEffect(() => {
     if (currentUser) {
       setProfileForm({
-        username: currentUser.name || '',
+        username: (currentUser as any).username || '',
         email: currentUser.email || '',
+        firstName: (currentUser as any).firstName || '',
+        lastName: (currentUser as any).lastName || '',
+        phone: (currentUser as any).phone || '',
+        mobile: (currentUser as any).mobile || '',
+        avatar: (currentUser as any).avatar || '',
+        addressLine1: (currentUser as any).addressLine1 || '',
+        addressLine2: (currentUser as any).addressLine2 || '',
+        townCity: (currentUser as any).townCity || '',
+        county: (currentUser as any).county || '',
+        postcode: (currentUser as any).postcode || '',
+        country: (currentUser as any).country || '',
       });
 
       // Calculate profile completion
       const completion = [
-        currentUser.name ? 25 : 0,
+        (currentUser as any).firstName && (currentUser as any).lastName ? 25 : 0,
         currentUser.email ? 25 : 0,
         25, // Has account
         25, // Is active
@@ -501,6 +531,17 @@ export default function SettingsPage() {
         body: JSON.stringify({
           username: profileForm.username || null,
           email: profileForm.email,
+          firstName: profileForm.firstName || null,
+          lastName: profileForm.lastName || null,
+          phone: profileForm.phone || null,
+          mobile: profileForm.mobile || null,
+          avatar: profileForm.avatar || null,
+          addressLine1: profileForm.addressLine1 || null,
+          addressLine2: profileForm.addressLine2 || null,
+          townCity: profileForm.townCity || null,
+          county: profileForm.county || null,
+          postcode: profileForm.postcode || null,
+          country: profileForm.country || null,
         }),
       });
 
@@ -741,6 +782,96 @@ export default function SettingsPage() {
     }
   }
 
+  // HubSpot owners import functions
+  async function fetchHubSpotOwners() {
+    setHubspotOwnersLoading(true);
+    setHubspotImportResult(null);
+    try {
+      const response = await fetch('/api/hubspot/owners');
+      if (response.ok) {
+        const data = await response.json();
+        setHubspotOwners(data.owners);
+      } else {
+        const data = await response.json();
+        setHubspotImportResult({
+          type: 'error',
+          message: data.error || 'Failed to fetch HubSpot owners',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to fetch HubSpot owners:', error);
+      setHubspotImportResult({
+        type: 'error',
+        message: 'Failed to fetch HubSpot owners',
+      });
+    } finally {
+      setHubspotOwnersLoading(false);
+    }
+  }
+
+  async function importHubSpotOwners() {
+    if (selectedOwnerIds.size === 0) {
+      setHubspotImportResult({
+        type: 'error',
+        message: 'Please select at least one owner to import',
+      });
+      return;
+    }
+
+    setImportingOwners(true);
+    setHubspotImportResult(null);
+    try {
+      const response = await fetch('/api/hubspot/owners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerIds: Array.from(selectedOwnerIds),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setHubspotImportResult({
+          type: 'success',
+          message: data.message || 'Owners imported successfully',
+          results: data.results,
+        });
+
+        // Refresh the list after import
+        await fetchHubSpotOwners();
+
+        // Refresh users list
+        await fetchUsersAndRoles();
+      } else {
+        const data = await response.json();
+        setHubspotImportResult({
+          type: 'error',
+          message: data.error || 'Failed to import owners',
+        });
+      }
+    } catch (error) {
+      console.error('Failed to import HubSpot owners:', error);
+      setHubspotImportResult({
+        type: 'error',
+        message: 'Failed to import HubSpot owners',
+      });
+    } finally {
+      setImportingOwners(false);
+    }
+  }
+
+  function toggleOwnerSelection(ownerId: string) {
+    setSelectedOwnerIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(ownerId)) {
+        newSet.delete(ownerId);
+      } else {
+        newSet.add(ownerId);
+      }
+      return newSet;
+    });
+  }
+
   return (
     <div className="space-y-8">
       {/* Header Section */}
@@ -969,6 +1100,167 @@ export default function SettingsPage() {
                       placeholder="Enter your email"
                       className="rounded-xl"
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="firstName" className="text-sm font-medium">
+                      First Name
+                    </label>
+                    <Input
+                      id="firstName"
+                      type="text"
+                      value={profileForm.firstName}
+                      onChange={(e) => setProfileForm({ ...profileForm, firstName: e.target.value })}
+                      placeholder="Enter your first name"
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="lastName" className="text-sm font-medium">
+                      Last Name
+                    </label>
+                    <Input
+                      id="lastName"
+                      type="text"
+                      value={profileForm.lastName}
+                      onChange={(e) => setProfileForm({ ...profileForm, lastName: e.target.value })}
+                      placeholder="Enter your last name"
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="phone" className="text-sm font-medium">
+                      Phone Number
+                    </label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({ ...profileForm, phone: e.target.value })}
+                      placeholder="Enter your phone number"
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="mobile" className="text-sm font-medium">
+                      Mobile Number
+                    </label>
+                    <Input
+                      id="mobile"
+                      type="tel"
+                      value={profileForm.mobile}
+                      onChange={(e) => setProfileForm({ ...profileForm, mobile: e.target.value })}
+                      placeholder="Enter your mobile number"
+                      className="rounded-xl"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label htmlFor="avatar" className="text-sm font-medium">
+                      Avatar URL
+                    </label>
+                    <Input
+                      id="avatar"
+                      type="url"
+                      value={profileForm.avatar}
+                      onChange={(e) => setProfileForm({ ...profileForm, avatar: e.target.value })}
+                      placeholder="Enter avatar image URL"
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text-strong)' }}>
+                    Address Information
+                  </h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2 sm:col-span-2">
+                      <label htmlFor="addressLine1" className="text-sm font-medium">
+                        Address Line 1
+                      </label>
+                      <Input
+                        id="addressLine1"
+                        type="text"
+                        value={profileForm.addressLine1}
+                        onChange={(e) => setProfileForm({ ...profileForm, addressLine1: e.target.value })}
+                        placeholder="Street address"
+                        className="rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-2 sm:col-span-2">
+                      <label htmlFor="addressLine2" className="text-sm font-medium">
+                        Address Line 2
+                      </label>
+                      <Input
+                        id="addressLine2"
+                        type="text"
+                        value={profileForm.addressLine2}
+                        onChange={(e) => setProfileForm({ ...profileForm, addressLine2: e.target.value })}
+                        placeholder="Apartment, suite, etc."
+                        className="rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="townCity" className="text-sm font-medium">
+                        Town/City
+                      </label>
+                      <Input
+                        id="townCity"
+                        type="text"
+                        value={profileForm.townCity}
+                        onChange={(e) => setProfileForm({ ...profileForm, townCity: e.target.value })}
+                        placeholder="Enter town or city"
+                        className="rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="county" className="text-sm font-medium">
+                        County/State
+                      </label>
+                      <Input
+                        id="county"
+                        type="text"
+                        value={profileForm.county}
+                        onChange={(e) => setProfileForm({ ...profileForm, county: e.target.value })}
+                        placeholder="Enter county or state"
+                        className="rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="postcode" className="text-sm font-medium">
+                        Postcode/ZIP
+                      </label>
+                      <Input
+                        id="postcode"
+                        type="text"
+                        value={profileForm.postcode}
+                        onChange={(e) => setProfileForm({ ...profileForm, postcode: e.target.value })}
+                        placeholder="Enter postcode"
+                        className="rounded-xl"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label htmlFor="country" className="text-sm font-medium">
+                        Country
+                      </label>
+                      <Input
+                        id="country"
+                        type="text"
+                        value={profileForm.country}
+                        onChange={(e) => setProfileForm({ ...profileForm, country: e.target.value })}
+                        placeholder="Enter country"
+                        className="rounded-xl"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -1576,8 +1868,183 @@ export default function SettingsPage() {
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
                 </Link>
+
+                {isAdmin && (
+                  <Button
+                    onClick={() => {
+                      setHubspotOwnersOpen(true);
+                      fetchHubSpotOwners();
+                    }}
+                    variant="outline"
+                    className="w-full rounded-xl"
+                    style={{ borderColor: 'var(--accent)' }}
+                  >
+                    <Building2 className="mr-2 h-4 w-4" style={{ color: 'var(--accent)' }} />
+                    Import from HubSpot Owners
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </CardContent>
             </Card>
+
+            {/* HubSpot Owners Import Modal */}
+            <Modal open={hubspotOwnersOpen} onOpenChange={setHubspotOwnersOpen}>
+              <div className="space-y-6" style={{ maxWidth: '800px' }}>
+                <div>
+                  <h2 className="text-2xl font-bold" style={{ color: 'var(--text-strong)' }}>
+                    Import HubSpot Owners
+                  </h2>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                    Select HubSpot owners to import as users. Already imported owners will be disabled.
+                  </p>
+                </div>
+
+                {hubspotImportResult && (
+                  <div className="flex items-start gap-3 p-4 rounded-xl border"
+                       style={{
+                         backgroundColor: hubspotImportResult.type === 'success'
+                           ? 'color-mix(in srgb, var(--success) 16%, var(--surface-0))'
+                           : 'color-mix(in srgb, var(--danger) 16%, var(--surface-0))',
+                         borderColor: hubspotImportResult.type === 'success'
+                           ? 'color-mix(in srgb, var(--success) 40%, var(--border))'
+                           : 'color-mix(in srgb, var(--danger) 40%, var(--border))',
+                       }}>
+                    {hubspotImportResult.type === 'success' ? (
+                      <CheckCircle2 className="h-5 w-5 mt-0.5" style={{ color: 'var(--success)' }} />
+                    ) : (
+                      <XCircle className="h-5 w-5 mt-0.5" style={{ color: 'var(--danger)' }} />
+                    )}
+                    <div>
+                      <p className="font-medium" style={{
+                        color: hubspotImportResult.type === 'success' ? 'var(--success)' : 'var(--danger)'
+                      }}>
+                        {hubspotImportResult.type === 'success' ? 'Success' : 'Error'}
+                      </p>
+                      <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                        {hubspotImportResult.message}
+                      </p>
+                      {hubspotImportResult.results && (
+                        <div className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>
+                          <p>✓ {hubspotImportResult.results.success} imported</p>
+                          <p>⊘ {hubspotImportResult.results.skipped} skipped</p>
+                          {hubspotImportResult.results.errors > 0 && (
+                            <p>✗ {hubspotImportResult.results.errors} errors</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {hubspotOwnersLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <RefreshCw className="h-8 w-8 animate-spin" style={{ color: 'var(--accent)' }} />
+                  </div>
+                ) : (
+                  <>
+                    {hubspotOwners.length === 0 ? (
+                      <div className="text-center py-12" style={{ color: 'var(--text-muted)' }}>
+                        <Building2 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>No HubSpot owners found</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between text-sm">
+                          <span style={{ color: 'var(--text-muted)' }}>
+                            {hubspotOwners.filter((o) => !o.imported).length} available to import
+                          </span>
+                          <Button
+                            onClick={() => setSelectedOwnerIds(
+                              new Set(hubspotOwners.filter((o) => !o.imported).map((o) => o.id))
+                            )}
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                          >
+                            Select All Available
+                          </Button>
+                        </div>
+
+                        <div className="max-h-96 overflow-y-auto rounded-xl border" style={{ backgroundColor: 'var(--surface-0)' }}>
+                          {hubspotOwners.map((owner) => (
+                            <div
+                              key={owner.id}
+                              className={`flex items-center gap-3 p-4 border-b last:border-b-0 ${
+                                owner.imported ? 'opacity-50' : ''
+                              }`}
+                              style={{ borderColor: 'var(--border)' }}
+                            >
+                              <input
+                                type="checkbox"
+                                id={`owner-${owner.id}`}
+                                checked={selectedOwnerIds.has(owner.id)}
+                                disabled={owner.imported || importingOwners}
+                                onChange={() => toggleOwnerSelection(owner.id)}
+                                className="h-4 w-4 rounded"
+                              />
+                              <label
+                                htmlFor={`owner-${owner.id}`}
+                                className={`flex-1 cursor-pointer ${owner.imported ? 'line-through' : ''}`}
+                              >
+                                <div className="font-medium">{owner.fullName}</div>
+                                <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                                  {owner.email}
+                                </div>
+                              </label>
+                              {owner.imported && (
+                                <Badge variant="outline" style={{ fontSize: '0.75rem' }}>
+                                  Imported
+                                </Badge>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {hubspotImportResult?.results?.details && hubspotImportResult.results.details.length > 0 && (
+                          <div className="max-h-48 overflow-y-auto rounded-lg border p-3 text-xs"
+                               style={{ backgroundColor: 'var(--surface-0)', borderColor: 'var(--border)' }}>
+                            <p className="font-semibold mb-2">Import Details:</p>
+                            {hubspotImportResult.results.details.map((detail: any, idx: number) => (
+                              <div key={idx} className="flex gap-2 mb-1">
+                                <span style={{
+                                  color: detail.status === 'success' ? 'var(--success)' :
+                                         detail.status === 'error' ? 'var(--danger)' : 'var(--text-muted)'
+                                }}>
+                                  {detail.status === 'success' ? '✓' :
+                                   detail.status === 'error' ? '✗' : '⊘'}
+                                </span>
+                                <span>{detail.email || detail.ownerId}</span>
+                                <span style={{ color: 'var(--text-muted)' }}>
+                                  {detail.reason}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                <div className="flex items-center justify-end gap-3">
+                  <Button
+                    onClick={() => setHubspotOwnersOpen(false)}
+                    variant="outline"
+                    className="rounded-xl"
+                    disabled={importingOwners}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={importHubSpotOwners}
+                    disabled={selectedOwnerIds.size === 0 || importingOwners}
+                    className="rounded-xl"
+                  >
+                    {importingOwners ? 'Importing...' : `Import ${selectedOwnerIds.size} Owner${selectedOwnerIds.size !== 1 ? 's' : ''}`}
+                  </Button>
+                </div>
+              </div>
+            </Modal>
           </TabsContent>
 
         {(isAdmin || canManageRoles) && (
